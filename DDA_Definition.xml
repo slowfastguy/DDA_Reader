@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<DDA_Definitions numberofdefinitions="5">
+  <!-- Version 1: Legacy DDA (Base telemetry) -->
+  <DDA_Definition version="1" frequency="100" clock="0.01" headersize="22">
+    <EntryToRead>
+      <Param name="speed" bitsize="16" interval="0.10" operator="div" value="4"/>
+      <Param name="rpm" bitsize="16" interval="0.02"/>
+      <Param name="temperature" bitsize="8" interval="1.0" operator="sub" value="64"/>
+      <Param name="throttle" bitsize="8" interval="0.05"/>
+      <Param name="lap" bitsize="8" interval="1.0" operator="dif" value="255"/>
+      <Param name="distance" bitsize="24" interval="1.0"/>
+    </EntryToRead>
+  </DDA_Definition>
+
+  <!-- Version 2: Legacy DDA -->
+  <DDA_Definition version="2" frequency="100" clock="0.01" headersize="22">
+    <EntryToRead>
+      <Param name="speed" bitsize="16" interval="0.10" operator="div" value="4"/>
+      <Param name="rpm" bitsize="16" interval="0.02"/>
+      <Param name="temperature" bitsize="8" interval="1.0" operator="sub" value="64"/>
+      <Param name="throttle" bitsize="8" interval="0.05"/>
+      <Param name="lap" bitsize="8" interval="1.0" operator="dif" value="255"/>
+      <Param name="distance" bitsize="24" interval="1.0"/>
+    </EntryToRead>
+  </DDA_Definition>
+
+  <!-- Version 3: Legacy DDA with DTC (8-bit) -->
+  <DDA_Definition version="3" frequency="100" clock="0.01" headersize="296">
+    <EntryToRead>
+      <Param name="speed" bitsize="16" interval="0.10" operator="div" value="4"/>
+      <Param name="rpm" bitsize="16" interval="0.02"/>
+      <Param name="temperature" bitsize="8" interval="1.0" operator="sub" value="64"/>
+      <Param name="throttle" bitsize="8" interval="0.05"/>
+      <Param name="lap" bitsize="8" interval="1.0" operator="dif" value="255"/>
+      <Param name="distance" bitsize="24" interval="1.0"/>
+      <Param name="dtc" bitsize="8" interval="0.05"/>
+    </EntryToRead>
+  </DDA_Definition>
+
+  <!-- Version 4 Legacy: Non-GPS Version 4 (1070 byte header) -->
+  <DDA_Definition version="4" frequency="100" clock="0.01" headersize="1070">
+    <EntryToRead>
+      <Param name="speed" bitsize="16" interval="0.10" operator="div" value="4"/>
+      <Param name="rpm" bitsize="16" interval="0.02"/>
+      <Param name="temperature" bitsize="8" interval="1.0" operator="sub" value="64"/>
+      <Param name="throttle" bitsize="8" interval="0.05"/>
+      <Param name="lap" bitsize="8" interval="1.0" operator="dif" value="255"/>
+      <Param name="distance" bitsize="24" interval="1.0"/>
+      <Param name="dtc" bitsize="8" interval="0.05"/>
+    </EntryToRead>
+  </DDA_Definition>
+
+  <!-- Version 4 GPS: Modern Ducati DDA with GPS + 6-axis Lean Dynamics (1630 byte header, 14 channels) -->
+  <DDA_Definition version="4_GPS" frequency="100" clock="0.01" headersize="1630">
+    <EntryToRead>
+      <Param name="speed" bitsize="16" interval="0.10" canid="24" operator="div" value="4" unit="km/h"/>
+      <Param name="rpm" bitsize="16" interval="0.02" canid="36" unit="rpm"/>
+      <Param name="gas" bitsize="8" interval="0.05" canid="36" operator="mul" value="0.5" unit="%"/>
+      <Param name="dist" bitsize="24" interval="1.00" canid="768" unit="km"/>
+      <Param name="gear" bitsize="8" interval="0.05" canid="36" unit="#"/>
+      <Param name="psi_lean_angle" bitsize="16" interval="0.02" canid="392" operator="lean_formula" unit="deg"/>
+      <Param name="torque_fast" bitsize="8" interval="0.05" canid="25" unit="%"/>
+      <Param name="torque_slow" bitsize="8" interval="0.05" canid="25" unit="%"/>
+      <Param name="gps_alt" bitsize="16" interval="0.10" canid="1553" operator="mul" value="0.1" unit="m"/>
+      <Param name="gps_lon" bitsize="32" interval="0.10" canid="1552" operator="mul" value="0.000001" signed="true" unit="deg"/>
+      <Param name="gps_lat" bitsize="32" interval="0.10" canid="1552" operator="mul" value="0.000001" signed="true" unit="deg"/>
+      <Param name="lap" bitsize="8" interval="1.00" canid="1553" unit="sec"/>
+      <Param name="int_lap1" bitsize="8" interval="1.00" canid="1553" unit="sec"/>
+      <Param name="int_lap2" bitsize="8" interval="1.00" canid="1553" unit="sec"/>
+    </EntryToRead>
+  </DDA_Definition>
+</DDA_Definitions>

@@ -1,0 +1,3 @@
+1. copy your DDA file in this folder (like testRun.dda).
+2. edit the batch file DDA_Reader.bat and set the name of the DDA file you just copied.
+3. double click on the DDA_Reader.bat file.
