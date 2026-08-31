@@ -43,6 +43,10 @@
   
   --transition-fast: 0.12s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-normal: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+  --sidebar-width: 420px;
+  --charts-height: 280px;
+  --top-split-pct: 50%;
 }
 
 * {
@@ -581,47 +585,277 @@ body.dark-theme {
 }
 
 /* =========================================================
-   Main Workspace Grid Layout (1440p / 16:10 MacBook Optimized)
+   Main Workspace Layout & Splitter Engine
    ========================================================= */
 .workspace-grid {
-  display: grid;
-  grid-template-columns: 1fr 430px;
-  grid-template-rows: 1fr 270px 50px;
+  display: flex;
+  flex-direction: column;
   flex: 1;
   height: calc(100vh - 50px);
-  gap: 8px;
+  gap: 6px;
   padding: 8px;
   background: var(--bg-dark);
   overflow: hidden;
-  transition: grid-template-columns 0.25s ease, grid-template-rows 0.25s ease;
+  position: relative;
 }
 
-/* 3-Column Split Mode for Comparisons: [ Map (1fr) ] | [ Telemetry Waveforms (1.4fr Wider) ] | [ DATA Panel (360px) ] */
-.workspace-grid.compare-layout-active {
-  grid-template-columns: 1fr 1.4fr 360px;
-  grid-template-rows: 1fr 50px;
+.workspace-layout-row {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  gap: 0;
+  position: relative;
+  overflow: hidden;
 }
 
-.workspace-grid.compare-layout-active .panel-map {
-  grid-column: 1;
-  grid-row: 1;
+.workspace-left {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 320px;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
 }
 
-.workspace-grid.compare-layout-active .panel-charts {
-  grid-column: 2;
-  grid-row: 1;
+.workspace-top-row {
+  display: flex;
+  flex: 1;
+  min-height: 160px;
+  position: relative;
+  overflow: hidden;
+  gap: 0;
+}
+
+.panel-map {
+  flex: 1;
+  min-width: 250px;
+  min-height: 160px;
+}
+
+.panel-video {
+  width: calc(100% - var(--top-split-pct));
+  min-width: 250px;
+  min-height: 160px;
+}
+
+/* Horizontal Splitter between Top Viewports and Charts */
+.resizer-h {
+  height: 8px;
+  margin: -1px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: row-resize;
+  z-index: 20;
+  user-select: none;
+  background: transparent;
+  position: relative;
+}
+.resizer-h::after {
+  content: '';
+  display: block;
+  width: 100%;
+  height: 2px;
+  background: var(--border-color);
+  transition: all var(--transition-fast);
+}
+.resizer-h:hover::after, .resizer-h.resizing::after {
+  height: 4px;
+  background: var(--ducati-red);
+  box-shadow: 0 0 10px var(--ducati-red-glow);
+}
+.resizer-h .resizer-handle-pill {
+  position: absolute;
+  width: 36px;
+  height: 4px;
+  background: #3c4252;
+  border-radius: 2px;
+  z-index: 2;
+  transition: all var(--transition-fast);
+}
+.resizer-h:hover .resizer-handle-pill, .resizer-h.resizing .resizer-handle-pill {
+  background: var(--ducati-red);
+  width: 48px;
+}
+
+/* Vertical Splitter between Left Workspace and DATA Sidebar */
+.resizer-v {
+  width: 8px;
+  margin: 0 -1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: col-resize;
+  z-index: 20;
+  user-select: none;
+  background: transparent;
+  position: relative;
+}
+.resizer-v::after {
+  content: '';
+  display: block;
+  width: 2px;
+  height: 100%;
+  background: var(--border-color);
+  transition: all var(--transition-fast);
+}
+.resizer-v:hover::after, .resizer-v.resizing::after {
+  width: 4px;
+  background: var(--ducati-red);
+  box-shadow: 0 0 10px var(--ducati-red-glow);
+}
+.resizer-v .resizer-handle-pill {
+  position: absolute;
+  width: 4px;
+  height: 36px;
+  background: #3c4252;
+  border-radius: 2px;
+  z-index: 2;
+  transition: all var(--transition-fast);
+}
+.resizer-v:hover .resizer-handle-pill, .resizer-v.resizing .resizer-handle-pill {
+  background: var(--ducati-red);
+  height: 48px;
+}
+
+/* Top Split Resizer (Video / Map) */
+.resizer-split {
+  width: 8px;
+  cursor: col-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  user-select: none;
+  position: relative;
+}
+.resizer-split::after {
+  content: '';
+  width: 2px;
+  height: 100%;
+  background: var(--border-color);
+  transition: all var(--transition-fast);
+}
+.resizer-split:hover::after, .resizer-split.resizing::after {
+  width: 4px;
+  background: var(--accent-cyan);
+  box-shadow: var(--shadow-glow-cyan);
+}
+
+/* Telemetry Charts Panel */
+.panel-charts {
+  height: var(--charts-height);
+  min-height: 130px;
+  max-height: calc(100% - 160px);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* DATA Sidebar Panel */
+.panel-data {
+  width: var(--sidebar-width);
+  min-width: 300px;
+  max-width: 650px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Panel Header Right & Action Controls */
+.panel-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.panel-action-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Floating Sidebar Tab (When collapsed) */
+.floating-sidebar-tab {
+  position: fixed;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #181d28;
+  border: 1px solid var(--accent-cyan);
+  border-right: none;
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+  padding: 10px 7px;
+  color: var(--accent-cyan);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 800;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  z-index: 100;
+  box-shadow: var(--shadow-md), 0 0 12px rgba(0, 229, 255, 0.2);
+  transition: all var(--transition-fast);
+}
+.floating-sidebar-tab:hover {
+  background: var(--accent-cyan);
+  color: #000000;
+  padding-left: 11px;
+  box-shadow: var(--shadow-lg), 0 0 18px rgba(0, 229, 255, 0.4);
+}
+
+/* Sidebar Collapsed State */
+.sidebar-collapsed #panel-data,
+.sidebar-collapsed #resizer-sidebar {
+  display: none !important;
+}
+
+/* Charts Collapsed State */
+.charts-collapsed #panel-charts {
+  height: 36px !important;
+  min-height: 36px !important;
+}
+.charts-collapsed #panel-charts .charts-scroll-area,
+.charts-collapsed #panel-charts .section-analysis-drawer,
+.charts-collapsed #panel-charts .chart-legend-row {
+  display: none !important;
+}
+.charts-collapsed #panel-charts .icon-chevron-collapse {
+  transform: rotate(180deg);
+}
+
+/* Maximized States */
+.panel-maximized-map .panel-charts,
+.panel-maximized-map .resizer-h {
+  display: none !important;
+}
+
+.panel-maximized-charts .workspace-top-row,
+.panel-maximized-charts .resizer-h {
+  display: none !important;
+}
+.panel-maximized-charts .panel-charts {
+  height: 100% !important;
+  max-height: 100% !important;
+}
+
+/* 3-Column Split Mode */
+.compare-layout-active .workspace-left {
+  flex-direction: row;
+}
+.compare-layout-active .workspace-top-row {
+  flex: 1;
+}
+.compare-layout-active .resizer-h {
+  display: none !important;
+}
+.compare-layout-active .panel-charts {
+  flex: 1.3;
+  height: 100% !important;
+  max-height: 100% !important;
   border-left: 1px solid var(--border-color);
-  border-right: 1px solid var(--border-color);
-}
-
-.workspace-grid.compare-layout-active .panel-data {
-  grid-column: 3;
-  grid-row: 1;
-}
-
-.workspace-grid.compare-layout-active .transport-bar {
-  grid-column: 1 / span 3;
-  grid-row: 2;
 }
 
 /* Generic Panel Styling */

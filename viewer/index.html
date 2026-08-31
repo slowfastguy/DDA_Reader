@@ -210,61 +210,69 @@
     </div>
   </header>
 
-  <!-- Main Workspace Grid (Optimized for 1440p / 16:10 MacBook) -->
-  <main class="workspace-grid">
-    
-    <!-- Left Column Top: Interactive GPS Map -->
-    <section class="panel panel-map">
-      <div class="panel-header">
-        <div class="panel-title">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>
-          <span id="map-panel-title">GPS Track Map</span>
-        </div>
-        <div class="map-controls">
-          <!-- Gate Editing Tools -->
-          <div class="gate-edit-tools">
-            <button id="btn-select-section" class="btn-tool" title="Click & Drag along GPS track path to select and stack any corner/section">✂️ Select Corner</button>
-            <button id="btn-clear-section" class="btn-tool-sm btn-clear-section" style="display: none;" title="Clear corner selection">✕ Clear</button>
-            <button id="btn-gate-sf" class="btn-tool" title="Click on track to set Start/Finish line">🏁 Set S/F</button>
-            <button id="btn-gate-split" class="btn-tool" title="Click on track to add Sector Split (S1, S2, S3)">⏱️ + Split</button>
-            <button id="btn-save-track-gates" class="btn-tool" title="Save current track and gate locations to Track Library">💾 Save Track</button>
-            <button id="btn-gate-reset" class="btn-tool-sm" title="Reset gates to default track layout">↺ Reset</button>
-          </div>
+  <!-- Main Workspace Grid (Optimized for 1440p / 16:10 MacBook & Dynamic Splitters) -->
+  <main class="workspace-grid" id="main-workspace">
+    <!-- Main Horizontal Layout Row (Left Workspace + Splitter + DATA Sidebar) -->
+    <div class="workspace-layout-row" id="workspace-layout-row">
+      <!-- Left Area: Map, Video, Splitter & Telemetry Waveforms -->
+      <div class="workspace-left" id="workspace-left">
+        <!-- Top Row: Map & Video Viewports -->
+        <div class="workspace-top-row" id="workspace-top-row">
+          <!-- Interactive GPS Map Panel -->
+          <section class="panel panel-map" id="panel-map">
+            <div class="panel-header">
+              <div class="panel-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>
+                <span id="map-panel-title">GPS Track Map</span>
+              </div>
+              <div class="map-controls">
+                <!-- Gate Editing Tools -->
+                <div class="gate-edit-tools">
+                  <button id="btn-select-section" class="btn-tool" title="Click & Drag along GPS track path to select and stack any corner/section">✂️ Select Corner</button>
+                  <button id="btn-clear-section" class="btn-tool-sm btn-clear-section" style="display: none;" title="Clear corner selection">✕ Clear</button>
+                  <button id="btn-gate-sf" class="btn-tool" title="Click on track to set Start/Finish line">🏁 Set S/F</button>
+                  <button id="btn-gate-split" class="btn-tool" title="Click on track to add Sector Split (S1, S2, S3)">⏱️ + Split</button>
+                  <button id="btn-save-track-gates" class="btn-tool" title="Save current track and gate locations to Track Library">💾 Save Track</button>
+                  <button id="btn-gate-reset" class="btn-tool-sm" title="Reset gates to default track layout">↺ Reset</button>
+                </div>
 
-          <!-- Speed Extrema Toggle -->
-          <button id="btn-toggle-extrema" class="btn-tool active" title="Toggle Min Corner & Max Straight Speed Markers on Map">
-            ⚡ Speeds: ON
-          </button>
+                <!-- Speed Extrema Toggle -->
+                <button id="btn-toggle-extrema" class="btn-tool active" title="Toggle Min Corner & Max Straight Speed Markers on Map">
+                  ⚡ Speeds: ON
+                </button>
 
-          <select id="select-smoothing" class="control-select" title="GPS Trace Coordinate Smoothing">
-            <option value="none">Smooth: Off (Raw)</option>
-            <option value="low">Smooth: Low (3-pt)</option>
-            <option value="med" selected>Smooth: Med (5-pt)</option>
-            <option value="high">Smooth: High (9-pt)</option>
-          </select>
-          <select id="select-map-layer" class="control-select">
-            <option value="satellite">Satellite (Esri)</option>
-            <option value="dark" selected>Dark Matter</option>
-            <option value="osm">Street Map</option>
-          </select>
-          <select id="select-heatmap-color" class="control-select">
-            <option value="speed" selected>Trace: Speed</option>
-            <option value="phases">Trace: Riding Phases (Coasting/Braking)</option>
-            <option value="elevation">Trace: 3D Elevation & Grade %</option>
-            <option value="throttle">Trace: Throttle %</option>
-            <option value="lean">Trace: Lean Angle</option>
-            <option value="gear">Trace: Gear</option>
-            <option value="solid">Trace: Solid</option>
-          </select>
-          <button id="btn-follow-bike" class="btn-icon active" title="Follow Motorcycle on Map">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
-          </button>
-          <button id="btn-fit-bounds" class="btn-icon" title="Fit Entire Circuit (F)">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
-          </button>
-        </div>
-      </div>
-      <div id="map-container" class="map-container"></div>
+                <select id="select-smoothing" class="control-select" title="GPS Trace Coordinate Smoothing">
+                  <option value="none">Smooth: Off (Raw)</option>
+                  <option value="low">Smooth: Low (3-pt)</option>
+                  <option value="med" selected>Smooth: Med (5-pt)</option>
+                  <option value="high">Smooth: High (9-pt)</option>
+                </select>
+                <select id="select-map-layer" class="control-select">
+                  <option value="satellite">Satellite (Esri)</option>
+                  <option value="dark" selected>Dark Matter</option>
+                  <option value="osm">Street Map</option>
+                </select>
+                <select id="select-heatmap-color" class="control-select">
+                  <option value="speed" selected>Trace: Speed</option>
+                  <option value="phases">Trace: Riding Phases (Coasting/Braking)</option>
+                  <option value="elevation">Trace: 3D Elevation & Grade %</option>
+                  <option value="throttle">Trace: Throttle %</option>
+                  <option value="lean">Trace: Lean Angle</option>
+                  <option value="gear">Trace: Gear</option>
+                  <option value="solid">Trace: Solid</option>
+                </select>
+                <button id="btn-follow-bike" class="btn-icon active" title="Follow Motorcycle on Map">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+                </button>
+                <button id="btn-fit-bounds" class="btn-icon" title="Fit Entire Circuit (F)">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+                </button>
+                <button id="btn-maximize-map" class="btn-icon" title="Maximize Map Viewport">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                </button>
+              </div>
+            </div>
+            <div id="map-container" class="map-container"></div>
       
       <!-- Authentic MotoGP Broadcast Lap Timer Floating Card Overlay -->
       <div id="motogp-live-card" class="motogp-card">
@@ -320,137 +328,158 @@
       </div>
     </section>
 
-    <!-- Left Column Top / Split: In-Browser Onboard Video Player Panel -->
-    <section id="panel-video" class="panel panel-video" style="display: none;">
-      <div class="panel-header">
-        <div class="panel-title">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/></svg>
-          <span id="video-panel-title">Onboard Video Sync</span>
-        </div>
-        <div class="video-panel-controls">
-          <!-- View Mode Switcher -->
-          <div class="video-view-mode-group">
-            <button id="btn-video-view-map" class="btn-tool-sm" title="Show Map Only">🗺️ Map</button>
-            <button id="btn-video-view-split" class="btn-tool-sm active" title="Split Screen: Map & Video Side-by-Side">◫ Split</button>
-            <button id="btn-video-view-video" class="btn-tool-sm" title="Show Video Primary">🎬 Video</button>
-            <button id="btn-video-view-pip" class="btn-tool-sm" title="Floating Picture-in-Picture Video">🗖 PIP</button>
+        <!-- Top Split Resizer between Map & Video (in Split View) -->
+        <div class="resizer-split" id="resizer-top-split" style="display: none;" title="Drag to adjust Map vs. Video ratio"></div>
+
+        <!-- Left Column Top / Split: In-Browser Onboard Video Player Panel -->
+        <section id="panel-video" class="panel panel-video" style="display: none;">
+          <div class="panel-header">
+            <div class="panel-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/></svg>
+              <span id="video-panel-title">Onboard Video Sync</span>
+            </div>
+            <div class="video-panel-controls">
+              <!-- View Mode Switcher -->
+              <div class="video-view-mode-group">
+                <button id="btn-video-view-map" class="btn-tool-sm" title="Show Map Only">🗺️ Map</button>
+                <button id="btn-video-view-split" class="btn-tool-sm active" title="Split Screen: Map & Video Side-by-Side">◫ Split</button>
+                <button id="btn-video-view-video" class="btn-tool-sm" title="Show Video Primary">🎬 Video</button>
+                <button id="btn-video-view-pip" class="btn-tool-sm" title="Floating Picture-in-Picture Video">🗖 PIP</button>
+              </div>
+              <button id="btn-open-video-sync" class="btn-tool" title="Toggle Synchronization Calibration Drawer">⏱️ Sync Calibration</button>
+              <button id="btn-toggle-video-overlay" class="btn-tool active" title="Toggle Live Telemetry HUD Overlay on Video">📊 HUD: ON</button>
+              <button id="btn-toggle-video-mute" class="btn-icon" title="Toggle Video Audio (Mute/Unmute)">
+                <svg id="icon-vol-on" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+                <svg id="icon-vol-off" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+              </button>
+            </div>
           </div>
-          <button id="btn-open-video-sync" class="btn-tool" title="Toggle Synchronization Calibration Drawer">⏱️ Sync Calibration</button>
-          <button id="btn-toggle-video-overlay" class="btn-tool active" title="Toggle Live Telemetry HUD Overlay on Video">📊 HUD: ON</button>
-          <button id="btn-toggle-video-mute" class="btn-icon" title="Toggle Video Audio (Mute/Unmute)">
-            <svg id="icon-vol-on" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
-            <svg id="icon-vol-off" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
-          </button>
-        </div>
+
+          <!-- Video Viewport Container -->
+          <div class="video-container" id="video-viewport-container">
+            <!-- Single Video View -->
+            <div id="single-video-wrapper" class="video-wrapper">
+              <video id="video-player" class="video-element" playsinline preload="auto"></video>
+              <canvas id="video-overlay-canvas" class="video-overlay-canvas"></canvas>
+              
+              <!-- Drag & Drop Zone (Visible when no video loaded) -->
+              <div id="video-dropzone" class="video-dropzone">
+                <div class="dropzone-content">
+                  <div class="dropzone-icon">🎬</div>
+                  <h3>Drag & Drop On-Bike Video</h3>
+                  <p>Supports GoPro, Insta360, DJI, or phone MP4/MOV footage</p>
+                  <button class="btn btn-primary btn-sm" onclick="document.getElementById('video-file-input').click()">📁 Select Video File</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Dual Video View (Compare Mode) -->
+            <div id="dual-video-wrapper" class="dual-video-wrapper" style="display: none;">
+              <div class="dual-video-col">
+                <div class="dual-video-label" id="lbl-video-lap-a-title">Lap A Onboard</div>
+                <div class="video-wrapper">
+                  <video id="video-player-a-clone" class="video-element" playsinline preload="auto"></video>
+                </div>
+              </div>
+              <div class="dual-video-col">
+                <div class="dual-video-label" id="lbl-video-lap-b-title">Lap B Onboard</div>
+                <div class="video-wrapper">
+                  <video id="video-lap-b-player" class="video-element" playsinline preload="auto"></video>
+                  <div id="video-dropzone-b" class="video-dropzone-sm" onclick="document.getElementById('video-lap-b-file-input').click()">
+                    <span>+ Load Lap B Video</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Video Sync Calibration Drawer -->
+            <div id="video-sync-drawer" class="video-sync-drawer" style="display: none;">
+              <div class="sync-drawer-content">
+                <div class="sync-info">
+                  <span class="sync-tag">⏱️ SYNC OFFSET:</span>
+                  <span id="lbl-video-offset" class="sync-val">+0.00s</span>
+                </div>
+                <div class="sync-actions">
+                  <button id="btn-sync-sf" class="btn-sync-action" title="Set video frame to match current Start/Finish crossing">🏁 1-Click Sync at S/F</button>
+                  <div class="nudge-group">
+                    <button id="btn-nudge-back-10" class="btn-nudge" title="Nudge back 0.5s">-0.5s</button>
+                    <button id="btn-nudge-back-1" class="btn-nudge" title="Nudge back 1 frame (0.033s)">-1 Fr</button>
+                    <button id="btn-nudge-fwd-1" class="btn-nudge" title="Nudge forward 1 frame (0.033s)">+1 Fr</button>
+                    <button id="btn-nudge-fwd-10" class="btn-nudge" title="Nudge forward 0.5s">+0.5s</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div> <!-- End workspace-top-row -->
+
+      <!-- Horizontal Resizer Splitter between Map/Video and Charts -->
+      <div class="resizer-h" id="resizer-charts" title="Drag to resize Telemetry Charts height (Double-click to reset)">
+        <div class="resizer-handle-pill"></div>
       </div>
 
-      <!-- Video Viewport Container -->
-      <div class="video-container" id="video-viewport-container">
-        <!-- Single Video View -->
-        <div id="single-video-wrapper" class="video-wrapper">
-          <video id="video-player" class="video-element" playsinline preload="auto"></video>
-          <canvas id="video-overlay-canvas" class="video-overlay-canvas"></canvas>
+      <!-- Left Column Bottom: Synchronized Telemetry Multi-Charts with Toggleable Channels -->
+      <section class="panel panel-charts" id="panel-charts">
+        <div class="panel-header">
+          <div class="panel-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            <span id="charts-panel-title">Synchronized Telemetry Channels</span>
+          </div>
           
-          <!-- Drag & Drop Zone (Visible when no video loaded) -->
-          <div id="video-dropzone" class="video-dropzone">
-            <div class="dropzone-content">
-              <div class="dropzone-icon">🎬</div>
-              <h3>Drag & Drop On-Bike Video</h3>
-              <p>Supports GoPro, Insta360, DJI, or phone MP4/MOV footage</p>
-              <button class="btn btn-primary btn-sm" onclick="document.getElementById('video-file-input').click()">📁 Select Video File</button>
+          <div class="panel-header-right">
+            <!-- Toggleable Channel Filter Buttons -->
+            <div class="chart-legend-row" id="chart-channel-toggles">
+              <button class="channel-toggle-btn active" data-channel="speedA" style="--c: #00e5ff;">
+                <span class="ch-dot"></span>Speed
+              </button>
+              <button class="channel-toggle-btn active" data-channel="speedB" id="leg-compare-spd" style="--c: #ffd600; display: none;">
+                <span class="ch-dot"></span>Speed (Lap B)
+              </button>
+              <button class="channel-toggle-btn active" data-channel="rpm" style="--c: #ff9100;">
+                <span class="ch-dot"></span>RPM
+              </button>
+              <button class="channel-toggle-btn active" data-channel="tps" style="--c: #00e676;">
+                <span class="ch-dot"></span>Throttle (TPS)
+              </button>
+              <button class="channel-toggle-btn active" data-channel="lean" style="--c: #ff0055;">
+                <span class="ch-dot"></span>Lean Angle
+              </button>
+              <button class="channel-toggle-btn active" data-channel="dtc" style="--c: #ffd600;">
+                <span class="ch-dot"></span>DTC Cut
+              </button>
+              <button class="channel-toggle-btn active" data-channel="gear" style="--c: #d500f9;">
+                <span class="ch-dot"></span>Gear
+              </button>
+              <button class="channel-toggle-btn active" data-channel="deltaT" id="leg-compare-delta" style="--c: #00e676; display: none;">
+                <span class="ch-dot"></span>Δt Time Delta
+              </button>
+              <button class="channel-toggle-btn" data-channel="gLong" style="--c: #ff1744;">
+                <span class="ch-dot"></span>G-Long (Brake/Drive)
+              </button>
+              <button class="channel-toggle-btn" data-channel="gLat" style="--c: #2979ff;">
+                <span class="ch-dot"></span>G-Lat (Cornering)
+              </button>
+              <button class="channel-toggle-btn" data-channel="elevation" style="--c: #ab47bc;">
+                <span class="ch-dot"></span>Elevation & Grade
+              </button>
+              <button class="channel-toggle-btn active" data-channel="lineDelta" id="leg-compare-linedelta" style="--c: #ff007f; display: none;">
+                <span class="ch-dot"></span>Racing Line Δ
+              </button>
+              <button id="btn-reset-zoom" class="btn-xs">Reset Zoom</button>
             </div>
-          </div>
-        </div>
 
-        <!-- Dual Video View (Compare Mode) -->
-        <div id="dual-video-wrapper" class="dual-video-wrapper" style="display: none;">
-          <div class="dual-video-col">
-            <div class="dual-video-label" id="lbl-video-lap-a-title">Lap A Onboard</div>
-            <div class="video-wrapper">
-              <video id="video-player-a-clone" class="video-element" playsinline preload="auto"></video>
-            </div>
-          </div>
-          <div class="dual-video-col">
-            <div class="dual-video-label" id="lbl-video-lap-b-title">Lap B Onboard</div>
-            <div class="video-wrapper">
-              <video id="video-lap-b-player" class="video-element" playsinline preload="auto"></video>
-              <div id="video-dropzone-b" class="video-dropzone-sm" onclick="document.getElementById('video-lap-b-file-input').click()">
-                <span>+ Load Lap B Video</span>
-              </div>
+            <!-- Panel Action Group -->
+            <div class="panel-action-group">
+              <button id="btn-maximize-charts" class="btn-icon" title="Maximize Telemetry Waveforms">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+              </button>
+              <button id="btn-collapse-charts" class="btn-icon" title="Collapse / Expand Telemetry Charts ([)">
+                <svg class="icon-chevron-collapse" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
             </div>
           </div>
         </div>
-
-        <!-- Video Sync Calibration Drawer -->
-        <div id="video-sync-drawer" class="video-sync-drawer" style="display: none;">
-          <div class="sync-drawer-content">
-            <div class="sync-info">
-              <span class="sync-tag">⏱️ SYNC OFFSET:</span>
-              <span id="lbl-video-offset" class="sync-val">+0.00s</span>
-            </div>
-            <div class="sync-actions">
-              <button id="btn-sync-sf" class="btn-sync-action" title="Set video frame to match current Start/Finish crossing">🏁 1-Click Sync at S/F</button>
-              <div class="nudge-group">
-                <button id="btn-nudge-back-10" class="btn-nudge" title="Nudge back 0.5s">-0.5s</button>
-                <button id="btn-nudge-back-1" class="btn-nudge" title="Nudge back 1 frame (0.033s)">-1 Fr</button>
-                <button id="btn-nudge-fwd-1" class="btn-nudge" title="Nudge forward 1 frame (0.033s)">+1 Fr</button>
-                <button id="btn-nudge-fwd-10" class="btn-nudge" title="Nudge forward 0.5s">+0.5s</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Left Column Bottom: Synchronized Telemetry Multi-Charts with Toggleable Channels -->
-    <section class="panel panel-charts">
-      <div class="panel-header">
-        <div class="panel-title">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-          <span id="charts-panel-title">Synchronized Telemetry Channels</span>
-        </div>
-        
-        <!-- Toggleable Channel Filter Buttons -->
-        <div class="chart-legend-row" id="chart-channel-toggles">
-          <button class="channel-toggle-btn active" data-channel="speedA" style="--c: #00e5ff;">
-            <span class="ch-dot"></span>Speed
-          </button>
-          <button class="channel-toggle-btn active" data-channel="speedB" id="leg-compare-spd" style="--c: #ffd600; display: none;">
-            <span class="ch-dot"></span>Speed (Lap B)
-          </button>
-          <button class="channel-toggle-btn active" data-channel="rpm" style="--c: #ff9100;">
-            <span class="ch-dot"></span>RPM
-          </button>
-          <button class="channel-toggle-btn active" data-channel="tps" style="--c: #00e676;">
-            <span class="ch-dot"></span>Throttle (TPS)
-          </button>
-          <button class="channel-toggle-btn active" data-channel="lean" style="--c: #ff0055;">
-            <span class="ch-dot"></span>Lean Angle
-          </button>
-          <button class="channel-toggle-btn active" data-channel="dtc" style="--c: #ffd600;">
-            <span class="ch-dot"></span>DTC Cut
-          </button>
-          <button class="channel-toggle-btn active" data-channel="gear" style="--c: #d500f9;">
-            <span class="ch-dot"></span>Gear
-          </button>
-          <button class="channel-toggle-btn active" data-channel="deltaT" id="leg-compare-delta" style="--c: #00e676; display: none;">
-            <span class="ch-dot"></span>Δt Time Delta
-          </button>
-          <button class="channel-toggle-btn" data-channel="gLong" style="--c: #ff1744;">
-            <span class="ch-dot"></span>G-Long (Brake/Drive)
-          </button>
-          <button class="channel-toggle-btn" data-channel="gLat" style="--c: #2979ff;">
-            <span class="ch-dot"></span>G-Lat (Cornering)
-          </button>
-          <button class="channel-toggle-btn" data-channel="elevation" style="--c: #ab47bc;">
-            <span class="ch-dot"></span>Elevation & Grade
-          </button>
-          <button class="channel-toggle-btn active" data-channel="lineDelta" id="leg-compare-linedelta" style="--c: #ff007f; display: none;">
-            <span class="ch-dot"></span>Racing Line Δ
-          </button>
-          <button id="btn-reset-zoom" class="btn-xs">Reset Zoom</button>
-        </div>
-      </div>
 
       <!-- Section Analysis Drawer (Appears when user selects a corner/section) -->
       <div id="section-analysis-drawer" class="section-analysis-drawer" style="display: none;">
@@ -499,16 +528,27 @@
         </div>
       </div>
     </section>
+  </div> <!-- End workspace-left -->
 
-    <!-- Right Column: "DATA" Sidebar Panel (Laps, Timing, Dynamics & Instruments) -->
-    <aside class="panel panel-data">
-      <div class="panel-header">
-        <div class="panel-title">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-          <span>DATA</span>
-        </div>
-        <span class="data-panel-tag">SESSION & GAUGES</span>
+  <!-- Vertical Resizer Splitter between Left Area and DATA Sidebar -->
+  <div class="resizer-v" id="resizer-sidebar" title="Drag to resize DATA sidebar width (Double-click to reset)">
+    <div class="resizer-handle-pill"></div>
+  </div>
+
+  <!-- Right Column: "DATA" Sidebar Panel (Laps, Timing, Dynamics & Instruments) -->
+  <aside class="panel panel-data" id="panel-data">
+    <div class="panel-header">
+      <div class="panel-title">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+        <span>DATA</span>
       </div>
+      <div class="panel-header-right">
+        <span class="data-panel-tag">SESSION & GAUGES</span>
+        <button id="btn-collapse-sidebar" class="btn-icon" title="Collapse DATA Sidebar (])">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
+        </button>
+      </div>
+    </div>
 
       <div class="data-body-scroll">
         <!-- 1. Lap List & Lap Times Table Card with Best & Optimal Lap -->
@@ -749,9 +789,16 @@
 
       </div>
     </aside>
+  </div> <!-- End workspace-layout-row -->
 
-    <!-- Bottom Full-Width Transport & Scrubbing Controller -->
-    <footer class="transport-bar">
+  <!-- Floating Expand Button when DATA Sidebar is Collapsed -->
+  <button id="btn-floating-sidebar-expand" class="floating-sidebar-tab" style="display: none;" title="Expand DATA Sidebar (])">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
+    <span>DATA</span>
+  </button>
+
+  <!-- Bottom Full-Width Transport & Scrubbing Controller -->
+  <footer class="transport-bar">
       <div class="transport-left">
         <button id="btn-play-pause" class="btn-transport btn-play" title="Play/Pause (Space)">
           <svg id="icon-play" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>

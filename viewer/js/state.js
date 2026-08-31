@@ -183,11 +183,34 @@ const state = {
   sectionHighlightLayer: null,
   sectionHandlesLayer: null,
   sectionGhostsLayer: null,
-  threeColLayout: false
+  threeColLayout: false,
+  layout: {
+    sidebarWidth: 420,
+    chartsHeight: 280,
+    topSplitPct: 50,
+    sidebarCollapsed: false,
+    chartsCollapsed: false,
+    maximizedPanel: null
+  }
 };
 
 // DOM Elements Cache
 const dom = {
+  mainWorkspace: document.getElementById('main-workspace'),
+  workspaceLayoutRow: document.getElementById('workspace-layout-row'),
+  workspaceLeft: document.getElementById('workspace-left'),
+  workspaceTopRow: document.getElementById('workspace-top-row'),
+  panelMap: document.getElementById('panel-map'),
+  panelCharts: document.getElementById('panel-charts'),
+  panelData: document.getElementById('panel-data'),
+  resizerSidebar: document.getElementById('resizer-sidebar'),
+  resizerCharts: document.getElementById('resizer-charts'),
+  resizerTopSplit: document.getElementById('resizer-top-split'),
+  btnMaximizeMap: document.getElementById('btn-maximize-map'),
+  btnMaximizeCharts: document.getElementById('btn-maximize-charts'),
+  btnCollapseCharts: document.getElementById('btn-collapse-charts'),
+  btnCollapseSidebar: document.getElementById('btn-collapse-sidebar'),
+  btnFloatingSidebarExpand: document.getElementById('btn-floating-sidebar-expand'),
   metaTrackName: document.getElementById('meta-track-name'),
   metaRiderName: document.getElementById('meta-rider-name'),
   metaDuration: document.getElementById('meta-duration'),

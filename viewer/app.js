@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initMap();
   initCanvas();
   initDropdownMenus();
+  initSplitterEngine();
   bindEvents();
   initMotoGPOverlay();
   checkEmbeddedOrSampleData();
@@ -43,6 +44,255 @@ function initDropdownMenus() {
       wrappers.forEach(w => w.classList.remove('open'));
     }
   });
+}
+
+function initSplitterEngine() {
+  loadLayoutState();
+
+  // Vertical Resizer (DATA Sidebar)
+  if (dom.resizerSidebar) {
+    let isDraggingV = false;
+    let startX = 0;
+    let startWidth = 420;
+
+    dom.resizerSidebar.addEventListener('pointerdown', (e) => {
+      isDraggingV = true;
+      startX = e.clientX;
+      startWidth = state.layout.sidebarWidth || 420;
+      dom.resizerSidebar.classList.add('resizing');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      dom.resizerSidebar.setPointerCapture(e.pointerId);
+    });
+
+    dom.resizerSidebar.addEventListener('pointermove', (e) => {
+      if (!isDraggingV) return;
+      const deltaX = startX - e.clientX;
+      let newWidth = startWidth + deltaX;
+      const maxAllowed = Math.max(320, window.innerWidth - 360);
+      newWidth = Math.max(300, Math.min(650, Math.min(maxAllowed, newWidth)));
+      state.layout.sidebarWidth = Math.round(newWidth);
+      document.documentElement.style.setProperty('--sidebar-width', `${state.layout.sidebarWidth}px`);
+      triggerLayoutResize();
+    });
+
+    const stopDragV = (e) => {
+      if (!isDraggingV) return;
+      isDraggingV = false;
+      dom.resizerSidebar.classList.remove('resizing');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      try { dom.resizerSidebar.releasePointerCapture(e.pointerId); } catch (_) {}
+      saveLayoutState();
+      triggerLayoutResize();
+    };
+
+    dom.resizerSidebar.addEventListener('pointerup', stopDragV);
+    dom.resizerSidebar.addEventListener('pointercancel', stopDragV);
+
+    dom.resizerSidebar.addEventListener('dblclick', () => {
+      state.layout.sidebarWidth = 420;
+      document.documentElement.style.setProperty('--sidebar-width', '420px');
+      saveLayoutState();
+      triggerLayoutResize();
+    });
+  }
+
+  // Horizontal Resizer (Charts Panel)
+  if (dom.resizerCharts) {
+    let isDraggingH = false;
+    let startY = 0;
+    let startHeight = 280;
+
+    dom.resizerCharts.addEventListener('pointerdown', (e) => {
+      isDraggingH = true;
+      startY = e.clientY;
+      startHeight = state.layout.chartsHeight || 280;
+      dom.resizerCharts.classList.add('resizing');
+      document.body.style.cursor = 'row-resize';
+      document.body.style.userSelect = 'none';
+      dom.resizerCharts.setPointerCapture(e.pointerId);
+    });
+
+    dom.resizerCharts.addEventListener('pointermove', (e) => {
+      if (!isDraggingH) return;
+      const deltaY = startY - e.clientY;
+      let newHeight = startHeight + deltaY;
+      const maxAllowed = Math.max(160, window.innerHeight - 220);
+      newHeight = Math.max(130, Math.min(Math.round(window.innerHeight * 0.75), Math.min(maxAllowed, newHeight)));
+      state.layout.chartsHeight = Math.round(newHeight);
+      document.documentElement.style.setProperty('--charts-height', `${state.layout.chartsHeight}px`);
+      triggerLayoutResize();
+    });
+
+    const stopDragH = (e) => {
+      if (!isDraggingH) return;
+      isDraggingH = false;
+      dom.resizerCharts.classList.remove('resizing');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      try { dom.resizerCharts.releasePointerCapture(e.pointerId); } catch (_) {}
+      saveLayoutState();
+      triggerLayoutResize();
+    };
+
+    dom.resizerCharts.addEventListener('pointerup', stopDragH);
+    dom.resizerCharts.addEventListener('pointercancel', stopDragH);
+
+    dom.resizerCharts.addEventListener('dblclick', () => {
+      state.layout.chartsHeight = 280;
+      document.documentElement.style.setProperty('--charts-height', '280px');
+      saveLayoutState();
+      triggerLayoutResize();
+    });
+  }
+
+  // Top Split Resizer (Map vs Video)
+  if (dom.resizerTopSplit) {
+    let isDraggingSplit = false;
+    let startX = 0;
+
+    dom.resizerTopSplit.addEventListener('pointerdown', (e) => {
+      isDraggingSplit = true;
+      startX = e.clientX;
+      dom.resizerTopSplit.classList.add('resizing');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      dom.resizerTopSplit.setPointerCapture(e.pointerId);
+    });
+
+    dom.resizerTopSplit.addEventListener('pointermove', (e) => {
+      if (!isDraggingSplit) return;
+      const topRow = dom.workspaceTopRow || dom.workspaceLeft;
+      if (!topRow) return;
+      const rect = topRow.getBoundingClientRect();
+      let pct = ((e.clientX - rect.left) / rect.width) * 100;
+      pct = Math.max(20, Math.min(80, Math.round(pct)));
+      state.layout.topSplitPct = pct;
+      document.documentElement.style.setProperty('--top-split-pct', `${pct}%`);
+      triggerLayoutResize();
+    });
+
+    const stopDragSplit = (e) => {
+      if (!isDraggingSplit) return;
+      isDraggingSplit = false;
+      dom.resizerTopSplit.classList.remove('resizing');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      try { dom.resizerTopSplit.releasePointerCapture(e.pointerId); } catch (_) {}
+      saveLayoutState();
+      triggerLayoutResize();
+    };
+
+    dom.resizerTopSplit.addEventListener('pointerup', stopDragSplit);
+    dom.resizerTopSplit.addEventListener('pointercancel', stopDragSplit);
+
+    dom.resizerTopSplit.addEventListener('dblclick', () => {
+      state.layout.topSplitPct = 50;
+      document.documentElement.style.setProperty('--top-split-pct', '50%');
+      saveLayoutState();
+      triggerLayoutResize();
+    });
+  }
+
+  // Window Resize Observer
+  window.addEventListener('resize', () => {
+    triggerLayoutResize();
+  });
+}
+
+function triggerLayoutResize() {
+  if (state.map && typeof state.map.invalidateSize === 'function') {
+    state.map.invalidateSize();
+  }
+  if (typeof resizeCanvas === 'function') {
+    resizeCanvas();
+  }
+  if (typeof renderCharts === 'function') {
+    renderCharts();
+  }
+  if (typeof renderGGDiagram === 'function') {
+    renderGGDiagram();
+  }
+}
+
+function toggleSidebarCollapse(force) {
+  state.layout.sidebarCollapsed = (force !== undefined) ? force : !state.layout.sidebarCollapsed;
+  if (dom.mainWorkspace) dom.mainWorkspace.classList.toggle('sidebar-collapsed', state.layout.sidebarCollapsed);
+  if (dom.btnFloatingSidebarExpand) dom.btnFloatingSidebarExpand.style.display = state.layout.sidebarCollapsed ? 'flex' : 'none';
+  saveLayoutState();
+  triggerLayoutResize();
+}
+
+function toggleChartsCollapse(force) {
+  state.layout.chartsCollapsed = (force !== undefined) ? force : !state.layout.chartsCollapsed;
+  if (dom.mainWorkspace) dom.mainWorkspace.classList.toggle('charts-collapsed', state.layout.chartsCollapsed);
+  saveLayoutState();
+  triggerLayoutResize();
+}
+
+function maximizePanel(panelId) {
+  if (state.layout.maximizedPanel === panelId) {
+    state.layout.maximizedPanel = null;
+  } else {
+    state.layout.maximizedPanel = panelId;
+  }
+
+  if (dom.mainWorkspace) {
+    dom.mainWorkspace.classList.toggle('panel-maximized-map', state.layout.maximizedPanel === 'map');
+    dom.mainWorkspace.classList.toggle('panel-maximized-charts', state.layout.maximizedPanel === 'charts');
+  }
+  if (dom.btnMaximizeMap) dom.btnMaximizeMap.classList.toggle('active', state.layout.maximizedPanel === 'map');
+  if (dom.btnMaximizeCharts) dom.btnMaximizeCharts.classList.toggle('active', state.layout.maximizedPanel === 'charts');
+
+  saveLayoutState();
+  triggerLayoutResize();
+}
+
+function saveLayoutState() {
+  try {
+    localStorage.setItem('dda_layout_state', JSON.stringify({
+      sidebarWidth: state.layout.sidebarWidth,
+      chartsHeight: state.layout.chartsHeight,
+      topSplitPct: state.layout.topSplitPct,
+      sidebarCollapsed: state.layout.sidebarCollapsed,
+      chartsCollapsed: state.layout.chartsCollapsed
+    }));
+  } catch (err) {
+    console.warn('Could not save layout state to localStorage:', err);
+  }
+}
+
+function loadLayoutState() {
+  try {
+    const raw = localStorage.getItem('dda_layout_state');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed.sidebarWidth) {
+        state.layout.sidebarWidth = parsed.sidebarWidth;
+        document.documentElement.style.setProperty('--sidebar-width', `${parsed.sidebarWidth}px`);
+      }
+      if (parsed.chartsHeight) {
+        state.layout.chartsHeight = parsed.chartsHeight;
+        document.documentElement.style.setProperty('--charts-height', `${parsed.chartsHeight}px`);
+      }
+      if (parsed.topSplitPct) {
+        state.layout.topSplitPct = parsed.topSplitPct;
+        document.documentElement.style.setProperty('--top-split-pct', `${parsed.topSplitPct}%`);
+      }
+      if (parsed.sidebarCollapsed) {
+        state.layout.sidebarCollapsed = parsed.sidebarCollapsed;
+        if (dom.mainWorkspace) dom.mainWorkspace.classList.toggle('sidebar-collapsed', true);
+        if (dom.btnFloatingSidebarExpand) dom.btnFloatingSidebarExpand.style.display = 'flex';
+      }
+      if (parsed.chartsCollapsed) {
+        state.layout.chartsCollapsed = parsed.chartsCollapsed;
+        if (dom.mainWorkspace) dom.mainWorkspace.classList.toggle('charts-collapsed', true);
+      }
+    }
+  } catch (err) {
+    console.warn('Could not load layout state from localStorage:', err);
+  }
 }
 
 function renderLapListTable() {
@@ -803,11 +1053,31 @@ function bindEvents() {
     dom.btnSyncDist.addEventListener('click', () => setSyncMode('dist'));
   }
 
-  // Layout Toggle
+  // Layout Toggle & Panel Collapse / Maximize Controls
   if (dom.btnToggleLayout) {
     dom.btnToggleLayout.addEventListener('click', () => {
       if (typeof toggleWorkspaceLayout === 'function') toggleWorkspaceLayout();
     });
+  }
+
+  if (dom.btnCollapseSidebar) {
+    dom.btnCollapseSidebar.addEventListener('click', () => toggleSidebarCollapse());
+  }
+
+  if (dom.btnFloatingSidebarExpand) {
+    dom.btnFloatingSidebarExpand.addEventListener('click', () => toggleSidebarCollapse(false));
+  }
+
+  if (dom.btnCollapseCharts) {
+    dom.btnCollapseCharts.addEventListener('click', () => toggleChartsCollapse());
+  }
+
+  if (dom.btnMaximizeMap) {
+    dom.btnMaximizeMap.addEventListener('click', () => maximizePanel('map'));
+  }
+
+  if (dom.btnMaximizeCharts) {
+    dom.btnMaximizeCharts.addEventListener('click', () => maximizePanel('charts'));
   }
 
   // Keyboard Shortcuts
@@ -856,9 +1126,17 @@ function bindEvents() {
       const nextIdx = (modes.indexOf(state.video.viewMode) + 1) % modes.length;
       if (typeof setVideoViewMode === 'function') setVideoViewMode(modes[nextIdx]);
     } else if (e.code === 'BracketLeft') {
-      if (typeof nudgeVideoOffset === 'function') nudgeVideoOffset(-0.0333);
+      if (state.video && state.video.loaded && typeof nudgeVideoOffset === 'function') {
+        nudgeVideoOffset(-0.0333);
+      } else {
+        toggleChartsCollapse();
+      }
     } else if (e.code === 'BracketRight') {
-      if (typeof nudgeVideoOffset === 'function') nudgeVideoOffset(0.0333);
+      if (state.video && state.video.loaded && typeof nudgeVideoOffset === 'function') {
+        nudgeVideoOffset(0.0333);
+      } else {
+        toggleSidebarCollapse();
+      }
     } else if (e.code === 'KeyS') {
       if (state.sectionSelection.active) {
         setSyncMode(state.sectionSelection.syncMode === 'time' ? 'dist' : 'time');
