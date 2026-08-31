@@ -159,24 +159,6 @@ function renderMapTrack(shouldFitBounds = false) {
           opacity: 0.85
         });
         state.trackPolylineGroup.addLayer(polyB);
-
-        // Render lateral deviation ribbons if lineDelta is enabled
-        if (state.channels.lineDelta !== false && gpsPoints.length > 5) {
-          const step = Math.max(1, Math.floor(gpsPoints.length / 80));
-          for (let i = 0; i < gpsPoints.length; i += step) {
-            const rA = gpsPoints[i];
-            const distA = rA.distance_m || 0;
-            const rB = recsB.find(b => (b.distance_m || 0) >= distA) || recsB[recsB.length - 1];
-            if (rB && rB.gps_lat !== null) {
-              const devLine = L.polyline([[rA.gps_lat, rA.gps_lon], [rB.gps_lat, rB.gps_lon]], {
-                color: '#ff007f',
-                weight: 2.0,
-                opacity: 0.6
-              });
-              state.trackPolylineGroup.addLayer(devLine);
-            }
-          }
-        }
       }
     }
   }
@@ -1197,6 +1179,11 @@ function updateSectionUI() {
 
   if (dom.sectionAnalysisDrawer) {
     dom.sectionAnalysisDrawer.style.display = 'flex';
+  }
+
+  if (state.layout && (!state.layout.chartsHeight || state.layout.chartsHeight < 340)) {
+    state.layout.chartsHeight = 340;
+    document.documentElement.style.setProperty('--charts-height', '340px');
   }
 
   const bestSection = sData.find(l => l.isSectionBest) || sData[0];

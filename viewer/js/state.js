@@ -844,7 +844,7 @@ function updateWorkspaceLayout(forceState = null) {
 
   const isComparing = forceState !== null
     ? forceState
-    : (state.threeColLayout || state.isCompareMode || (state.sectionSelection && state.sectionSelection.active));
+    : (state.threeColLayout || state.isCompareMode);
 
   grid.classList.toggle('compare-layout-active', isComparing);
   if (dom.btnToggleLayout) dom.btnToggleLayout.classList.toggle('active', isComparing);
