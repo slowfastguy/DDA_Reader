@@ -201,10 +201,13 @@ function checkEmbeddedOrSampleData() {
     }
   }
 
-  fetch('Run045-192535-00.14.json')
-    .then(r => r.json())
-    .then(data => loadSessionData(data))
-    .catch(() => console.log('Awaiting file upload or drag-and-drop.'));
+  // Only attempt fallback fetch if served over HTTP/HTTPS, never on file:// origin
+  if (window.location && (window.location.protocol === 'http:' || window.location.protocol === 'https:')) {
+    fetch('Run045-192535-00.14.json')
+      .then(r => r.json())
+      .then(data => loadSessionData(data))
+      .catch(() => console.log('Awaiting file upload or drag-and-drop.'));
+  }
 }
 
 function parseUploadedFile(file) {
