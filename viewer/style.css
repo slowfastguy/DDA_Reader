@@ -29,9 +29,20 @@
   --font-display: 'Outfit', var(--font-sans);
   --font-mono: 'JetBrains Mono', monospace;
   
+  --radius-xs: 3px;
   --radius-sm: 5px;
   --radius-md: 8px;
   --radius-lg: 12px;
+  --radius-xl: 16px;
+  
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.75);
+  --shadow-glow-red: 0 0 14px var(--ducati-red-glow);
+  --shadow-glow-cyan: 0 0 14px rgba(0, 229, 255, 0.35);
+  
+  --transition-fast: 0.12s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 * {
@@ -206,99 +217,367 @@ body.dark-theme {
   padding-left: 8px;
 }
 
+/* =========================================================
+   Unified Button Design System & Interactive Component Tokens
+   ========================================================= */
+
 .btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 5px 11px;
+  justify-content: center;
+  gap: 6px;
+  padding: 5px 12px;
   border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
   border: 1px solid transparent;
-  transition: all 0.2s ease;
+  outline: none;
+  user-select: none;
+  white-space: nowrap;
+  transition: all var(--transition-normal);
+  line-height: 1.2;
 }
 
+.btn:focus-visible {
+  box-shadow: 0 0 0 2px rgba(0, 229, 255, 0.5);
+}
+
+/* Primary Button (Ducati Red Solid) */
 .btn-primary {
   background: var(--ducati-red);
   color: #ffffff;
+  border-color: var(--ducati-red);
+  font-weight: 700;
+  box-shadow: var(--shadow-sm);
 }
 .btn-primary:hover {
   background: #ff1a14;
-  box-shadow: 0 0 10px var(--ducati-red-glow);
+  border-color: #ff1a14;
+  box-shadow: var(--shadow-glow-red);
+  transform: translateY(-1px);
+}
+.btn-primary:active {
+  transform: translateY(0);
+  background: #c80500;
 }
 
+/* Secondary Button (Dark Card Surface with Subtle Border) */
 .btn-secondary {
   background: var(--bg-card);
   border-color: var(--border-color);
   color: var(--text-main);
+  box-shadow: var(--shadow-sm);
 }
 .btn-secondary:hover {
   background: var(--bg-card-hover);
   border-color: var(--border-light);
+  color: #ffffff;
+  transform: translateY(-1px);
 }
-
-.btn-compare {
-  background: #192335;
-  border-color: #3b4e6b;
+.btn-secondary:active {
+  transform: translateY(0);
+  background: #151822;
+}
+.btn-secondary.active {
+  background: rgba(0, 229, 255, 0.12);
+  border-color: var(--accent-cyan);
   color: var(--accent-cyan);
 }
-.btn-compare:hover, .btn-compare.active {
-  background: #00e5ff;
+
+/* Accent Action Button */
+.btn-accent {
+  background: rgba(0, 229, 255, 0.10);
+  border-color: rgba(0, 229, 255, 0.3);
+  color: var(--accent-cyan);
+}
+.btn-accent:hover, .btn-accent.active {
+  background: var(--accent-cyan);
   color: #000000;
   font-weight: 700;
-  border-color: #00e5ff;
-  box-shadow: 0 0 12px rgba(0, 229, 255, 0.4);
+  border-color: var(--accent-cyan);
+  box-shadow: var(--shadow-glow-cyan);
 }
 
-.btn-motogp {
-  background: #201733;
-  border-color: #6f2dbd;
-  color: #e2b6ff;
-}
-.btn-motogp:hover, .btn-motogp.active {
-  background: #6f2dbd;
-  color: #ffffff;
-  box-shadow: 0 0 12px rgba(111, 45, 189, 0.5);
-}
-
-.btn-export-video {
-  background: linear-gradient(135deg, #1b263b 0%, #0d1b2a 100%);
-  border-color: #415a77;
-  color: #e0e1dd;
-}
-.btn-export-video:hover {
-  background: #e10600;
-  border-color: #e10600;
-  color: #ffffff;
-  box-shadow: 0 0 12px var(--ducati-red-glow);
-}
-
-.btn-sm {
-  padding: 4px 8px;
-  font-size: 10.5px;
-}
-
-.btn-lg {
-  padding: 8px 16px;
-  font-size: 12px;
+/* Compare Mode Button */
+.btn-compare {
+  background: #141c2b;
+  border-color: #2b3d5c;
+  color: var(--accent-cyan);
   font-weight: 700;
+}
+.btn-compare:hover, .btn-compare.active {
+  background: var(--accent-cyan);
+  color: #000000;
+  border-color: var(--accent-cyan);
+  box-shadow: var(--shadow-glow-cyan);
+}
+
+/* Dropdown Menu Trigger Button */
+.btn-dropdown {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 5px 9px 5px 11px;
+}
+.btn-dropdown:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-light);
+  color: #ffffff;
+}
+.btn-dropdown .dropdown-chevron {
+  width: 12px;
+  height: 12px;
+  margin-left: 2px;
+  color: var(--text-dim);
+  transition: transform var(--transition-normal);
+}
+.dropdown-wrapper.open .btn-dropdown {
+  background: var(--bg-card-hover);
+  border-color: var(--accent-cyan);
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.2);
+}
+.dropdown-wrapper.open .dropdown-chevron {
+  transform: rotate(180deg);
+  color: var(--accent-cyan);
+}
+
+/* Icon-Only Buttons */
+.btn-icon {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-dim);
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.btn-icon:hover {
+  color: #ffffff;
+  border-color: var(--border-light);
+  background: var(--bg-card-hover);
+  transform: translateY(-1px);
+}
+.btn-icon.active {
+  color: var(--ducati-red);
+  border-color: var(--ducati-red);
+  background: rgba(225, 6, 0, 0.12);
+  box-shadow: 0 0 8px var(--ducati-red-glow);
+}
+
+/* Tool Buttons (Used in Panel Headers & Drawers) */
+.btn-tool, .btn-tool-sm {
+  background: #181d28;
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  border-radius: var(--radius-xs);
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.btn-tool:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-light);
+  color: #ffffff;
+}
+.btn-tool.active {
+  background: var(--ducati-red);
+  color: #ffffff;
+  border-color: var(--ducati-red);
+  box-shadow: var(--shadow-glow-red);
+}
+
+.btn-tool-sm {
+  font-size: 9.5px;
+  font-weight: 600;
+  padding: 2px 6px;
+  color: var(--text-dim);
+}
+.btn-tool-sm:hover {
+  background: var(--bg-card-hover);
+  color: #ffffff;
+}
+.btn-tool-sm.active {
+  background: rgba(0, 229, 255, 0.15);
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+}
+
+/* Button Size Modifiers */
+.btn-xs {
+  height: 22px;
+  padding: 1px 6px;
+  font-size: 9.5px;
+  border-radius: var(--radius-xs);
+}
+.btn-sm {
+  height: 26px;
+  padding: 3px 9px;
+  font-size: 10.5px;
+  border-radius: var(--radius-sm);
+}
+.btn-md {
+  height: 32px;
+  padding: 5px 13px;
+  font-size: 11.5px;
+  border-radius: var(--radius-md);
+}
+.btn-lg {
+  height: 38px;
+  padding: 8px 18px;
+  font-size: 12.5px;
+  font-weight: 700;
+  border-radius: var(--radius-md);
 }
 
 .btn-danger-sm {
-  background: rgba(255, 0, 85, 0.15);
+  background: rgba(255, 0, 85, 0.12);
   border: 1px solid var(--accent-pink);
   color: var(--accent-pink);
-  padding: 4px 8px;
+  padding: 3px 8px;
   border-radius: var(--radius-sm);
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all var(--transition-fast);
 }
 .btn-danger-sm:hover {
   background: var(--accent-pink);
   color: #ffffff;
+  box-shadow: 0 0 10px rgba(255, 0, 85, 0.4);
+}
+
+/* =========================================================
+   Dropdown Menu Component (Glassmorphism & Micro-animations)
+   ========================================================= */
+
+.dropdown-wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 225px;
+  background: rgba(16, 19, 28, 0.96);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 5px;
+  box-shadow: var(--shadow-lg), 0 0 1px rgba(255, 255, 255, 0.15);
+  z-index: 1000;
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  transform-origin: top right;
+  animation: dropdownSlideIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dropdown-wrapper.open .dropdown-menu {
+  display: flex;
+}
+
+@keyframes dropdownSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.dropdown-header {
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 5px 8px 3px 8px;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-main);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--transition-fast);
+  width: 100%;
+}
+
+.dropdown-item-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dropdown-item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--accent-cyan);
+  flex-shrink: 0;
+}
+
+.dropdown-item:hover {
+  background: var(--bg-card-hover);
+  color: #ffffff;
+}
+
+.dropdown-item:hover .dropdown-item-icon {
+  color: #ffffff;
+}
+
+.dropdown-item.active {
+  background: rgba(0, 229, 255, 0.12);
+  color: var(--accent-cyan);
+  font-weight: 700;
+}
+
+.dropdown-item kbd {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border-color);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--accent-cyan);
+  font-weight: 700;
+  margin-left: auto;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 4px 0;
 }
 
 /* =========================================================
@@ -3240,4 +3519,53 @@ kbd {
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-color);
 }
+
+/* =========================================================
+   Responsive Header & Navigation Breakpoints
+   ========================================================= */
+
+@media (max-width: 1600px) {
+  .app-header {
+    padding: 0 12px;
+  }
+  .header-actions {
+    gap: 6px;
+  }
+  .compare-controls-bar {
+    padding: 2px 6px;
+    gap: 6px;
+  }
+  .delta-stat-pill {
+    padding-left: 6px;
+    font-size: 9.5px;
+  }
+}
+
+@media (max-width: 1350px) {
+  #meta-duration {
+    display: none;
+  }
+  .btn-dropdown span.dropdown-label {
+    display: none;
+  }
+  .btn-dropdown {
+    padding: 5px 8px;
+  }
+  .btn-dropdown .dropdown-chevron {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 1100px) {
+  #status-engine-text {
+    display: none;
+  }
+  .track-title {
+    font-size: 14px;
+  }
+  .compare-controls-bar .delta-stat-pill:last-child {
+    display: none;
+  }
+}
+
 

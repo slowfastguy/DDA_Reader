@@ -7,10 +7,43 @@ document.addEventListener('DOMContentLoaded', () => {
   initSettings();
   initMap();
   initCanvas();
+  initDropdownMenus();
   bindEvents();
   initMotoGPOverlay();
   checkEmbeddedOrSampleData();
 });
+
+function initDropdownMenus() {
+  const wrappers = document.querySelectorAll('.dropdown-wrapper');
+  
+  wrappers.forEach(wrap => {
+    const trigger = wrap.querySelector('.btn-dropdown');
+    if (!trigger) return;
+
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const wasOpen = wrap.classList.contains('open');
+      wrappers.forEach(w => w.classList.remove('open'));
+      if (!wasOpen) {
+        wrap.classList.add('open');
+      }
+    });
+
+    // Close menu when a dropdown item is clicked
+    wrap.querySelectorAll('.dropdown-item').forEach(item => {
+      item.addEventListener('click', () => {
+        wrap.classList.remove('open');
+      });
+    });
+  });
+
+  // Close dropdowns on outside click
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.dropdown-wrapper')) {
+      wrappers.forEach(w => w.classList.remove('open'));
+    }
+  });
+}
 
 function renderLapListTable() {
   if (!dom.lapTableBody) return;
@@ -264,9 +297,45 @@ function bindEvents() {
       state.showSpeedExtrema = !state.showSpeedExtrema;
       dom.btnToggleExtrema.classList.toggle('active', state.showSpeedExtrema);
       dom.btnToggleExtrema.textContent = state.showSpeedExtrema ? '⚡ Speeds: ON' : '⚡ Speeds: OFF';
+      if (dom.lblMenuExtrema) dom.lblMenuExtrema.textContent = state.showSpeedExtrema ? 'Apex/Top Speeds: ON' : 'Apex/Top Speeds: OFF';
       if (dom.prefShowExtrema) dom.prefShowExtrema.checked = state.showSpeedExtrema;
       saveSettingsToStorage();
       renderSpeedExtremaMarkers();
+    });
+  }
+
+  if (dom.btnMenuExtrema) {
+    dom.btnMenuExtrema.addEventListener('click', () => {
+      if (dom.btnToggleExtrema) dom.btnToggleExtrema.click();
+    });
+  }
+
+  if (dom.btnMenuSelectSection) {
+    dom.btnMenuSelectSection.addEventListener('click', () => {
+      if (typeof toggleSectionSelectMode === 'function') toggleSectionSelectMode();
+    });
+  }
+
+  if (dom.btnMenuOptimalLap) {
+    dom.btnMenuOptimalLap.addEventListener('click', () => {
+      if (state.optimalLap) {
+        selectLap(999, false);
+      } else {
+        alert('Theoretical optimal lap requires valid timed laps with defined sector splits.');
+      }
+    });
+  }
+
+  if (dom.btnMenuFitBounds) {
+    dom.btnMenuFitBounds.addEventListener('click', () => {
+      if (dom.btnFitBounds) dom.btnFitBounds.click();
+    });
+  }
+
+  if (dom.btnMenuOpenSync) {
+    dom.btnMenuOpenSync.addEventListener('click', () => {
+      const btnSync = document.getElementById('btn-open-video-sync');
+      if (btnSync) btnSync.click();
     });
   }
 
@@ -315,6 +384,7 @@ function bindEvents() {
     dom.btnToggleMotoGP.addEventListener('click', () => {
       state.motogp.showCard = !state.motogp.showCard;
       dom.btnToggleMotoGP.classList.toggle('active', state.motogp.showCard);
+      if (dom.lblMotogpStatus) dom.lblMotogpStatus.textContent = state.motogp.showCard ? 'MotoGP Live Card: ON' : 'MotoGP Live Card: OFF';
       if (dom.motogpLiveCard) dom.motogpLiveCard.style.display = state.motogp.showCard ? 'flex' : 'none';
       saveSettingsToStorage();
     });
