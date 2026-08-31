@@ -3258,6 +3258,260 @@ kbd {
   border: 1px solid var(--border-color);
 }
 
+/* =========================================================
+   Session Library & Multi-Session Catalog Styles
+   ========================================================= */
+.modal-content-wide {
+  max-width: 1100px !important;
+  width: 95vw !important;
+  max-height: 88vh !important;
+}
+
+.modal-body-library {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+  padding: 14px 18px !important;
+}
+
+.library-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+}
+
+.library-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #080a0f;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0 10px;
+  flex: 1;
+  min-width: 240px;
+}
+.library-search-wrap svg {
+  color: var(--text-dim);
+}
+.library-search-wrap .control-input {
+  border: none;
+  background: transparent;
+  width: 100%;
+  padding: 6px 0;
+}
+
+.library-filters-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.session-library-grid {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-right: 4px;
+}
+
+/* Track Group Section */
+.track-group-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.track-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #121620;
+  border: 1px solid var(--border-color);
+  border-left: 4px solid var(--accent-cyan);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  user-select: none;
+}
+.track-group-title {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 800;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.track-group-count {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--accent-cyan);
+  background: rgba(0, 229, 255, 0.12);
+  padding: 2px 7px;
+  border-radius: 10px;
+}
+
+.track-group-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 10px;
+}
+
+/* Session Card */
+.session-card-item {
+  background: #0d1017;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: all 0.2s ease;
+  position: relative;
+}
+.session-card-item:hover {
+  border-color: rgba(0, 229, 255, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+.session-card-item.active-session {
+  border-color: var(--accent-cyan);
+  background: #0f1522;
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.2);
+}
+
+.session-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.session-card-title {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.2;
+}
+.session-card-date {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+.session-card-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+.stat-col {
+  display: flex;
+  flex-direction: column;
+}
+.stat-lbl {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+.stat-val {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.session-card-video-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-dim);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.session-card-video-pill.synced {
+  background: rgba(0, 230, 118, 0.12);
+  color: var(--accent-green);
+  border-color: rgba(0, 230, 118, 0.3);
+}
+
+.session-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 2px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.btn-lib-action {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.04);
+  color: #ffffff;
+  transition: all 0.15s ease;
+}
+.btn-lib-action:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+.btn-lib-action.btn-lib-open {
+  background: rgba(0, 229, 255, 0.15);
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+}
+.btn-lib-action.btn-lib-open:hover {
+  background: var(--accent-cyan);
+  color: #000000;
+}
+.btn-lib-action.btn-lib-compare {
+  background: rgba(255, 214, 0, 0.15);
+  border-color: var(--accent-yellow);
+  color: var(--accent-yellow);
+}
+.btn-lib-action.btn-lib-compare:hover {
+  background: var(--accent-yellow);
+  color: #000000;
+}
+
+.library-footer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+}
+.library-footer-hint {
+  font-size: 10.5px;
+  color: var(--text-dim);
+}
+.library-footer-btns {
+  display: flex;
+  gap: 6px;
+}
+
 
 </style>
 </head>
@@ -3282,24 +3536,26 @@ kbd {
 
     <!-- Actions & Compare Controls -->
     <div class="header-actions">
-      <!-- Compare Mode Bar (Visible when Compare Mode is active) -->
-      <div id="compare-controls-bar" class="compare-controls-bar" style="display: none;">
+      <!-- Compare Controls (Visible when compare mode active) -->
+      <div class="compare-controls-bar" id="compare-controls-bar" style="display: none;">
         <div class="compare-select-group">
-          <label for="select-lap-a" class="lbl-lap-a">Lap A:</label>
+          <span class="lbl-lap-a">A:</span>
+          <select id="select-compare-session-a" class="control-select-sm" title="Session for Lap A" style="display: none; max-width: 120px;"></select>
           <select id="select-lap-a" class="control-select-sm"></select>
         </div>
         <span class="vs-badge">VS</span>
         <div class="compare-select-group">
-          <label for="select-lap-b" class="lbl-lap-b">Lap B:</label>
+          <span class="lbl-lap-b">B:</span>
+          <select id="select-compare-session-b" class="control-select-sm" title="Cross-Session Compare: Select Session for Lap B" style="max-width: 120px;"></select>
           <select id="select-lap-b" class="control-select-sm"></select>
         </div>
         <div class="delta-stat-pill">
           <span>TIME Δ:</span>
-          <strong id="val-delta-time" class="val-mono text-green">0.00s</strong>
+          <strong id="val-delta-time" class="val-mono text-green">-0.00s</strong>
         </div>
         <div class="delta-stat-pill">
           <span>SPEED Δ:</span>
-          <strong id="val-delta-speed" class="val-mono text-green">0.0 mph</strong>
+          <strong id="val-delta-spd" class="val-mono text-yellow">+0.0 mph</strong>
         </div>
         <div class="delta-stat-pill">
           <span>TPS Δ:</span>
@@ -3322,6 +3578,12 @@ kbd {
       <button id="btn-open-scorecard" class="btn btn-secondary" title="View Turn-by-Turn Performance Scorecard (T)">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
         <span>Scorecard</span>
+      </button>
+
+      <!-- Session Library Button -->
+      <button id="btn-open-library" class="btn btn-secondary" title="Session Library & Multi-Session Catalog (O)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        <span id="lbl-library-count">Library</span>
       </button>
 
       <!-- MotoGP HUD & Video Export Buttons -->
@@ -3357,6 +3619,8 @@ kbd {
       <input type="file" id="settings-file-input" accept=".json" style="display: none;">
       <input type="file" id="video-file-input" accept="video/mp4,video/quicktime,video/webm,video/*" style="display: none;">
       <input type="file" id="video-lap-b-file-input" accept="video/mp4,video/quicktime,video/webm,video/*" style="display: none;">
+      <input type="file" id="library-files-input" accept=".dda,.json,.csv" multiple style="display: none;">
+      <input type="file" id="library-catalog-input" accept=".json" style="display: none;">
     </div>
   </header>
 
@@ -4353,6 +4617,75 @@ kbd {
     </div>
   </div>
 
+  <!-- Session Library & Multi-Session Catalog Modal -->
+  <div id="modal-session-library" class="modal" style="display: none;">
+    <div class="modal-content modal-content-wide">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <h3>Session Library & Multi-Session Catalog</h3>
+          <span class="badge badge-purple" id="modal-library-badge-count">0 Sessions</span>
+        </div>
+        <button id="btn-close-library" class="btn-close">✕</button>
+      </div>
+
+      <div class="modal-body modal-body-library">
+        <!-- Toolbar: Filters, Sorting, Track Grouping, Search -->
+        <div class="library-toolbar">
+          <div class="library-search-wrap">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="input-library-search" class="control-input" placeholder="Search by Run, Track, Date, or Bike...">
+          </div>
+          <div class="library-filters-group">
+            <label for="select-library-track-filter">Track:</label>
+            <select id="select-library-track-filter" class="control-select-sm">
+              <option value="all" selected>All Circuits</option>
+            </select>
+
+            <label for="select-library-sort">Sort By:</label>
+            <select id="select-library-sort" class="control-select-sm">
+              <option value="date-desc" selected>Date: Newest First</option>
+              <option value="date-asc">Date: Oldest First</option>
+              <option value="fastest">Lap Time: Fastest First</option>
+              <option value="laps">Total Laps (High to Low)</option>
+              <option value="track">Track Name (A-Z)</option>
+            </select>
+
+            <button id="btn-toggle-library-grouping" class="btn-tool active" title="Group Sessions under Track Banners">
+              🏁 Group by Track: ON
+            </button>
+          </div>
+
+          <div class="library-actions-top">
+            <button id="btn-import-library-sessions" class="btn btn-primary btn-sm" onclick="document.getElementById('library-files-input').click()">
+              + Import Sessions (.dda / .json)
+            </button>
+          </div>
+        </div>
+
+        <!-- Session Cards Grid / Track Group Container -->
+        <div id="session-library-grid" class="session-library-grid">
+          <!-- Dynamically populated session cards grouped by track -->
+        </div>
+
+        <!-- Bottom Library Actions Bar -->
+        <div class="library-footer-bar">
+          <div class="library-footer-hint">
+            💡 Drag & Drop multiple <code>.dda</code>, <code>.json</code>, or <code>.csv</code> files anywhere in this window to batch import.
+          </div>
+          <div class="library-footer-btns">
+            <button id="btn-export-library-catalog" class="btn btn-secondary btn-sm" title="Export Library Index as sessions_library.json">
+              💾 Export Catalog JSON
+            </button>
+            <button id="btn-import-library-catalog" class="btn btn-secondary btn-sm" onclick="document.getElementById('library-catalog-input').click()" title="Import sessions_library.json Index">
+              📥 Import Catalog JSON
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Drag-and-Drop Overlay -->
   <div id="drop-overlay" class="drop-overlay" style="display: none;">
     <div class="drop-box">
@@ -4553,6 +4886,14 @@ const state = {
       offsetSeconds: 0.0
     }
   },
+  library: {},
+  activeSessionId: null,
+  compareSessionAId: null,
+  compareSessionBId: null,
+  compareSessionBData: null,
+  libraryFilterTrack: 'all',
+  librarySortMode: 'date-desc',
+  libraryGroupByTrack: true,
   zoomRange: [0, 1],
   sectionSelection: {
     active: false,
@@ -4765,6 +5106,23 @@ const dom = {
   lblVideoLapATitle: document.getElementById('lbl-video-lap-a-title'),
   lblVideoLapBTitle: document.getElementById('lbl-video-lap-b-title'),
   sectionLegendRow: document.getElementById('section-legend-row'),
+
+  // Session Library Elements
+  btnOpenLibrary: document.getElementById('btn-open-library'),
+  modalLibrary: document.getElementById('modal-session-library'),
+  btnCloseLibrary: document.getElementById('btn-close-library'),
+  sessionLibraryGrid: document.getElementById('session-library-grid'),
+  inputLibrarySearch: document.getElementById('input-library-search'),
+  selectLibraryTrackFilter: document.getElementById('select-library-track-filter'),
+  selectLibrarySort: document.getElementById('select-library-sort'),
+  btnToggleLibraryGrouping: document.getElementById('btn-toggle-library-grouping'),
+  btnImportLibrarySessions: document.getElementById('btn-import-library-sessions'),
+  inputLibraryFiles: document.getElementById('library-files-input'),
+  btnExportLibraryCatalog: document.getElementById('btn-export-library-catalog'),
+  btnImportLibraryCatalog: document.getElementById('btn-import-library-catalog'),
+  inputLibraryCatalog: document.getElementById('library-catalog-input'),
+  selectCompareSessionA: document.getElementById('select-compare-session-a'),
+  selectCompareSessionB: document.getElementById('select-compare-session-b'),
 
   // MotoGP Elements
   btnToggleMotoGP: document.getElementById('btn-toggle-motogp'),
@@ -6709,9 +7067,17 @@ function loadVideoFile(file, isLapB = false) {
     // Default to split mode when video is loaded
     setVideoViewMode('split');
 
-    // Default initial offset to 0.0s
-    state.video.offsetSeconds = 0.0;
+    // Check if session has a remembered video offset in the library
+    const libEntry = state.library && state.library[state.activeSessionId];
+    if (libEntry && libEntry.videoInfo && libEntry.videoInfo.offsetSeconds !== undefined) {
+      state.video.offsetSeconds = libEntry.videoInfo.offsetSeconds;
+    } else {
+      state.video.offsetSeconds = 0.0;
+    }
     updateOffsetDisplay();
+    if (typeof updateSessionVideoSync === 'function') {
+      updateSessionVideoSync(state.activeSessionId, file.name, state.video.offsetSeconds);
+    }
   } else {
     state.video.videoLapB.hasVideo = true;
     state.video.videoLapB.file = file;
@@ -6769,6 +7135,10 @@ function setVideoViewMode(mode) {
 function setVideoOffset(newOffset) {
   state.video.offsetSeconds = Math.round(newOffset * 1000) / 1000;
   updateOffsetDisplay();
+
+  if (typeof updateSessionVideoSync === 'function') {
+    updateSessionVideoSync(state.activeSessionId, state.video.file ? state.video.file.name : null, state.video.offsetSeconds);
+  }
 
   // Force video seek to updated position
   const curTelTime = state.records[state.currentIndex]?.time_s || 0;
@@ -7061,6 +7431,599 @@ function formatLapTimePrecision(sec) {
   const s = Math.floor(sec % 60);
   const ms = Math.floor((sec % 1) * 1000);
   return `${m}:${s.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
+}
+
+
+/* --- Module: js/session_library.js --- */
+/**
+ * session_library.js - Multi-Session Catalog, Track Grouping, Video Sync Persistence & Cross-Session Compare
+ * Ducati DDA Telemetry & GPS Visualizer
+ */
+
+const STORAGE_KEY_LIBRARY = 'dda_sessions_library_v1';
+
+function initSessionLibrary() {
+  loadLibraryFromStorage();
+
+  // If active session is loaded, index it
+  if (state.sessionData) {
+    indexActiveSession();
+  }
+
+  bindLibraryEvents();
+  updateLibraryHeaderBadge();
+  populateCompareSessionDropdowns();
+}
+
+function loadLibraryFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_LIBRARY);
+    if (raw) {
+      state.library = JSON.parse(raw) || {};
+    }
+  } catch (err) {
+    console.warn('[SessionLibrary] Failed to load library from storage:', err);
+    state.library = {};
+  }
+}
+
+function saveLibraryToStorage() {
+  try {
+    // Only serialize metadata and lap summaries to keep localStorage lightweight
+    const serializable = {};
+    for (const [id, item] of Object.entries(state.library)) {
+      serializable[id] = {
+        id: item.id,
+        filename: item.filename,
+        title: item.title,
+        timestamp: item.timestamp,
+        dateFormatted: item.dateFormatted,
+        trackId: item.trackId,
+        trackName: item.trackName,
+        riderName: item.riderName,
+        bikeModel: item.bikeModel,
+        totalLaps: item.totalLaps,
+        bestLapDuration: item.bestLapDuration,
+        optimalLapDuration: item.optimalLapDuration,
+        maxSpeedKmh: item.maxSpeedKmh,
+        videoInfo: item.videoInfo || null,
+        lapsSummary: item.lapsSummary || []
+      };
+    }
+    localStorage.setItem(STORAGE_KEY_LIBRARY, JSON.stringify(serializable));
+  } catch (err) {
+    console.warn('[SessionLibrary] Failed to save library to storage:', err);
+  }
+}
+
+function indexActiveSession() {
+  if (!state.sessionData) return;
+
+  const meta = state.sessionData.metadata || {};
+  const stats = state.sessionData.stats || {};
+  const track = state.sessionData.track || {};
+
+  const sessionId = meta.run_name || meta.filename || `Session-${Date.now()}`;
+  state.activeSessionId = sessionId;
+
+  const bestLap = state.laps ? state.laps.find(l => l.is_best) : null;
+  const bestDur = bestLap ? bestLap.duration_s : (stats.best_lap_s || 0);
+  const optDur = state.optimalLap ? state.optimalLap.duration_s : (stats.optimal_lap_s || bestDur);
+
+  // Preserve existing video info if already stored
+  const existingVideo = (state.library[sessionId] && state.library[sessionId].videoInfo) || {
+    filename: state.video.file ? state.video.file.name : null,
+    offsetSeconds: state.video.offsetSeconds || 0.0
+  };
+
+  const lapsSummary = (state.laps || []).map(l => ({
+    lap_number: l.lap_number,
+    name: l.name,
+    duration_s: l.duration_s,
+    is_best: l.is_best,
+    start_index: l.start_index,
+    end_index: l.end_index
+  }));
+
+  state.library[sessionId] = {
+    id: sessionId,
+    filename: meta.filename || `${sessionId}.dda`,
+    title: meta.title || meta.run_name || sessionId,
+    timestamp: meta.timestamp || new Date().toISOString(),
+    dateFormatted: meta.timestamp ? new Date(meta.timestamp).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Unknown Date',
+    trackId: track.id || 'sonoma_raceway',
+    trackName: track.name || 'Sonoma Raceway',
+    riderName: state.motogp?.riderName || meta.rider_name || 'Rider',
+    bikeModel: state.motogp?.bikeName || meta.bike_model || 'Panigale V4',
+    totalLaps: state.laps ? state.laps.length : 0,
+    bestLapDuration: bestDur,
+    optimalLapDuration: optDur,
+    maxSpeedKmh: stats.max_speed_kmh || 0,
+    videoInfo: existingVideo,
+    lapsSummary: lapsSummary,
+    fullData: state.sessionData // In-memory reference
+  };
+
+  // If session has remembered video sync, restore it
+  if (existingVideo && existingVideo.offsetSeconds !== undefined && state.video) {
+    state.video.offsetSeconds = existingVideo.offsetSeconds;
+    if (typeof updateOffsetDisplay === 'function') updateOffsetDisplay();
+  }
+
+  saveLibraryToStorage();
+  updateLibraryHeaderBadge();
+  populateCompareSessionDropdowns();
+}
+
+function updateSessionVideoSync(sessionId, videoFilename, offsetSeconds) {
+  const targetId = sessionId || state.activeSessionId;
+  if (!targetId || !state.library[targetId]) return;
+
+  state.library[targetId].videoInfo = {
+    filename: videoFilename || (state.video.file ? state.video.file.name : 'onboard.mp4'),
+    offsetSeconds: Math.round(offsetSeconds * 1000) / 1000,
+    updatedAt: new Date().toISOString()
+  };
+
+  saveLibraryToStorage();
+  if (dom.modalLibrary && dom.modalLibrary.style.display === 'flex') {
+    renderSessionLibraryModal();
+  }
+}
+
+function updateLibraryHeaderBadge() {
+  const count = Object.keys(state.library).length;
+  if (dom.lblLibraryCount) {
+    dom.lblLibraryCount.textContent = count > 0 ? `Library (${count})` : 'Library';
+  }
+  const modalBadge = document.getElementById('modal-library-badge-count');
+  if (modalBadge) {
+    modalBadge.textContent = `${count} ${count === 1 ? 'Session' : 'Sessions'}`;
+  }
+}
+
+function bindLibraryEvents() {
+  if (dom.btnOpenLibrary) {
+    dom.btnOpenLibrary.addEventListener('click', () => {
+      openSessionLibraryModal();
+    });
+  }
+
+  if (dom.btnCloseLibrary) {
+    dom.btnCloseLibrary.addEventListener('click', () => {
+      closeSessionLibraryModal();
+    });
+  }
+
+  if (dom.inputLibrarySearch) {
+    dom.inputLibrarySearch.addEventListener('input', () => {
+      renderSessionLibraryModal();
+    });
+  }
+
+  if (dom.selectLibraryTrackFilter) {
+    dom.selectLibraryTrackFilter.addEventListener('change', (e) => {
+      state.libraryFilterTrack = e.target.value;
+      renderSessionLibraryModal();
+    });
+  }
+
+  if (dom.selectLibrarySort) {
+    dom.selectLibrarySort.addEventListener('change', (e) => {
+      state.librarySortMode = e.target.value;
+      renderSessionLibraryModal();
+    });
+  }
+
+  if (dom.btnToggleLibraryGrouping) {
+    dom.btnToggleLibraryGrouping.addEventListener('click', () => {
+      state.libraryGroupByTrack = !state.libraryGroupByTrack;
+      dom.btnToggleLibraryGrouping.classList.toggle('active', state.libraryGroupByTrack);
+      dom.btnToggleLibraryGrouping.textContent = state.libraryGroupByTrack ? '🏁 Group by Track: ON' : '🏁 Group by Track: OFF';
+      renderSessionLibraryModal();
+    });
+  }
+
+  if (dom.inputLibraryFiles) {
+    dom.inputLibraryFiles.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files.length > 0) {
+        importSessionFiles(e.target.files);
+      }
+    });
+  }
+
+  if (dom.btnExportLibraryCatalog) {
+    dom.btnExportLibraryCatalog.addEventListener('click', exportLibraryCatalogJson);
+  }
+
+  if (dom.inputLibraryCatalog) {
+    dom.inputLibraryCatalog.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files.length > 0) {
+        importLibraryCatalogJson(e.target.files[0]);
+      }
+    });
+  }
+
+  if (dom.selectCompareSessionB) {
+    dom.selectCompareSessionB.addEventListener('change', (e) => {
+      const selectedId = e.target.value;
+      onCompareSessionBChange(selectedId);
+    });
+  }
+}
+
+function openSessionLibraryModal() {
+  if (!dom.modalLibrary) return;
+  dom.modalLibrary.style.display = 'flex';
+  populateTrackFilterDropdown();
+  renderSessionLibraryModal();
+}
+
+function closeSessionLibraryModal() {
+  if (!dom.modalLibrary) return;
+  dom.modalLibrary.style.display = 'none';
+}
+
+function populateTrackFilterDropdown() {
+  if (!dom.selectLibraryTrackFilter) return;
+  const currentVal = dom.selectLibraryTrackFilter.value;
+  dom.selectLibraryTrackFilter.innerHTML = '<option value="all">All Circuits</option>';
+
+  const tracksSet = new Set();
+  for (const item of Object.values(state.library)) {
+    if (item.trackName) tracksSet.add(item.trackName);
+  }
+
+  Array.from(tracksSet).sort().forEach(tName => {
+    const opt = document.createElement('option');
+    opt.value = tName;
+    opt.textContent = tName;
+    dom.selectLibraryTrackFilter.appendChild(opt);
+  });
+
+  dom.selectLibraryTrackFilter.value = currentVal || 'all';
+}
+
+function renderSessionLibraryModal() {
+  const container = dom.sessionLibraryGrid;
+  if (!container) return;
+  container.innerHTML = '';
+
+  const searchQ = (dom.inputLibrarySearch?.value || '').toLowerCase().trim();
+  const trackFilter = state.libraryFilterTrack || 'all';
+  const sortMode = state.librarySortMode || 'date-desc';
+
+  // 1. Filter
+  let items = Object.values(state.library).filter(item => {
+    if (trackFilter !== 'all' && item.trackName !== trackFilter) return false;
+    if (searchQ) {
+      const matchTitle = (item.title || '').toLowerCase().includes(searchQ);
+      const matchTrack = (item.trackName || '').toLowerCase().includes(searchQ);
+      const matchBike = (item.bikeModel || '').toLowerCase().includes(searchQ);
+      const matchRider = (item.riderName || '').toLowerCase().includes(searchQ);
+      if (!matchTitle && !matchTrack && !matchBike && !matchRider) return false;
+    }
+    return true;
+  });
+
+  // 2. Sort
+  items.sort((a, b) => {
+    if (sortMode === 'date-desc') {
+      return new Date(b.timestamp || 0) - new Date(a.timestamp || 0);
+    } else if (sortMode === 'date-asc') {
+      return new Date(a.timestamp || 0) - new Date(b.timestamp || 0);
+    } else if (sortMode === 'fastest') {
+      const tA = a.bestLapDuration > 0 ? a.bestLapDuration : 999999;
+      const tB = b.bestLapDuration > 0 ? b.bestLapDuration : 999999;
+      return tA - tB;
+    } else if (sortMode === 'laps') {
+      return (b.totalLaps || 0) - (a.totalLaps || 0);
+    } else if (sortMode === 'track') {
+      return (a.trackName || '').localeCompare(b.trackName || '');
+    }
+    return 0;
+  });
+
+  if (items.length === 0) {
+    container.innerHTML = `
+      <div style="text-align: center; padding: 40px 20px; color: var(--text-dim);">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 12px; opacity: 0.5;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        <h4 style="color: #ffffff; margin-bottom: 6px;">No Sessions Found</h4>
+        <p style="font-size: 11.5px;">Click <strong>+ Import Sessions</strong> or drop <code>.dda</code> / <code>.json</code> files to catalog your runs.</p>
+      </div>
+    `;
+    return;
+  }
+
+  // 3. Render: Grouped by Track vs Flat Grid
+  if (state.libraryGroupByTrack) {
+    const groups = {};
+    items.forEach(item => {
+      const tKey = item.trackName || 'Other Circuits';
+      if (!groups[tKey]) groups[tKey] = [];
+      groups[tKey].push(item);
+    });
+
+    for (const [tName, groupItems] of Object.entries(groups)) {
+      const section = document.createElement('div');
+      section.className = 'track-group-section';
+
+      const header = document.createElement('div');
+      header.className = 'track-group-header';
+      header.innerHTML = `
+        <div class="track-group-title">
+          <span>🏁 ${escapeHTML(tName)}</span>
+        </div>
+        <span class="track-group-count">${groupItems.length} ${groupItems.length === 1 ? 'Session' : 'Sessions'}</span>
+      `;
+
+      const cardsGrid = document.createElement('div');
+      cardsGrid.className = 'track-group-cards';
+
+      groupItems.forEach(item => {
+        cardsGrid.appendChild(createSessionCardElement(item));
+      });
+
+      section.appendChild(header);
+      section.appendChild(cardsGrid);
+      container.appendChild(section);
+    }
+  } else {
+    const flatGrid = document.createElement('div');
+    flatGrid.className = 'track-group-cards';
+    items.forEach(item => {
+      flatGrid.appendChild(createSessionCardElement(item));
+    });
+    container.appendChild(flatGrid);
+  }
+}
+
+function createSessionCardElement(item) {
+  const card = document.createElement('div');
+  card.className = 'session-card-item';
+  if (item.id === state.activeSessionId) {
+    card.classList.add('active-session');
+  }
+
+  const bestLapStr = item.bestLapDuration > 0 ? formatTime(item.bestLapDuration) : '-';
+  const optLapStr = item.optimalLapDuration > 0 ? formatTime(item.optimalLapDuration) : '-';
+  const maxSpd = item.maxSpeedKmh ? (state.unitMph ? (item.maxSpeedKmh * 0.621371).toFixed(0) + ' mph' : item.maxSpeedKmh.toFixed(0) + ' km/h') : '-';
+
+  const hasVideo = item.videoInfo && item.videoInfo.filename;
+  const syncOffset = item.videoInfo ? item.videoInfo.offsetSeconds : null;
+  const videoBadgeHtml = hasVideo
+    ? `<span class="session-card-video-pill synced" title="Video: ${escapeHTML(item.videoInfo.filename)} (Sync: ${syncOffset !== null ? syncOffset.toFixed(2) + 's' : '0.0s'})">🎬 Synced (${syncOffset >= 0 ? '+' : ''}${syncOffset?.toFixed(1)}s)</span>`
+    : `<span class="session-card-video-pill">No Video</span>`;
+
+  card.innerHTML = `
+    <div class="session-card-header">
+      <div>
+        <div class="session-card-title">${item.id === state.activeSessionId ? '⚡ ' : ''}${escapeHTML(item.title)}</div>
+        <div class="session-card-date">${escapeHTML(item.dateFormatted)} • <strong>${escapeHTML(item.bikeModel)}</strong></div>
+      </div>
+      ${videoBadgeHtml}
+    </div>
+
+    <div class="session-card-stats-grid">
+      <div class="stat-col">
+        <span class="stat-lbl">BEST LAP</span>
+        <span class="stat-val text-yellow">${bestLapStr}</span>
+      </div>
+      <div class="stat-col">
+        <span class="stat-lbl">OPTIMAL</span>
+        <span class="stat-val text-purple">${optLapStr}</span>
+      </div>
+      <div class="stat-col">
+        <span class="stat-lbl">LAPS / TOP SPD</span>
+        <span class="stat-val">${item.totalLaps} laps / ${maxSpd}</span>
+      </div>
+    </div>
+
+    <div class="session-card-actions">
+      <div style="display: flex; gap: 4px;">
+        <button class="btn-lib-action btn-lib-open" title="Switch visualizer to this session">
+          ${item.id === state.activeSessionId ? 'Active' : '⚡ Open'}
+        </button>
+        <button class="btn-lib-action btn-lib-compare" title="Cross-Session Compare against this session">
+          ⚔️ Compare
+        </button>
+      </div>
+      <div style="display: flex; gap: 4px;">
+        <button class="btn-lib-action btn-lib-del" title="Remove from catalog index">
+          🗑️
+        </button>
+      </div>
+    </div>
+  `;
+
+  // Bind Actions
+  const btnOpen = card.querySelector('.btn-lib-open');
+  btnOpen.addEventListener('click', () => {
+    switchActiveSession(item.id);
+  });
+
+  const btnCompare = card.querySelector('.btn-lib-compare');
+  btnCompare.addEventListener('click', () => {
+    initCrossSessionCompare(item.id);
+  });
+
+  const btnDel = card.querySelector('.btn-lib-del');
+  btnDel.addEventListener('click', () => {
+    if (confirm(`Remove session "${item.title}" from library index?`)) {
+      delete state.library[item.id];
+      saveLibraryToStorage();
+      updateLibraryHeaderBadge();
+      populateTrackFilterDropdown();
+      populateCompareSessionDropdowns();
+      renderSessionLibraryModal();
+    }
+  });
+
+  return card;
+}
+
+function switchActiveSession(sessionId) {
+  const item = state.library[sessionId];
+  if (!item) return;
+
+  if (item.fullData) {
+    if (typeof loadSessionData === 'function') {
+      loadSessionData(item.fullData);
+      state.activeSessionId = sessionId;
+      closeSessionLibraryModal();
+    }
+  } else {
+    alert(`Please reload or re-import the source file (${item.filename}) to inspect full telemetry records.`);
+  }
+}
+
+function initCrossSessionCompare(targetSessionId) {
+  const targetItem = state.library[targetSessionId];
+  if (!targetItem) return;
+
+  state.compareSessionBId = targetSessionId;
+  state.compareSessionBData = targetItem.fullData || null;
+
+  // Turn on Compare Mode
+  if (!state.isCompareMode && typeof toggleCompareMode === 'function') {
+    toggleCompareMode();
+  }
+
+  populateCompareSessionDropdowns();
+  if (dom.selectCompareSessionB) {
+    dom.selectCompareSessionB.value = targetSessionId;
+  }
+
+  closeSessionLibraryModal();
+}
+
+function populateCompareSessionDropdowns() {
+  if (!dom.selectCompareSessionB) return;
+  dom.selectCompareSessionB.innerHTML = '<option value="active">Active Session</option>';
+
+  for (const [id, item] of Object.entries(state.library)) {
+    if (id !== state.activeSessionId) {
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = `${item.title} (${item.trackName})`;
+      dom.selectCompareSessionB.appendChild(opt);
+    }
+  }
+}
+
+function onCompareSessionBChange(selectedId) {
+  if (selectedId === 'active' || !selectedId) {
+    state.compareSessionBId = null;
+    state.compareSessionBData = null;
+    // Populate selectLapB with active session laps
+    if (dom.selectLapB && typeof populateLapDropdowns === 'function') {
+      populateLapDropdowns();
+    }
+  } else {
+    const item = state.library[selectedId];
+    if (item) {
+      state.compareSessionBId = selectedId;
+      state.compareSessionBData = item.fullData || null;
+      // Populate selectLapB with target session laps
+      if (dom.selectLapB && item.lapsSummary) {
+        dom.selectLapB.innerHTML = '';
+        item.lapsSummary.forEach(l => {
+          const opt = document.createElement('option');
+          opt.value = l.lap_number;
+          opt.textContent = `${l.name} (${formatTime(l.duration_s)})${l.is_best ? ' [BEST]' : ''}`;
+          dom.selectLapB.appendChild(opt);
+        });
+        if (dom.selectLapB.options.length > 0) {
+          state.compareLapB = parseInt(dom.selectLapB.options[0].value, 10);
+        }
+      }
+    }
+  }
+
+  if (typeof renderCompareCharts === 'function') renderCompareCharts();
+  if (typeof renderMapTrack === 'function') renderMapTrack(false);
+}
+
+function importSessionFiles(fileList) {
+  Array.from(fileList).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        if (file.name.endsWith('.json')) {
+          const json = JSON.parse(e.target.result);
+          const meta = json.metadata || {};
+          const sessionId = meta.run_name || file.name.replace('.json', '');
+          const bestLap = json.laps ? json.laps.find(l => l.is_best) : null;
+
+          state.library[sessionId] = {
+            id: sessionId,
+            filename: file.name,
+            title: meta.title || sessionId,
+            timestamp: meta.timestamp || new Date().toISOString(),
+            dateFormatted: meta.timestamp ? new Date(meta.timestamp).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Imported',
+            trackId: json.track?.id || 'sonoma_raceway',
+            trackName: json.track?.name || 'Sonoma Raceway',
+            riderName: json.rider_name || 'Rider',
+            bikeModel: json.bike_model || 'Ducati Panigale',
+            totalLaps: json.laps ? json.laps.length : 0,
+            bestLapDuration: bestLap ? bestLap.duration_s : (json.stats?.best_lap_s || 0),
+            optimalLapDuration: json.optimal_lap?.duration_s || (bestLap ? bestLap.duration_s : 0),
+            maxSpeedKmh: json.stats?.max_speed_kmh || 0,
+            videoInfo: null,
+            lapsSummary: (json.laps || []).map(l => ({
+              lap_number: l.lap_number,
+              name: l.name,
+              duration_s: l.duration_s,
+              is_best: l.is_best,
+              start_index: l.start_index,
+              end_index: l.end_index
+            })),
+            fullData: json
+          };
+
+          saveLibraryToStorage();
+          updateLibraryHeaderBadge();
+          populateTrackFilterDropdown();
+          populateCompareSessionDropdowns();
+          renderSessionLibraryModal();
+        }
+      } catch (err) {
+        console.warn('[SessionLibrary] Failed to parse file:', file.name, err);
+      }
+    };
+    reader.readAsText(file);
+  });
+}
+
+function exportLibraryCatalogJson() {
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state.library, null, 2));
+  const downloadAnchor = document.createElement('a');
+  downloadAnchor.setAttribute("href", dataStr);
+  downloadAnchor.setAttribute("download", `dda_sessions_library_${new Date().toISOString().slice(0, 10)}.json`);
+  document.body.appendChild(downloadAnchor);
+  downloadAnchor.click();
+  downloadAnchor.remove();
+}
+
+function importLibraryCatalogJson(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const json = JSON.parse(e.target.result);
+      if (json && typeof json === 'object') {
+        state.library = Object.assign({}, state.library, json);
+        saveLibraryToStorage();
+        updateLibraryHeaderBadge();
+        populateTrackFilterDropdown();
+        populateCompareSessionDropdowns();
+        renderSessionLibraryModal();
+        alert(`Successfully imported ${Object.keys(json).length} sessions into your library!`);
+      }
+    } catch (err) {
+      alert(`Failed to import catalog: ${err.message}`);
+    }
+  };
+  reader.readAsText(file);
 }
 
 
@@ -9106,11 +10069,24 @@ function renderStackedSectionCharts(ctx, w, h) {
 
 function renderCompareCharts(ctx, w, h) {
   const lapA = state.laps.find(l => l.lap_number === state.compareLapA);
-  const lapB = state.laps.find(l => l.lap_number === state.compareLapB);
+  let lapB = null;
+  let recsB = [];
+
+  if (state.compareSessionBData && state.compareSessionBData.laps) {
+    lapB = state.compareSessionBData.laps.find(l => l.lap_number === state.compareLapB);
+    if (lapB && state.compareSessionBData.records) {
+      recsB = state.compareSessionBData.records.slice(lapB.start_index, lapB.end_index);
+    }
+  } else {
+    lapB = state.laps.find(l => l.lap_number === state.compareLapB);
+    if (lapB) {
+      recsB = state.records.slice(lapB.start_index, lapB.end_index);
+    }
+  }
+
   if (!lapA || !lapB) return;
 
   const recsA = state.records.slice(lapA.start_index, lapA.end_index);
-  const recsB = state.records.slice(lapB.start_index, lapB.end_index);
   if (recsA.length < 2 || recsB.length < 2) return;
 
   const maxDist = Math.max(lapA.distance_m, lapB.distance_m, 3500);
@@ -10769,6 +11745,10 @@ function loadSessionData(jsonObj) {
   renderMapGates();
   resizeCanvas();
   seekToIndex(0);
+
+  if (typeof indexActiveSession === 'function') {
+    indexActiveSession();
+  }
 }
 
 function checkEmbeddedOrSampleData() {
@@ -10810,6 +11790,7 @@ function parseUploadedFile(file) {
 }
 
 function bindEvents() {
+  if (typeof initSessionLibrary === 'function') initSessionLibrary();
   if (typeof initVideoPlayer === 'function') initVideoPlayer();
   if (dom.btnPlayPause) dom.btnPlayPause.addEventListener('click', togglePlayPause);
   if (dom.btnStepPrev) dom.btnStepPrev.addEventListener('click', () => seekToIndex(state.currentIndex - 1));
@@ -11322,6 +12303,35 @@ function bindEvents() {
     });
   }
 
+  // Window Drag and Drop for Files & Batch Library Ingestion
+  const dropOverlay = document.getElementById('drop-overlay');
+  ['dragenter', 'dragover'].forEach(eventName => {
+    window.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (dropOverlay) dropOverlay.style.display = 'flex';
+    });
+  });
+
+  ['dragleave', 'drop'].forEach(eventName => {
+    window.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (eventName === 'drop') {
+        if (dropOverlay) dropOverlay.style.display = 'none';
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          if (e.dataTransfer.files.length === 1 && !e.dataTransfer.files[0].name.endsWith('.mp4') && !e.dataTransfer.files[0].name.endsWith('.mov')) {
+            parseUploadedFile(e.dataTransfer.files[0]);
+          } else if (typeof importSessionFiles === 'function') {
+            importSessionFiles(e.dataTransfer.files);
+          }
+        }
+      } else if (e.target === dropOverlay) {
+        if (dropOverlay) dropOverlay.style.display = 'none';
+      }
+    });
+  });
+
   // Keyboard Shortcuts
   window.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
@@ -11343,6 +12353,15 @@ function bindEvents() {
       seekToIndex(state.activeRecords.length - 1);
     } else if (e.code === 'KeyC') {
       toggleCompareMode();
+    } else if (e.code === 'KeyO') {
+      if (dom.modalLibrary) {
+        const isVis = dom.modalLibrary.style.display === 'flex';
+        if (isVis) {
+          if (typeof closeSessionLibraryModal === 'function') closeSessionLibraryModal();
+        } else {
+          if (typeof openSessionLibraryModal === 'function') openSessionLibraryModal();
+        }
+      }
     } else if (e.code === 'KeyM') {
       if (dom.modalLeanThrottle) {
         const isVis = dom.modalLeanThrottle.style.display === 'flex';
@@ -11380,6 +12399,7 @@ function bindEvents() {
     } else if (e.code === 'KeyF') {
       if (dom.btnFitBounds) dom.btnFitBounds.click();
     } else if (e.code === 'Escape') {
+      if (dom.modalLibrary) dom.modalLibrary.style.display = 'none';
       if (dom.modalScorecard) dom.modalScorecard.style.display = 'none';
       if (dom.modalLeanThrottle) dom.modalLeanThrottle.style.display = 'none';
       if (dom.modalSettings) dom.modalSettings.style.display = 'none';
