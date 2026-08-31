@@ -1788,18 +1788,21 @@ body.dark-theme {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   margin-bottom: 6px;
   cursor: pointer;
   user-select: none;
   padding: 1px 0;
+  min-width: 0;
 }
 
 .card-header-left {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
 }
 
 .card-drag-handle {
@@ -1811,6 +1814,7 @@ body.dark-theme {
   border-radius: var(--radius-xs);
   transition: all var(--transition-fast);
   letter-spacing: -2px;
+  flex-shrink: 0;
 }
 .card-drag-handle:hover {
   color: var(--accent-cyan);
@@ -1827,13 +1831,15 @@ body.dark-theme {
   letter-spacing: 0.5px;
   text-transform: uppercase;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .card-header-right {
   display: flex;
   align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
+  gap: 5px;
+  flex: 0 0 auto;
 }
 
 .btn-card-collapse {

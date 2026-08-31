@@ -115,6 +115,32 @@
           <svg class="dropdown-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
         <div class="dropdown-menu" id="menu-view">
+          <div class="dropdown-header">Layout Presets</div>
+          <button id="btn-preset-default" class="dropdown-item" title="Default Balanced Layout (420px DATA, 280px Charts)">
+            <span class="dropdown-item-left">
+              <span class="dropdown-item-icon">🖥️</span>
+              <span>Default Balanced</span>
+            </span>
+          </button>
+          <button id="btn-preset-track-focus" class="dropdown-item" title="Maximize Map and Video with collapsed panels">
+            <span class="dropdown-item-left">
+              <span class="dropdown-item-icon">🏎️</span>
+              <span>Track & Video Focus</span>
+            </span>
+          </button>
+          <button id="btn-preset-telemetry-focus" class="dropdown-item" title="Tall Multi-Waveform Charts with Compact DATA sidebar">
+            <span class="dropdown-item-left">
+              <span class="dropdown-item-icon">📊</span>
+              <span>Telemetry Deep-Dive</span>
+            </span>
+          </button>
+          <button id="btn-preset-laptop" class="dropdown-item" title="Optimized for 14-inch Laptop Displays">
+            <span class="dropdown-item-left">
+              <span class="dropdown-item-icon">💻</span>
+              <span>Laptop Compact Mode</span>
+            </span>
+          </button>
+          <div class="dropdown-divider"></div>
           <div class="dropdown-header">Workspace Arrangement</div>
           <button id="btn-toggle-layout" class="dropdown-item" title="Toggle 3-Column Side-by-Side Comparison Layout (L)">
             <span class="dropdown-item-left">
@@ -152,6 +178,12 @@
               <span>Keyboard Shortcuts</span>
             </span>
             <kbd>?</kbd>
+          </button>
+          <button id="btn-reset-entire-layout" class="dropdown-item text-danger" title="Reset all splitters, panels, and card configurations">
+            <span class="dropdown-item-left">
+              <span class="dropdown-item-icon">↺</span>
+              <span>Reset Entire Layout</span>
+            </span>
           </button>
         </div>
       </div>

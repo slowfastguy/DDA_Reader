@@ -474,6 +474,72 @@ function maximizePanel(panelId) {
   triggerLayoutResize();
 }
 
+function applyLayoutPreset(presetName) {
+  if (presetName === 'default') {
+    state.layout.sidebarWidth = 420;
+    state.layout.chartsHeight = 280;
+    state.layout.topSplitPct = 50;
+    state.layout.sidebarCollapsed = false;
+    state.layout.chartsCollapsed = false;
+    state.layout.maximizedPanel = null;
+    state.cardsConfig.compactDensity = false;
+  } else if (presetName === 'track_focus') {
+    state.layout.sidebarCollapsed = true;
+    state.layout.chartsCollapsed = true;
+    state.layout.maximizedPanel = null;
+  } else if (presetName === 'telemetry_focus') {
+    state.layout.sidebarCollapsed = false;
+    state.layout.chartsCollapsed = false;
+    state.layout.chartsHeight = Math.min(480, Math.round(window.innerHeight * 0.48));
+    state.layout.sidebarWidth = 360;
+    state.cardsConfig.compactDensity = true;
+    state.cardsConfig.order = ['cluster', 'timing', 'laptimes', 'lean', 'gg', 'phases'];
+    state.layout.maximizedPanel = null;
+  } else if (presetName === 'laptop') {
+    state.layout.sidebarCollapsed = false;
+    state.layout.chartsCollapsed = false;
+    state.layout.sidebarWidth = 340;
+    state.layout.chartsHeight = 220;
+    state.cardsConfig.compactDensity = true;
+    state.layout.maximizedPanel = null;
+  }
+
+  // Apply CSS Variables
+  document.documentElement.style.setProperty('--sidebar-width', `${state.layout.sidebarWidth}px`);
+  document.documentElement.style.setProperty('--charts-height', `${state.layout.chartsHeight}px`);
+  document.documentElement.style.setProperty('--top-split-pct', `${state.layout.topSplitPct}%`);
+
+  // Apply Workspace Layout Classes
+  if (dom.mainWorkspace) {
+    dom.mainWorkspace.classList.toggle('sidebar-collapsed', state.layout.sidebarCollapsed);
+    dom.mainWorkspace.classList.toggle('charts-collapsed', state.layout.chartsCollapsed);
+    dom.mainWorkspace.classList.toggle('panel-maximized-map', false);
+    dom.mainWorkspace.classList.toggle('panel-maximized-charts', false);
+  }
+  if (dom.btnFloatingSidebarExpand) {
+    dom.btnFloatingSidebarExpand.style.display = state.layout.sidebarCollapsed ? 'flex' : 'none';
+  }
+  if (dom.btnMaximizeMap) dom.btnMaximizeMap.classList.remove('active');
+  if (dom.btnMaximizeCharts) dom.btnMaximizeCharts.classList.remove('active');
+
+  applyCardsConfigToUI();
+  saveLayoutState();
+  saveCardsConfig();
+  triggerLayoutResize();
+}
+
+function resetEntireLayout() {
+  localStorage.removeItem('dda_layout_state');
+  localStorage.removeItem('dda_cards_config');
+  state.cardsConfig = {
+    order: ['laptimes', 'timing', 'cluster', 'lean', 'gg', 'phases'],
+    collapsed: {},
+    hidden: {},
+    compactDensity: false
+  };
+  applyLayoutPreset('default');
+}
+
 function saveLayoutState() {
   try {
     localStorage.setItem('dda_layout_state', JSON.stringify({
@@ -494,25 +560,27 @@ function loadLayoutState() {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed.sidebarWidth) {
-        state.layout.sidebarWidth = parsed.sidebarWidth;
-        document.documentElement.style.setProperty('--sidebar-width', `${parsed.sidebarWidth}px`);
+        const maxW = Math.max(300, window.innerWidth - 350);
+        state.layout.sidebarWidth = Math.max(300, Math.min(650, Math.min(parsed.sidebarWidth, maxW)));
+        document.documentElement.style.setProperty('--sidebar-width', `${state.layout.sidebarWidth}px`);
       }
       if (parsed.chartsHeight) {
-        state.layout.chartsHeight = parsed.chartsHeight;
-        document.documentElement.style.setProperty('--charts-height', `${parsed.chartsHeight}px`);
+        const maxH = Math.max(160, Math.round(window.innerHeight * 0.75));
+        state.layout.chartsHeight = Math.max(130, Math.min(maxH, parsed.chartsHeight));
+        document.documentElement.style.setProperty('--charts-height', `${state.layout.chartsHeight}px`);
       }
       if (parsed.topSplitPct) {
-        state.layout.topSplitPct = parsed.topSplitPct;
-        document.documentElement.style.setProperty('--top-split-pct', `${parsed.topSplitPct}%`);
+        state.layout.topSplitPct = Math.max(20, Math.min(80, parsed.topSplitPct));
+        document.documentElement.style.setProperty('--top-split-pct', `${state.layout.topSplitPct}%`);
       }
-      if (parsed.sidebarCollapsed) {
-        state.layout.sidebarCollapsed = parsed.sidebarCollapsed;
-        if (dom.mainWorkspace) dom.mainWorkspace.classList.toggle('sidebar-collapsed', true);
-        if (dom.btnFloatingSidebarExpand) dom.btnFloatingSidebarExpand.style.display = 'flex';
+      if (parsed.sidebarCollapsed !== undefined) {
+        state.layout.sidebarCollapsed = !!parsed.sidebarCollapsed;
+        if (dom.mainWorkspace) dom.mainWorkspace.classList.toggle('sidebar-collapsed', state.layout.sidebarCollapsed);
+        if (dom.btnFloatingSidebarExpand) dom.btnFloatingSidebarExpand.style.display = state.layout.sidebarCollapsed ? 'flex' : 'none';
       }
-      if (parsed.chartsCollapsed) {
-        state.layout.chartsCollapsed = parsed.chartsCollapsed;
-        if (dom.mainWorkspace) dom.mainWorkspace.classList.toggle('charts-collapsed', true);
+      if (parsed.chartsCollapsed !== undefined) {
+        state.layout.chartsCollapsed = !!parsed.chartsCollapsed;
+        if (dom.mainWorkspace) dom.mainWorkspace.classList.toggle('charts-collapsed', state.layout.chartsCollapsed);
       }
     }
   } catch (err) {
@@ -778,6 +846,12 @@ function bindEvents() {
       renderSpeedExtremaMarkers();
     });
   }
+
+  if (dom.btnPresetDefault) dom.btnPresetDefault.addEventListener('click', () => applyLayoutPreset('default'));
+  if (dom.btnPresetTrackFocus) dom.btnPresetTrackFocus.addEventListener('click', () => applyLayoutPreset('track_focus'));
+  if (dom.btnPresetTelemetryFocus) dom.btnPresetTelemetryFocus.addEventListener('click', () => applyLayoutPreset('telemetry_focus'));
+  if (dom.btnPresetLaptop) dom.btnPresetLaptop.addEventListener('click', () => applyLayoutPreset('laptop'));
+  if (dom.btnResetEntireLayout) dom.btnResetEntireLayout.addEventListener('click', resetEntireLayout);
 
   if (dom.btnMenuExtrema) {
     dom.btnMenuExtrema.addEventListener('click', () => {
