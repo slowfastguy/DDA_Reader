@@ -413,6 +413,7 @@ function toggleCompareMode() {
   if (dom.compareControlsBar) dom.compareControlsBar.style.display = state.isCompareMode ? 'flex' : 'none';
   if (dom.legCompareSpd) dom.legCompareSpd.style.display = state.isCompareMode ? 'flex' : 'none';
   if (dom.legCompareDelta) dom.legCompareDelta.style.display = state.isCompareMode ? 'flex' : 'none';
+  if (dom.legCompareLineDelta) dom.legCompareLineDelta.style.display = state.isCompareMode ? 'flex' : 'none';
 
   if (state.isCompareMode) {
     if (state.ghostMarker && state.map) state.ghostMarker.addTo(state.map);

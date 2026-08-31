@@ -95,6 +95,12 @@ function renderMapTrack(shouldFitBounds = false) {
       } else {
         color = '#ff9100'; // Coasting / Roll Time
       }
+    } else if (state.heatmapMode === 'elevation') {
+      const alt = p1.gps_alt_m !== null ? p1.gps_alt_m : 0;
+      const minAlt = state.sessionData?.stats?.min_alt_m || 0;
+      const maxAlt = Math.max(minAlt + 10, state.sessionData?.stats?.max_alt_m || 100);
+      const ratio = Math.max(0, Math.min(1.0, (alt - minAlt) / (maxAlt - minAlt)));
+      color = getHeatmapColor(ratio);
     } else if (state.heatmapMode === 'throttle') {
       const ratio = (p1.tps_pct || 0) / 100.0;
       color = getHeatmapColor(ratio);
@@ -122,6 +128,41 @@ function renderMapTrack(shouldFitBounds = false) {
     state.trackPolylineGroup.addLayer(poly);
   }
 
+  // Compare Mode: Render Lap B Trajectory & Lateral Deviation Ribbons
+  if (state.isCompareMode && state.compareLapB !== undefined) {
+    const lapB = state.laps.find(l => l.lap_number === state.compareLapB);
+    if (lapB) {
+      const recsB = state.records.slice(lapB.start_index, lapB.end_index + 1).filter(r => r.gps_lat !== null && r.gps_lon !== null);
+      if (recsB.length > 1) {
+        const polyB = L.polyline(recsB.map(r => [r.gps_lat, r.gps_lon]), {
+          color: '#ffd600',
+          weight: 3.0,
+          dashArray: '5, 4',
+          opacity: 0.85
+        });
+        state.trackPolylineGroup.addLayer(polyB);
+
+        // Render lateral deviation ribbons if lineDelta is enabled
+        if (state.channels.lineDelta !== false && gpsPoints.length > 5) {
+          const step = Math.max(1, Math.floor(gpsPoints.length / 80));
+          for (let i = 0; i < gpsPoints.length; i += step) {
+            const rA = gpsPoints[i];
+            const distA = rA.distance_m || 0;
+            const rB = recsB.find(b => (b.distance_m || 0) >= distA) || recsB[recsB.length - 1];
+            if (rB && rB.gps_lat !== null) {
+              const devLine = L.polyline([[rA.gps_lat, rA.gps_lon], [rB.gps_lat, rB.gps_lon]], {
+                color: '#ff007f',
+                weight: 2.0,
+                opacity: 0.6
+              });
+              state.trackPolylineGroup.addLayer(devLine);
+            }
+          }
+        }
+      }
+    }
+  }
+
   if (dom.legendMin && dom.legendMax) {
     if (state.heatmapMode === 'speed') {
       dom.legendMin.textContent = state.unitMph ? '0 mph' : '0 km/h';
@@ -129,6 +170,11 @@ function renderMapTrack(shouldFitBounds = false) {
     } else if (state.heatmapMode === 'phases') {
       dom.legendMin.textContent = '🔴 Brake / ⚪ Coast';
       dom.legendMax.textContent = '🟢 Accel / 🟡 Maint';
+    } else if (state.heatmapMode === 'elevation') {
+      const minAlt = state.sessionData?.stats?.min_alt_m || 0;
+      const maxAlt = state.sessionData?.stats?.max_alt_m || 100;
+      dom.legendMin.textContent = `${minAlt.toFixed(0)}m (Low)`;
+      dom.legendMax.textContent = `${maxAlt.toFixed(0)}m (Peak)`;
     } else if (state.heatmapMode === 'throttle') {
       dom.legendMin.textContent = '0% TPS';
       dom.legendMax.textContent = '100% TPS';

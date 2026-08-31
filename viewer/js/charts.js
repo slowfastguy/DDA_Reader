@@ -224,6 +224,22 @@ function renderCharts() {
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
+  // Optional Elevation & Gradient Channel
+  if (state.channels.elevation) {
+    const minAlt = state.sessionData?.stats?.min_alt_m || 0;
+    const maxAlt = Math.max(minAlt + 10, state.sessionData?.stats?.max_alt_m || 100);
+    const altRange = Math.max(10, maxAlt - minAlt);
+
+    ctx.strokeStyle = '#ab47bc';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    for (let i = 0; i < count; i++) {
+      const alt = viewRecords[i].gps_alt_m !== null ? viewRecords[i].gps_alt_m : minAlt;
+      const x = (i / (count - 1)) * w;
+      const y = yL4 + laneHeight - pad - ((alt - minAlt) / altRange) * (laneHeight - pad * 2);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
     ctx.stroke();
   }
 
@@ -654,6 +670,31 @@ function renderCompareCharts(ctx, w, h) {
       ctx.stroke();
       ctx.shadowBlur = 0;
     }
+  }
+
+  // Optional Racing Line Lateral Deviation Trace
+  if (state.channels.lineDelta !== false && recsA.length > 5 && recsB.length > 5) {
+    ctx.strokeStyle = '#ff007f';
+    ctx.lineWidth = 1.6;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath();
+    const maxLineOffsetM = 5.0; // ±5 meters full scale
+    for (let i = 0; i < recsA.length; i++) {
+      const rA = recsA[i];
+      const relDist = rA.distance_m - recsA[0].distance_m;
+      const rB = recsB.find(b => (b.distance_m - recsB[0].distance_m) >= relDist) || recsB[recsB.length - 1];
+
+      let lateralOffset = 0;
+      if (rA.gps_lat !== null && rB.gps_lat !== null) {
+        lateralOffset = haversineDistanceM(rA.gps_lat, rA.gps_lon, rB.gps_lat, rB.gps_lon);
+      }
+      const x = (relDist / maxDist) * w;
+      const y = yCenterL4 - (lateralOffset / maxLineOffsetM) * (laneHeight / 2 - pad);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
   }
 
   updateScrubberLinePosition();

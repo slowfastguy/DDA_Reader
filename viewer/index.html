@@ -149,6 +149,7 @@
           <select id="select-heatmap-color" class="control-select">
             <option value="speed" selected>Trace: Speed</option>
             <option value="phases">Trace: Riding Phases (Coasting/Braking)</option>
+            <option value="elevation">Trace: 3D Elevation & Grade %</option>
             <option value="throttle">Trace: Throttle %</option>
             <option value="lean">Trace: Lean Angle</option>
             <option value="gear">Trace: Gear</option>
@@ -257,6 +258,12 @@
           </button>
           <button class="channel-toggle-btn" data-channel="gLat" style="--c: #2979ff;">
             <span class="ch-dot"></span>G-Lat (Cornering)
+          </button>
+          <button class="channel-toggle-btn" data-channel="elevation" style="--c: #ab47bc;">
+            <span class="ch-dot"></span>Elevation & Grade
+          </button>
+          <button class="channel-toggle-btn active" data-channel="lineDelta" id="leg-compare-linedelta" style="--c: #ff007f; display: none;">
+            <span class="ch-dot"></span>Racing Line Δ
           </button>
           <button id="btn-reset-zoom" class="btn-xs">Reset Zoom</button>
         </div>

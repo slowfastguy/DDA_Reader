@@ -36,7 +36,9 @@ const DEFAULT_SETTINGS = {
       gear: true,
       deltaT: true,
       gLong: false,
-      gLat: false
+      gLat: false,
+      elevation: false,
+      lineDelta: true
     }
   },
   tracks: {
@@ -240,6 +242,7 @@ const dom = {
   btnResetZoom: document.getElementById('btn-reset-zoom'),
   legCompareSpd: document.getElementById('leg-compare-spd'),
   legCompareDelta: document.getElementById('leg-compare-delta'),
+  legCompareLineDelta: document.getElementById('leg-compare-linedelta'),
   btnPlayPause: document.getElementById('btn-play-pause'),
   iconPlay: document.getElementById('icon-play'),
   iconPause: document.getElementById('icon-pause'),
