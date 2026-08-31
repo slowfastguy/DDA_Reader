@@ -33,7 +33,10 @@ const DEFAULT_SETTINGS = {
       tps: true,
       lean: true,
       dtc: true,
-      gear: true
+      gear: true,
+      deltaT: true,
+      gLong: false,
+      gLat: false
     }
   },
   tracks: {
@@ -133,7 +136,10 @@ const state = {
     tps: true,
     lean: true,
     dtc: true,
-    gear: true
+    gear: true,
+    deltaT: true,
+    gLong: false,
+    gLat: false
   },
   zoomRange: [0, 1],
   sectionSelection: {
@@ -224,6 +230,8 @@ const dom = {
   dtcSlowPill: document.getElementById('dtc-slow-pill'),
   valDtcFast: document.getElementById('val-dtc-fast'),
   dtcFastPill: document.getElementById('dtc-fast-pill'),
+  valGlongNumeric: document.getElementById('val-glong-numeric'),
+  valGlatNumeric: document.getElementById('val-glat-numeric'),
   valAltNumeric: document.getElementById('val-alt-numeric'),
   valDistNumeric: document.getElementById('val-dist-numeric'),
   telemetryCanvas: document.getElementById('telemetry-canvas'),
@@ -231,6 +239,7 @@ const dom = {
   chartTooltip: document.getElementById('chart-tooltip'),
   btnResetZoom: document.getElementById('btn-reset-zoom'),
   legCompareSpd: document.getElementById('leg-compare-spd'),
+  legCompareDelta: document.getElementById('leg-compare-delta'),
   btnPlayPause: document.getElementById('btn-play-pause'),
   iconPlay: document.getElementById('icon-play'),
   iconPause: document.getElementById('icon-pause'),
@@ -261,6 +270,23 @@ const dom = {
   legendMin: document.getElementById('legend-min'),
   legendMax: document.getElementById('legend-max'),
   leds: Array.from({ length: 10 }, (_, i) => document.getElementById(`led-${i + 1}`)),
+
+  // G-G Friction Circle Elements
+  ggCanvas: document.getElementById('gg-canvas'),
+  valGgTotal: document.getElementById('val-gg-total'),
+  valMaxBrakeG: document.getElementById('val-max-brake-g'),
+  valMaxAccelG: document.getElementById('val-max-accel-g'),
+  valMaxLatG: document.getElementById('val-max-lat-g'),
+
+  // Lean vs Throttle Matrix Elements
+  btnOpenMatrix: document.getElementById('btn-open-matrix'),
+  modalLeanThrottle: document.getElementById('modal-lean-throttle'),
+  btnCloseMatrix: document.getElementById('btn-close-matrix'),
+  selectMatrixLap: document.getElementById('select-matrix-lap'),
+  leanThrottleTable: document.getElementById('lean-throttle-table'),
+  kpiPickupLean: document.getElementById('kpi-pickup-lean'),
+  kpiUprightGas: document.getElementById('kpi-upright-gas'),
+  kpiLeanRisk: document.getElementById('kpi-lean-risk'),
 
   // Section Drag Comparison Elements
   btnSelectSection: document.getElementById('btn-select-section'),

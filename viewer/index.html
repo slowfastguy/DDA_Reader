@@ -67,6 +67,12 @@
         <span id="lbl-compare-btn">Compare Laps</span>
       </button>
 
+      <!-- Lean vs Throttle Heat Matrix Button -->
+      <button id="btn-open-matrix" class="btn btn-secondary" title="View Lean Angle vs Throttle Application 2D Heat Matrix (M)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <span>Lean vs TPS</span>
+      </button>
+
       <!-- MotoGP HUD & Video Export Buttons -->
       <button id="btn-toggle-motogp" class="btn btn-motogp active" title="Toggle Floating MotoGP Broadcast Timer Card">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
@@ -236,6 +242,15 @@
           <button class="channel-toggle-btn active" data-channel="gear" style="--c: #d500f9;">
             <span class="ch-dot"></span>Gear
           </button>
+          <button class="channel-toggle-btn active" data-channel="deltaT" id="leg-compare-delta" style="--c: #00e676; display: none;">
+            <span class="ch-dot"></span>Δt Time Delta
+          </button>
+          <button class="channel-toggle-btn" data-channel="gLong" style="--c: #ff1744;">
+            <span class="ch-dot"></span>G-Long (Brake/Drive)
+          </button>
+          <button class="channel-toggle-btn" data-channel="gLat" style="--c: #2979ff;">
+            <span class="ch-dot"></span>G-Lat (Cornering)
+          </button>
           <button id="btn-reset-zoom" class="btn-xs">Reset Zoom</button>
         </div>
       </div>
@@ -390,7 +405,25 @@
           </div>
         </div>
 
-        <!-- 4. Primary Telemetry Cluster (Speed, Gear, RPM Tach, TPS, DTC) -->
+        <!-- 3b. G-G Diagram & Friction Circle Card -->
+        <div class="data-card gg-card">
+          <div class="card-header-sm">
+            <span class="card-title-text">G-G FRICTION CIRCLE</span>
+            <div class="gg-card-badges">
+              <span id="val-gg-total" class="badge badge-best-lap">0.00 G</span>
+            </div>
+          </div>
+          <div class="gg-canvas-container">
+            <canvas id="gg-canvas" class="gg-canvas" width="240" height="200"></canvas>
+          </div>
+          <div class="gg-stats-row">
+            <span class="peak-item">Brake: <strong id="val-max-brake-g" class="text-red">0.00g</strong></span>
+            <span class="peak-item">Accel: <strong id="val-max-accel-g" class="text-green">0.00g</strong></span>
+            <span class="peak-item">Corner: <strong id="val-max-lat-g" class="text-cyan">0.00g</strong></span>
+          </div>
+        </div>
+
+        <!-- 4. Primary Telemetry Cluster (Speed, Gear, RPM Tach, TPS, DTC, G-Force) -->
         <div class="data-card cluster-card">
           <div class="tach-container">
             <div class="tach-header">
@@ -459,6 +492,14 @@
               <div class="dtc-pill" id="dtc-fast-pill">
                 <span id="val-dtc-fast">0%</span>
               </div>
+            </div>
+            <div class="dtc-item">
+              <span class="dtc-lbl">G-LONG</span>
+              <span id="val-glong-numeric" class="val-mono">0.00 g</span>
+            </div>
+            <div class="dtc-item">
+              <span class="dtc-lbl">G-LAT</span>
+              <span id="val-glat-numeric" class="val-mono">0.00 g</span>
             </div>
             <div class="dtc-item">
               <span class="dtc-lbl">ALTITUDE</span>
@@ -801,11 +842,69 @@
         <div class="shortcut-row"><kbd>Shift</kbd> + <kbd>←</kbd> / <kbd>→</kbd> <span>Jump 5.0s</span></div>
         <div class="shortcut-row"><kbd>Home</kbd> / <kbd>End</kbd> <span>Start / End of Session/Lap</span></div>
         <div class="shortcut-row"><kbd>C</kbd> <span>Toggle Lap Comparison Mode</span></div>
+        <div class="shortcut-row"><kbd>M</kbd> <span>Toggle Lean vs Throttle Matrix</span></div>
         <div class="shortcut-row"><kbd>L</kbd> <span>Toggle 3-Column Split Comparison Layout</span></div>
         <div class="shortcut-row"><kbd>S</kbd> <span>Toggle Corner Sync Mode (Time vs Distance)</span></div>
         <div class="shortcut-row"><kbd>U</kbd> <span>Toggle Speed Unit (MPH / KM/H)</span></div>
         <div class="shortcut-row"><kbd>F</kbd> <span>Fit Map Track to Screen</span></div>
-        <div class="shortcut-row"><kbd>Esc</kbd> <span>Clear Section Selection / Cancel Gate Edit</span></div>
+        <div class="shortcut-row"><kbd>Esc</kbd> <span>Close Modals / Clear Selection</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lean Angle vs Throttle 2D Matrix Modal -->
+  <div id="modal-lean-throttle" class="modal-overlay" style="display: none;">
+    <div class="modal-card modal-matrix-card">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          <h3>Lean Angle vs. Throttle Application Matrix</h3>
+        </div>
+        <button id="btn-close-matrix" class="btn-close">&times;</button>
+      </div>
+
+      <div class="modal-body matrix-modal-body">
+        <div class="matrix-top-bar">
+          <div class="matrix-scope-select">
+            <label for="select-matrix-lap">Scope:</label>
+            <select id="select-matrix-lap" class="control-select-sm">
+              <option value="-1">All Laps (Full Session)</option>
+            </select>
+          </div>
+          <div class="matrix-kpi-group">
+            <div class="matrix-kpi-pill">
+              <span>Avg Throttle Pickup Lean:</span>
+              <strong id="kpi-pickup-lean" class="text-cyan">--°</strong>
+            </div>
+            <div class="matrix-kpi-pill">
+              <span>Upright Full-Gas Ratio:</span>
+              <strong id="kpi-upright-gas" class="text-green">--%</strong>
+            </div>
+            <div class="matrix-kpi-pill">
+              <span>High-Lean Throttle Risk:</span>
+              <strong id="kpi-lean-risk" class="text-yellow">--%</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="matrix-grid-wrapper">
+          <div class="matrix-y-axis-title">THROTTLE APERTURE (TPS %) ➔</div>
+          <div class="matrix-table-container">
+            <table class="matrix-table" id="lean-throttle-table">
+              <!-- Dynamically populated 2D heatmap matrix -->
+            </table>
+            <div class="matrix-x-axis-title">CHASSIS LEAN ANGLE (DEGREES) ➔</div>
+          </div>
+        </div>
+
+        <div class="matrix-legend-row">
+          <div class="matrix-legend-bar">
+            <span>Low Time</span>
+            <div class="matrix-legend-gradient"></div>
+            <span>High Time</span>
+          </div>
+          <span class="matrix-warning-badge">⚠️ Red Box: High-Risk Aggressive Throttle Zone (&gt;60% TPS at &gt;40° Lean)</span>
+        </div>
       </div>
     </div>
   </div>

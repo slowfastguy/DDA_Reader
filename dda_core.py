@@ -235,7 +235,8 @@ class DDARecord:
         'lean_angle_deg', 'torque_fast_pct', 'torque_slow_pct',
         'distance_m', 'gps_lat', 'gps_lon', 'gps_alt_m',
         'raw_lat', 'raw_lon',
-        'bearing_deg', 'lap', 'int_lap1', 'int_lap2'
+        'bearing_deg', 'lap', 'int_lap1', 'int_lap2',
+        'accel_long_g', 'accel_lat_g', 'accel_total_g', 'wheel_slip_pct', 'wheelie'
     )
     def __init__(self, time_s=0.0):
         self.time_s = time_s
@@ -256,6 +257,11 @@ class DDARecord:
         self.lap = 0
         self.int_lap1 = 0
         self.int_lap2 = 0
+        self.accel_long_g = 0.0
+        self.accel_lat_g = 0.0
+        self.accel_total_g = 0.0
+        self.wheel_slip_pct = 0.0
+        self.wheelie = False
 
     @property
     def speed_mph(self):
@@ -287,7 +293,12 @@ class DDARecord:
             "raw_lon": round(self.raw_lon, 7) if self.raw_lon is not None else None,
             "gps_alt_m": round(self.gps_alt_m, 1) if self.gps_lat is not None else 0.0,
             "bearing_deg": round(self.bearing_deg, 1),
-            "lap": self.lap
+            "lap": self.lap,
+            "accel_long_g": round(self.accel_long_g, 2),
+            "accel_lat_g": round(self.accel_lat_g, 2),
+            "accel_total_g": round(self.accel_total_g, 2),
+            "wheel_slip_pct": round(self.wheel_slip_pct, 1),
+            "wheelie": self.wheelie
         }
 
 
@@ -530,6 +541,40 @@ class DDAParser:
             prev_lon = s_lon
             self.gps_records.append(rec)
 
+        # 4b. Derive Acceleration Kinematics & Wheel Slip
+        n_recs = len(self.records)
+        for i in range(n_recs):
+            rec = self.records[i]
+            
+            # Longitudinal G via Central Finite Difference
+            if n_recs > 2:
+                if i == 0:
+                    dt = max(0.01, self.records[1].time_s - rec.time_s)
+                    dv_ms = (self.records[1].speed_kmh - rec.speed_kmh) / 3.6
+                elif i == n_recs - 1:
+                    dt = max(0.01, rec.time_s - self.records[i - 1].time_s)
+                    dv_ms = (rec.speed_kmh - self.records[i - 1].speed_kmh) / 3.6
+                else:
+                    dt = max(0.02, self.records[i + 1].time_s - self.records[i - 1].time_s)
+                    dv_ms = (self.records[i + 1].speed_kmh - self.records[i - 1].speed_kmh) / 3.6
+                g_long = dv_ms / (dt * 9.80665)
+                rec.accel_long_g = max(-1.8, min(1.5, g_long))
+            
+            # Lateral G via Lean Angle
+            rad_lean = math.radians(min(65.0, abs(rec.lean_angle_deg)))
+            g_lat_mag = math.tan(rad_lean)
+            rec.accel_lat_g = (1.0 if rec.lean_angle_deg >= 0 else -1.0) * min(2.0, g_lat_mag)
+            
+            # Total G (Friction / Traction Demand)
+            rec.accel_total_g = math.sqrt(rec.accel_long_g ** 2 + rec.accel_lat_g ** 2)
+            
+            # Wheel Slip & Wheelie Heuristic
+            slip_base = (rec.torque_slow_pct * 0.25) + (rec.torque_fast_pct * 0.35)
+            if rec.tps_pct > 50.0 and rec.accel_long_g > 0.35 and abs(rec.lean_angle_deg) > 15.0:
+                slip_base += (abs(rec.lean_angle_deg) / 45.0) * 5.0
+            rec.wheel_slip_pct = min(40.0, slip_base)
+            rec.wheelie = (rec.tps_pct > 75.0 and rec.accel_long_g > 0.45 and rec.gear in (1, 2, 3) and abs(rec.lean_angle_deg) < 12.0)
+
         # 5. Automatic Lap & Split Timing Gate Detection
         self._detect_and_segment_laps()
         self._compute_statistics()
@@ -707,6 +752,10 @@ class DDAParser:
             "end_gps": (self.gps_records[-1].gps_lat, self.gps_records[-1].gps_lon) if self.gps_records else (None, None),
             "min_alt_m": min(r.gps_alt_m for r in self.gps_records) if self.gps_records else 0.0,
             "max_alt_m": max(r.gps_alt_m for r in self.gps_records) if self.gps_records else 0.0,
+            "max_brake_g": round(min((r.accel_long_g for r in self.records), default=0.0), 2),
+            "max_accel_g": round(max((r.accel_long_g for r in self.records), default=0.0), 2),
+            "max_lat_g": round(max((abs(r.accel_lat_g) for r in self.records), default=0.0), 2),
+            "max_total_g": round(max((r.accel_total_g for r in self.records), default=0.0), 2),
         }
 
     def to_dict(self):

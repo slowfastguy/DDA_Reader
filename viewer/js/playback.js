@@ -133,6 +133,31 @@ function updateUI() {
   if (dom.valDtcFast) dom.valDtcFast.textContent = `${Math.round(dtcFast)}%`;
   if (dom.dtcFastPill) dom.dtcFastPill.classList.toggle('dtc-active', dtcFast > 0.5);
 
+  // 7b. G-Force Kinematics (G-Long, G-Lat, Total G-Sum)
+  const glong0 = r0.accel_long_g !== undefined ? r0.accel_long_g : 0;
+  const glong1 = r1.accel_long_g !== undefined ? r1.accel_long_g : glong0;
+  const interpGlong = glong0 + (glong1 - glong0) * frac;
+
+  const glat0 = r0.accel_lat_g !== undefined ? r0.accel_lat_g : 0;
+  const glat1 = r1.accel_lat_g !== undefined ? r1.accel_lat_g : glat0;
+  const interpGlat = glat0 + (glat1 - glat0) * frac;
+
+  const interpGtotal = Math.sqrt(interpGlong ** 2 + interpGlat ** 2);
+
+  if (dom.valGlongNumeric) {
+    dom.valGlongNumeric.textContent = `${interpGlong >= 0 ? '+' : ''}${interpGlong.toFixed(2)} g`;
+    dom.valGlongNumeric.style.color = interpGlong < -0.4 ? '#ff1744' : (interpGlong > 0.3 ? '#00e676' : '#a5b4fc');
+  }
+  if (dom.valGlatNumeric) {
+    dom.valGlatNumeric.textContent = `${interpGlat >= 0 ? '+' : ''}${interpGlat.toFixed(2)} g`;
+    dom.valGlatNumeric.style.color = Math.abs(interpGlat) > 0.6 ? '#00e5ff' : '#a5b4fc';
+  }
+
+  // Render dynamic live G-G friction circle
+  if (typeof renderGGFrictionCircle === 'function') {
+    renderGGFrictionCircle(interpGlong, interpGlat, interpGtotal, r0);
+  }
+
   // 8. Altitude & Distance
   const alt0 = r0.gps_alt_m !== null ? r0.gps_alt_m : 0;
   const alt1 = r1.gps_alt_m !== null ? r1.gps_alt_m : alt0;
@@ -383,6 +408,7 @@ function toggleCompareMode() {
   if (dom.btnToggleCompare) dom.btnToggleCompare.classList.toggle('active', state.isCompareMode);
   if (dom.compareControlsBar) dom.compareControlsBar.style.display = state.isCompareMode ? 'flex' : 'none';
   if (dom.legCompareSpd) dom.legCompareSpd.style.display = state.isCompareMode ? 'flex' : 'none';
+  if (dom.legCompareDelta) dom.legCompareDelta.style.display = state.isCompareMode ? 'flex' : 'none';
 
   if (state.isCompareMode) {
     if (state.ghostMarker && state.map) state.ghostMarker.addTo(state.map);

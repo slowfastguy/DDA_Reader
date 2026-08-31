@@ -19,6 +19,7 @@ function renderLapListTable() {
   if (dom.selectLapA) dom.selectLapA.innerHTML = '';
   if (dom.selectLapB) dom.selectLapB.innerHTML = '';
   if (dom.selectExportLap) dom.selectExportLap.innerHTML = '';
+  if (dom.selectMatrixLap) dom.selectMatrixLap.innerHTML = '<option value="-1">All Laps (Full Session)</option>';
 
   const trAll = document.createElement('tr');
   trAll.dataset.lap = '-1';
@@ -65,6 +66,7 @@ function renderLapListTable() {
     if (dom.selectLapA) dom.selectLapA.appendChild(opt.cloneNode(true));
     if (dom.selectLapB) dom.selectLapB.appendChild(opt.cloneNode(true));
     if (dom.selectExportLap) dom.selectExportLap.appendChild(opt.cloneNode(true));
+    if (dom.selectMatrixLap) dom.selectMatrixLap.appendChild(opt.cloneNode(true));
   });
 
   const bestLap = state.laps.find(l => l.is_best);
@@ -99,9 +101,46 @@ function loadSessionData(jsonObj) {
     return;
   }
 
-  for (let i = 0; i < state.records.length; i++) {
-    state.records[i].orig_index = i;
-    state.records[i].local_index = i;
+  const nRecs = state.records.length;
+  for (let i = 0; i < nRecs; i++) {
+    const r = state.records[i];
+    r.orig_index = i;
+    r.local_index = i;
+
+    // Kinematics fallback
+    if (r.accel_long_g === undefined) {
+      if (nRecs > 2) {
+        let dt, dv_ms;
+        if (i === 0) {
+          dt = Math.max(0.01, state.records[1].time_s - r.time_s);
+          dv_ms = ((state.records[1].speed_kmh || 0) - (r.speed_kmh || 0)) / 3.6;
+        } else if (i === nRecs - 1) {
+          dt = Math.max(0.01, r.time_s - state.records[i - 1].time_s);
+          dv_ms = ((r.speed_kmh || 0) - (state.records[i - 1].speed_kmh || 0)) / 3.6;
+        } else {
+          dt = Math.max(0.02, state.records[i + 1].time_s - state.records[i - 1].time_s);
+          dv_ms = ((state.records[i + 1].speed_kmh || 0) - (state.records[i - 1].speed_kmh || 0)) / 3.6;
+        }
+        r.accel_long_g = Math.max(-1.8, Math.min(1.5, dv_ms / (dt * 9.80665)));
+      } else {
+        r.accel_long_g = 0;
+      }
+    }
+    if (r.accel_lat_g === undefined) {
+      const radLean = Math.min(65.0, Math.abs(r.lean_angle_deg || 0)) * (Math.PI / 180.0);
+      const gLatMag = Math.tan(radLean);
+      r.accel_lat_g = ((r.lean_angle_deg || 0) >= 0 ? 1.0 : -1.0) * Math.min(2.0, gLatMag);
+    }
+    if (r.accel_total_g === undefined) {
+      r.accel_total_g = Math.sqrt((r.accel_long_g || 0) ** 2 + (r.accel_lat_g || 0) ** 2);
+    }
+    if (r.wheel_slip_pct === undefined) {
+      let slip = ((r.torque_slow_pct || 0) * 0.25) + ((r.torque_fast_pct || 0) * 0.35);
+      if ((r.tps_pct || 0) > 50 && (r.accel_long_g || 0) > 0.35 && Math.abs(r.lean_angle_deg || 0) > 15) {
+        slip += (Math.abs(r.lean_angle_deg || 0) / 45.0) * 5.0;
+      }
+      r.wheel_slip_pct = Math.min(40.0, slip);
+    }
   }
 
   const h = jsonObj.header || {};
@@ -208,6 +247,26 @@ function bindEvents() {
       if (dom.prefShowExtrema) dom.prefShowExtrema.checked = state.showSpeedExtrema;
       saveSettingsToStorage();
       renderSpeedExtremaMarkers();
+    });
+  }
+
+  // Lean vs Throttle Matrix Modal
+  if (dom.btnOpenMatrix) {
+    dom.btnOpenMatrix.addEventListener('click', () => {
+      const lapNum = dom.selectMatrixLap ? parseInt(dom.selectMatrixLap.value, 10) : -1;
+      if (typeof renderLeanThrottleMatrix === 'function') renderLeanThrottleMatrix(lapNum);
+      if (dom.modalLeanThrottle) dom.modalLeanThrottle.style.display = 'flex';
+    });
+  }
+  if (dom.btnCloseMatrix) {
+    dom.btnCloseMatrix.addEventListener('click', () => {
+      if (dom.modalLeanThrottle) dom.modalLeanThrottle.style.display = 'none';
+    });
+  }
+  if (dom.selectMatrixLap) {
+    dom.selectMatrixLap.addEventListener('change', (e) => {
+      const lapNum = parseInt(e.target.value, 10);
+      if (typeof renderLeanThrottleMatrix === 'function') renderLeanThrottleMatrix(lapNum);
     });
   }
 
@@ -662,6 +721,15 @@ function bindEvents() {
       seekToIndex(state.activeRecords.length - 1);
     } else if (e.code === 'KeyC') {
       toggleCompareMode();
+    } else if (e.code === 'KeyM') {
+      if (dom.modalLeanThrottle) {
+        const isVis = dom.modalLeanThrottle.style.display === 'flex';
+        dom.modalLeanThrottle.style.display = isVis ? 'none' : 'flex';
+        if (!isVis) {
+          const lapNum = dom.selectMatrixLap ? parseInt(dom.selectMatrixLap.value, 10) : -1;
+          if (typeof renderLeanThrottleMatrix === 'function') renderLeanThrottleMatrix(lapNum);
+        }
+      }
     } else if (e.code === 'KeyL') {
       if (typeof toggleWorkspaceLayout === 'function') toggleWorkspaceLayout();
     } else if (e.code === 'KeyS') {
@@ -673,6 +741,10 @@ function bindEvents() {
     } else if (e.code === 'KeyF') {
       if (dom.btnFitBounds) dom.btnFitBounds.click();
     } else if (e.code === 'Escape') {
+      if (dom.modalLeanThrottle) dom.modalLeanThrottle.style.display = 'none';
+      if (dom.modalSettings) dom.modalSettings.style.display = 'none';
+      if (dom.modalVideoExport) dom.modalVideoExport.style.display = 'none';
+      if (dom.modalShortcuts) dom.modalShortcuts.style.display = 'none';
       if (state.sectionSelection.active || state.sectionSelection.isSelecting) {
         if (typeof clearSectionSelection === 'function') clearSectionSelection();
       }
