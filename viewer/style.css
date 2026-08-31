@@ -1781,21 +1781,163 @@ body.dark-theme {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 8px 10px;
+  transition: all var(--transition-fast);
 }
 
-.card-header-sm {
+.card-header-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 9px;
-  font-weight: 800;
-  color: var(--text-muted);
-  letter-spacing: 0.5px;
+  gap: 8px;
   margin-bottom: 6px;
+  cursor: pointer;
+  user-select: none;
+  padding: 1px 0;
+}
+
+.card-header-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.card-drag-handle {
+  color: var(--text-muted);
+  cursor: grab;
+  font-size: 13px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: var(--radius-xs);
+  transition: all var(--transition-fast);
+  letter-spacing: -2px;
+}
+.card-drag-handle:hover {
+  color: var(--accent-cyan);
+  background: rgba(0, 229, 255, 0.1);
+}
+.card-drag-handle:active {
+  cursor: grabbing;
 }
 
 .card-title-text {
+  font-size: 9.5px;
+  font-weight: 800;
   color: var(--text-dim);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.card-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.btn-card-collapse {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-xs);
+  transition: all var(--transition-fast);
+}
+.btn-card-collapse:hover {
+  background: var(--bg-card-hover);
+  color: #ffffff;
+}
+
+.card-collapse-icon {
+  transition: transform var(--transition-fast);
+}
+
+/* Card Collapsed State */
+.data-card.collapsed {
+  padding-bottom: 6px;
+}
+.data-card.collapsed .card-header-bar {
+  margin-bottom: 0;
+}
+.data-card.collapsed .card-content-body {
+  display: none !important;
+}
+.data-card.collapsed .card-collapse-icon {
+  transform: rotate(-90deg);
+}
+
+/* Card Dragging and Drop Indicator */
+.data-card.card-dragging {
+  opacity: 0.45;
+  border: 1px dashed var(--accent-cyan);
+  transform: scale(0.98);
+}
+
+.card-drop-placeholder {
+  height: 3px;
+  background: var(--accent-cyan);
+  border-radius: 2px;
+  box-shadow: var(--shadow-glow-cyan);
+  margin: -4px 0;
+  transition: all 0.1s ease;
+}
+
+/* Checkbox Dropdown Items */
+.dropdown-item-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-main);
+  cursor: pointer;
+  border-radius: var(--radius-xs);
+  transition: background var(--transition-fast);
+}
+.dropdown-item-checkbox:hover {
+  background: var(--bg-card-hover);
+  color: #ffffff;
+}
+.dropdown-item-checkbox input[type="checkbox"] {
+  accent-color: var(--accent-cyan);
+  cursor: pointer;
+}
+
+/* Compact Density Mode */
+.data-sidebar-compact .data-body-scroll {
+  gap: 4px;
+  padding: 4px;
+}
+.data-sidebar-compact .data-card {
+  padding: 5px 8px;
+}
+.data-sidebar-compact .lap-table-container {
+  max-height: 110px;
+}
+.data-sidebar-compact .lap-table th,
+.data-sidebar-compact .lap-table td {
+  padding: 2px 4px;
+  font-size: 9px;
+}
+.data-sidebar-compact .tach-container {
+  padding: 4px 6px;
+}
+.data-sidebar-compact .speed-number-wrap .speed-big {
+  font-size: 28px;
+}
+.data-sidebar-compact .gear-big {
+  font-size: 28px;
+}
+.data-sidebar-compact .dtc-grid {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
 }
 
 .lap-card-badges {

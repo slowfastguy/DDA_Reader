@@ -100,6 +100,7 @@ function updateUI() {
   const spd = state.unitMph ? (interpSpeedKmh * 0.621371) : interpSpeedKmh;
   if (dom.valSpeedNumeric) dom.valSpeedNumeric.textContent = spd.toFixed(1);
   if (dom.lblSpeedUnit) dom.lblSpeedUnit.textContent = state.unitMph ? 'MPH' : 'KM/H';
+  if (dom.headerClusterSpeed) dom.headerClusterSpeed.textContent = `${spd.toFixed(1)} ${state.unitMph ? 'MPH' : 'KM/H'}`;
 
   // 3. RPM & Shift Lights
   const interpRpm = (r0.rpm || 0) + ((r1.rpm || 0) - (r0.rpm || 0)) * frac;

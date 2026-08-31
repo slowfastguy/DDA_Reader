@@ -191,6 +191,12 @@ const state = {
     sidebarCollapsed: false,
     chartsCollapsed: false,
     maximizedPanel: null
+  },
+  cardsConfig: {
+    order: ['laptimes', 'timing', 'cluster', 'lean', 'gg', 'phases'],
+    collapsed: {},
+    hidden: {},
+    compactDensity: false
   }
 };
 
@@ -203,6 +209,14 @@ const dom = {
   panelMap: document.getElementById('panel-map'),
   panelCharts: document.getElementById('panel-charts'),
   panelData: document.getElementById('panel-data'),
+  dataBodyScroll: document.getElementById('data-body-scroll'),
+  btnCustomizeCards: document.getElementById('btn-customize-cards'),
+  btnToggleDensity: document.getElementById('btn-toggle-density'),
+  lblDensityMode: document.getElementById('lbl-density-mode'),
+  btnCollapseAllCards: document.getElementById('btn-collapse-all-cards'),
+  btnExpandAllCards: document.getElementById('btn-expand-all-cards'),
+  btnResetCardsOrder: document.getElementById('btn-reset-cards-order'),
+  headerClusterSpeed: document.getElementById('header-cluster-speed'),
   resizerSidebar: document.getElementById('resizer-sidebar'),
   resizerCharts: document.getElementById('resizer-charts'),
   resizerTopSplit: document.getElementById('resizer-top-split'),

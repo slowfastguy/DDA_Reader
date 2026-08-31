@@ -9,16 +9,240 @@ document.addEventListener('DOMContentLoaded', () => {
   initCanvas();
   initDropdownMenus();
   initSplitterEngine();
+  initDataCardsEngine();
   bindEvents();
   initMotoGPOverlay();
   checkEmbeddedOrSampleData();
 });
 
+function initDataCardsEngine() {
+  loadCardsConfig();
+
+  const container = dom.dataBodyScroll || document.getElementById('data-body-scroll');
+  if (!container) return;
+
+  // 1. Drag & Drop Reordering
+  let draggedCard = null;
+  let placeholder = null;
+
+  function createPlaceholder() {
+    const el = document.createElement('div');
+    el.className = 'card-drop-placeholder';
+    return el;
+  }
+
+  const cards = container.querySelectorAll('.data-card');
+  cards.forEach(card => {
+    card.addEventListener('dragstart', (e) => {
+      state.isDraggingCard = true;
+      draggedCard = card;
+      card.classList.add('card-dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', card.dataset.cardId || '');
+      placeholder = createPlaceholder();
+    });
+
+    card.addEventListener('dragend', () => {
+      state.isDraggingCard = false;
+      if (draggedCard) draggedCard.classList.remove('card-dragging');
+      if (placeholder && placeholder.parentNode) placeholder.parentNode.removeChild(placeholder);
+      draggedCard = null;
+      placeholder = null;
+      updateCardsOrderFromDOM();
+    });
+  });
+
+  container.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+
+    if (!draggedCard || !placeholder) return;
+
+    const targetCard = e.target.closest('.data-card');
+    if (!targetCard || targetCard === draggedCard) return;
+
+    const rect = targetCard.getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+
+    if (e.clientY < midY) {
+      container.insertBefore(placeholder, targetCard);
+    } else {
+      container.insertBefore(placeholder, targetCard.nextSibling);
+    }
+  });
+
+  container.addEventListener('drop', (e) => {
+    e.preventDefault();
+    if (draggedCard && placeholder && placeholder.parentNode) {
+      placeholder.parentNode.insertBefore(draggedCard, placeholder);
+      placeholder.parentNode.removeChild(placeholder);
+      updateCardsOrderFromDOM();
+    }
+  });
+
+  // 2. Accordion Card Collapse / Expand
+  container.addEventListener('click', (e) => {
+    const headerBar = e.target.closest('.card-header-bar');
+    if (!headerBar) return;
+
+    // Don't toggle collapse if dragging handle was clicked
+    if (e.target.closest('.card-drag-handle')) return;
+
+    const card = headerBar.closest('.data-card');
+    if (!card) return;
+
+    const cardId = card.dataset.cardId;
+    const isCollapsed = card.classList.toggle('collapsed');
+    state.cardsConfig.collapsed[cardId] = isCollapsed;
+    saveCardsConfig();
+  });
+
+  // 3. Card Customizer Dropdown Handlers
+  const chks = document.querySelectorAll('#menu-customize-cards input[type="checkbox"]');
+  chks.forEach(chk => {
+    chk.addEventListener('change', (e) => {
+      const cardId = e.target.dataset.card;
+      const targetCard = document.getElementById(`card-${cardId}`) || container.querySelector(`[data-card-id="${cardId}"]`);
+      if (targetCard) {
+        targetCard.style.display = e.target.checked ? '' : 'none';
+        state.cardsConfig.hidden[cardId] = !e.target.checked;
+        saveCardsConfig();
+      }
+    });
+  });
+
+  if (dom.btnToggleDensity) {
+    dom.btnToggleDensity.addEventListener('click', () => {
+      state.cardsConfig.compactDensity = !state.cardsConfig.compactDensity;
+      if (dom.mainWorkspace) dom.mainWorkspace.classList.toggle('data-sidebar-compact', state.cardsConfig.compactDensity);
+      if (dom.lblDensityMode) dom.lblDensityMode.textContent = state.cardsConfig.compactDensity ? 'Compact Density: ON' : 'Compact Density: OFF';
+      saveCardsConfig();
+    });
+  }
+
+  if (dom.btnCollapseAllCards) {
+    dom.btnCollapseAllCards.addEventListener('click', () => {
+      container.querySelectorAll('.data-card').forEach(c => {
+        c.classList.add('collapsed');
+        if (c.dataset.cardId) state.cardsConfig.collapsed[c.dataset.cardId] = true;
+      });
+      saveCardsConfig();
+    });
+  }
+
+  if (dom.btnExpandAllCards) {
+    dom.btnExpandAllCards.addEventListener('click', () => {
+      container.querySelectorAll('.data-card').forEach(c => {
+        c.classList.remove('collapsed');
+        if (c.dataset.cardId) state.cardsConfig.collapsed[c.dataset.cardId] = false;
+      });
+      saveCardsConfig();
+    });
+  }
+
+  if (dom.btnResetCardsOrder) {
+    dom.btnResetCardsOrder.addEventListener('click', () => {
+      state.cardsConfig = {
+        order: ['laptimes', 'timing', 'cluster', 'lean', 'gg', 'phases'],
+        collapsed: {},
+        hidden: {},
+        compactDensity: false
+      };
+      applyCardsConfigToUI();
+      saveCardsConfig();
+    });
+  }
+}
+
+function updateCardsOrderFromDOM() {
+  const container = dom.dataBodyScroll || document.getElementById('data-body-scroll');
+  if (!container) return;
+  const cards = container.querySelectorAll('.data-card');
+  const newOrder = [];
+  cards.forEach(c => {
+    if (c.dataset.cardId) newOrder.push(c.dataset.cardId);
+  });
+  state.cardsConfig.order = newOrder;
+  saveCardsConfig();
+}
+
+function applyCardsConfigToUI() {
+  const container = dom.dataBodyScroll || document.getElementById('data-body-scroll');
+  if (!container) return;
+
+  // Reorder elements according to state.cardsConfig.order
+  if (Array.isArray(state.cardsConfig.order)) {
+    state.cardsConfig.order.forEach(cardId => {
+      const cardEl = document.getElementById(`card-${cardId}`) || container.querySelector(`[data-card-id="${cardId}"]`);
+      if (cardEl) {
+        container.appendChild(cardEl);
+      }
+    });
+  }
+
+  // Apply Collapsed states
+  if (state.cardsConfig.collapsed) {
+    Object.keys(state.cardsConfig.collapsed).forEach(cardId => {
+      const cardEl = document.getElementById(`card-${cardId}`) || container.querySelector(`[data-card-id="${cardId}"]`);
+      if (cardEl) {
+        cardEl.classList.toggle('collapsed', !!state.cardsConfig.collapsed[cardId]);
+      }
+    });
+  }
+
+  // Apply Hidden states & Sync Checkboxes
+  if (state.cardsConfig.hidden) {
+    Object.keys(state.cardsConfig.hidden).forEach(cardId => {
+      const cardEl = document.getElementById(`card-${cardId}`) || container.querySelector(`[data-card-id="${cardId}"]`);
+      const isHidden = !!state.cardsConfig.hidden[cardId];
+      if (cardEl) {
+        cardEl.style.display = isHidden ? 'none' : '';
+      }
+      const chk = document.getElementById(`chk-card-${cardId}`) || document.querySelector(`input[data-card="${cardId}"]`);
+      if (chk) {
+        chk.checked = !isHidden;
+      }
+    });
+  }
+
+  // Apply Density Mode
+  if (dom.mainWorkspace) {
+    dom.mainWorkspace.classList.toggle('data-sidebar-compact', !!state.cardsConfig.compactDensity);
+  }
+  if (dom.lblDensityMode) {
+    dom.lblDensityMode.textContent = state.cardsConfig.compactDensity ? 'Compact Density: ON' : 'Compact Density: OFF';
+  }
+}
+
+function saveCardsConfig() {
+  try {
+    localStorage.setItem('dda_cards_config', JSON.stringify(state.cardsConfig));
+  } catch (err) {
+    console.warn('Could not save cards config to localStorage:', err);
+  }
+}
+
+function loadCardsConfig() {
+  try {
+    const raw = localStorage.getItem('dda_cards_config');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed.order && Array.isArray(parsed.order)) state.cardsConfig.order = parsed.order;
+      if (parsed.collapsed) state.cardsConfig.collapsed = parsed.collapsed;
+      if (parsed.hidden) state.cardsConfig.hidden = parsed.hidden;
+      if (parsed.compactDensity !== undefined) state.cardsConfig.compactDensity = parsed.compactDensity;
+    }
+  } catch (err) {
+    console.warn('Could not load cards config from localStorage:', err);
+  }
+  applyCardsConfigToUI();
+}
+
 function initDropdownMenus() {
   const wrappers = document.querySelectorAll('.dropdown-wrapper');
   
   wrappers.forEach(wrap => {
-    const trigger = wrap.querySelector('.btn-dropdown');
+    const trigger = wrap.querySelector('.btn-dropdown, .btn-icon');
     if (!trigger) return;
 
     trigger.addEventListener('click', (e) => {
@@ -30,9 +254,10 @@ function initDropdownMenus() {
       }
     });
 
-    // Close menu when a dropdown item is clicked
+    // Close menu when standard action items are clicked
     wrap.querySelectorAll('.dropdown-item').forEach(item => {
       item.addEventListener('click', () => {
+        if (item.id === 'btn-toggle-density') return;
         wrap.classList.remove('open');
       });
     });
@@ -969,8 +1194,14 @@ function bindEvents() {
   }
 
   window.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    if (dom.dropOverlay) dom.dropOverlay.style.display = 'flex';
+    const hasFiles = e.dataTransfer && e.dataTransfer.types && (
+      Array.from(e.dataTransfer.types).includes('Files') ||
+      e.dataTransfer.types.includes('application/x-moz-file')
+    );
+    if (!state.isDraggingCard && hasFiles) {
+      e.preventDefault();
+      if (dom.dropOverlay) dom.dropOverlay.style.display = 'flex';
+    }
   });
   if (dom.dropOverlay) {
     dom.dropOverlay.addEventListener('dragleave', (e) => {

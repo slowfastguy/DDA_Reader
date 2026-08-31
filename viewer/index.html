@@ -536,6 +536,7 @@
   </div>
 
   <!-- Right Column: "DATA" Sidebar Panel (Laps, Timing, Dynamics & Instruments) -->
+  <!-- Right Column: "DATA" Sidebar Panel (Laps, Timing, Dynamics & Instruments) -->
   <aside class="panel panel-data" id="panel-data">
     <div class="panel-header">
       <div class="panel-title">
@@ -543,25 +544,92 @@
         <span>DATA</span>
       </div>
       <div class="panel-header-right">
-        <span class="data-panel-tag">SESSION & GAUGES</span>
+        <!-- Card Customizer Dropdown -->
+        <div class="dropdown-wrapper" id="dropdown-cards-wrap">
+          <button id="btn-customize-cards" class="btn-icon" title="Customize Cards & Layout (Reorder / Show / Hide / Density)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+          </button>
+          <div class="dropdown-menu" id="menu-customize-cards">
+            <div class="dropdown-header">DATA Card Visibility</div>
+            <label class="dropdown-item-checkbox">
+              <input type="checkbox" id="chk-card-laptimes" checked data-card="laptimes">
+              <span>Lap Times & Session Log</span>
+            </label>
+            <label class="dropdown-item-checkbox">
+              <input type="checkbox" id="chk-card-timing" checked data-card="timing">
+              <span>Live Lap & Sector Timing</span>
+            </label>
+            <label class="dropdown-item-checkbox">
+              <input type="checkbox" id="chk-card-cluster" checked data-card="cluster">
+              <span>Engine Tach & Dynamics Cluster</span>
+            </label>
+            <label class="dropdown-item-checkbox">
+              <input type="checkbox" id="chk-card-lean" checked data-card="lean">
+              <span>Chassis Lean Angle</span>
+            </label>
+            <label class="dropdown-item-checkbox">
+              <input type="checkbox" id="chk-card-gg" checked data-card="gg">
+              <span>G-G Friction Circle</span>
+            </label>
+            <label class="dropdown-item-checkbox">
+              <input type="checkbox" id="chk-card-phases" checked data-card="phases">
+              <span>Riding Phases & Coast Time</span>
+            </label>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-header">Density & Arrangement</div>
+            <button id="btn-toggle-density" class="dropdown-item">
+              <span class="dropdown-item-left">
+                <span class="dropdown-item-icon">📐</span>
+                <span id="lbl-density-mode">Compact Density: OFF</span>
+              </span>
+            </button>
+            <button id="btn-collapse-all-cards" class="dropdown-item">
+              <span class="dropdown-item-left">
+                <span class="dropdown-item-icon">📁</span>
+                <span>Collapse All Cards</span>
+              </span>
+            </button>
+            <button id="btn-expand-all-cards" class="dropdown-item">
+              <span class="dropdown-item-left">
+                <span class="dropdown-item-icon">📂</span>
+                <span>Expand All Cards</span>
+              </span>
+            </button>
+            <button id="btn-reset-cards-order" class="dropdown-item text-danger">
+              <span class="dropdown-item-left">
+                <span class="dropdown-item-icon">↺</span>
+                <span>Reset Card Order</span>
+              </span>
+            </button>
+          </div>
+        </div>
+
         <button id="btn-collapse-sidebar" class="btn-icon" title="Collapse DATA Sidebar (])">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
         </button>
       </div>
     </div>
 
-      <div class="data-body-scroll">
-        <!-- 1. Lap List & Lap Times Table Card with Best & Optimal Lap -->
-        <div class="data-card laptimes-card">
-          <div class="card-header-sm">
+    <div class="data-body-scroll" id="data-body-scroll">
+      <!-- 1. Lap List & Lap Times Table Card -->
+      <div class="data-card laptimes-card" id="card-laptimes" data-card-id="laptimes" draggable="true">
+        <div class="card-header-bar">
+          <div class="card-header-left">
+            <span class="card-drag-handle" title="Drag to reorder card">⋮⋮</span>
             <span class="card-title-text">LAP TIMES & SESSION LOG</span>
+          </div>
+          <div class="card-header-right">
             <div class="lap-card-badges">
               <span id="data-best-lap-badge" class="badge badge-best-lap">🏆 Best: 2:03.80</span>
               <span id="data-opt-lap-badge" class="badge badge-opt-lap">⚡ Opt: 2:02.95</span>
             </div>
+            <button class="btn-card-collapse" title="Collapse / Expand Card">
+              <svg class="card-collapse-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
           </div>
+        </div>
 
-          <!-- Interactive Lap List Table -->
+        <div class="card-content-body">
           <div class="lap-table-container">
             <table class="lap-table" id="lap-times-table">
               <thead>
@@ -580,9 +648,26 @@
             </table>
           </div>
         </div>
+      </div>
 
-        <!-- 2. Live Lap Timer & Active Sector Splits Card -->
-        <div class="data-card timing-card">
+      <!-- 2. Live Lap Timer & Active Sector Splits Card -->
+      <div class="data-card timing-card" id="card-timing" data-card-id="timing" draggable="true">
+        <div class="card-header-bar">
+          <div class="card-header-left">
+            <span class="card-drag-handle" title="Drag to reorder card">⋮⋮</span>
+            <span class="card-title-text">LIVE LAP & SECTOR TIMING</span>
+          </div>
+          <div class="card-header-right">
+            <div class="lap-badge-status" id="lap-status-badge">
+              <span id="val-lap-status-text">ON TRACK</span>
+            </div>
+            <button class="btn-card-collapse" title="Collapse / Expand Card">
+              <svg class="card-collapse-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="card-content-body">
           <div class="timing-header-row">
             <div class="lap-timer-wrap">
               <span class="lbl-dim" id="lbl-lap-name">LAP 8 TIME</span>
@@ -590,9 +675,6 @@
                 <span id="val-lap-elapsed" class="val-mono lap-time-big">00:00.00</span>
                 <span id="val-lap-target" class="lap-time-target">/ 02:03.80</span>
               </div>
-            </div>
-            <div class="lap-badge-status" id="lap-status-badge">
-              <span id="val-lap-status-text">ON TRACK</span>
             </div>
           </div>
 
@@ -612,94 +694,24 @@
             </div>
           </div>
         </div>
+      </div>
 
-        <!-- 3. Lean Angle Dynamic Visualizer Card -->
-        <div class="data-card lean-card">
-          <div class="card-header-sm">
-            <span class="card-title-text">CHASSIS LEAN ANGLE</span>
-            <span id="val-lean-deg" class="value-highlight">0.0°</span>
+      <!-- 3. Primary Telemetry Cluster (Speed, Gear, RPM Tach, TPS, DTC, G-Force) -->
+      <div class="data-card cluster-card" id="card-cluster" data-card-id="cluster" draggable="true">
+        <div class="card-header-bar">
+          <div class="card-header-left">
+            <span class="card-drag-handle" title="Drag to reorder card">⋮⋮</span>
+            <span class="card-title-text">ENGINE TACH & DYNAMICS</span>
           </div>
-          <div class="lean-visualizer-container">
-            <svg id="svg-lean-gauge" class="lean-svg" viewBox="-120 -40 240 160">
-              <path d="M -90,60 A 100 100 0 0 1 90,60" fill="none" stroke="#2a2d37" stroke-width="8" stroke-linecap="round"/>
-              <line x1="0" y1="-20" x2="0" y2="70" stroke="#444957" stroke-width="1.5" stroke-dasharray="4,4"/>
-              <text x="0" y="-26" fill="#8e94a5" font-size="10" text-anchor="middle" font-family="Inter">0°</text>
-              <text x="-95" y="70" fill="#00e5ff" font-size="11" font-weight="700" text-anchor="end" font-family="Inter">-45° L</text>
-              <text x="95" y="70" fill="#00e5ff" font-size="11" font-weight="700" text-anchor="start" font-family="Inter">+45° R</text>
-              <g id="moto-tilt-group" transform="rotate(0, 0, 45)">
-                <circle cx="0" cy="45" r="28" fill="#1b1d24" stroke="#e10600" stroke-width="3"/>
-                <ellipse cx="0" cy="72" rx="14" ry="4" fill="#ff2a2a"/>
-                <path d="M -8,30 L 0,0 L 8,30 Z" fill="#e10600"/>
-                <circle cx="0" cy="-2" r="10" fill="#ffffff" stroke="#e10600" stroke-width="2"/>
-                <path d="M -6,-2 Q 0,-6 6,-2" fill="none" stroke="#121212" stroke-width="2.5"/>
-                <polygon points="-5,22 0,16 5,22" fill="#ff0033"/>
-              </g>
-            </svg>
-          </div>
-          <div class="lean-peak-row">
-            <span class="peak-item">Max Left: <strong id="peak-lean-left" class="text-cyan">0.0°</strong></span>
-            <span class="peak-item">Max Right: <strong id="peak-lean-right" class="text-cyan">0.0°</strong></span>
+          <div class="card-header-right">
+            <span id="header-cluster-speed" class="badge badge-accent">0.0 MPH</span>
+            <button class="btn-card-collapse" title="Collapse / Expand Card">
+              <svg class="card-collapse-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
           </div>
         </div>
 
-        <!-- 3b. G-G Diagram & Friction Circle Card -->
-        <div class="data-card gg-card">
-          <div class="card-header-sm">
-            <span class="card-title-text">G-G FRICTION CIRCLE</span>
-            <div class="gg-card-badges">
-              <span id="val-gg-total" class="badge badge-best-lap">0.00 G</span>
-            </div>
-          </div>
-          <div class="gg-canvas-container">
-            <canvas id="gg-canvas" class="gg-canvas" width="240" height="200"></canvas>
-          </div>
-          <div class="gg-stats-row">
-            <span class="peak-item">Brake: <strong id="val-max-brake-g" class="text-red">0.00g</strong></span>
-            <span class="peak-item">Accel: <strong id="val-max-accel-g" class="text-green">0.00g</strong></span>
-            <span class="peak-item">Corner: <strong id="val-max-lat-g" class="text-cyan">0.00g</strong></span>
-          </div>
-        </div>
-
-        <!-- 3c. Riding Phases & Coast Time Distribution Card -->
-        <div class="data-card phases-card">
-          <div class="card-header-sm">
-            <span class="card-title-text">RIDING PHASES & ROLL TIME</span>
-            <span id="val-coast-summary" class="badge badge-accent">0.0s Coast</span>
-          </div>
-          <div class="phases-bar-container">
-            <div class="phases-progress-bar">
-              <div id="phase-bar-accel" class="phase-segment phase-accel" style="width: 35%;" title="Full Power / Accel (TPS >= 60%)"></div>
-              <div id="phase-bar-maint" class="phase-segment phase-maint" style="width: 25%;" title="Maintenance / Part Throttle (5% - 60%)"></div>
-              <div id="phase-bar-brake" class="phase-segment phase-brake" style="width: 20%;" title="Heavy Braking (Decel < -0.35g)"></div>
-              <div id="phase-bar-coast" class="phase-segment phase-coast" style="width: 20%;" title="Coasting / Roll Time (No Gas, No Hard Brake)"></div>
-            </div>
-          </div>
-          <div class="phases-legend-grid">
-            <div class="phase-legend-item">
-              <span class="phase-dot dot-accel"></span>
-              <span class="phase-lbl">Full Gas:</span>
-              <strong id="val-phase-accel-pct" class="phase-val">0%</strong>
-            </div>
-            <div class="phase-legend-item">
-              <span class="phase-dot dot-maint"></span>
-              <span class="phase-lbl">Maint:</span>
-              <strong id="val-phase-maint-pct" class="phase-val">0%</strong>
-            </div>
-            <div class="phase-legend-item">
-              <span class="phase-dot dot-brake"></span>
-              <span class="phase-lbl">Brake:</span>
-              <strong id="val-phase-brake-pct" class="phase-val">0%</strong>
-            </div>
-            <div class="phase-legend-item">
-              <span class="phase-dot dot-coast"></span>
-              <span class="phase-lbl">Coast:</span>
-              <strong id="val-phase-coast-pct" class="phase-val text-warning">0%</strong>
-            </div>
-          </div>
-        </div>
-
-        <!-- 4. Primary Telemetry Cluster (Speed, Gear, RPM Tach, TPS, DTC, G-Force) -->
-        <div class="data-card cluster-card">
+        <div class="card-content-body">
           <div class="tach-container">
             <div class="tach-header">
               <span class="lbl-dim">ENGINE RPM</span>
@@ -786,8 +798,124 @@
             </div>
           </div>
         </div>
-
       </div>
+
+      <!-- 4. Lean Angle Dynamic Visualizer Card -->
+      <div class="data-card lean-card" id="card-lean" data-card-id="lean" draggable="true">
+        <div class="card-header-bar">
+          <div class="card-header-left">
+            <span class="card-drag-handle" title="Drag to reorder card">⋮⋮</span>
+            <span class="card-title-text">CHASSIS LEAN ANGLE</span>
+          </div>
+          <div class="card-header-right">
+            <span id="val-lean-deg" class="value-highlight">0.0°</span>
+            <button class="btn-card-collapse" title="Collapse / Expand Card">
+              <svg class="card-collapse-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="card-content-body">
+          <div class="lean-visualizer-container">
+            <svg id="svg-lean-gauge" class="lean-svg" viewBox="-120 -40 240 160">
+              <path d="M -90,60 A 100 100 0 0 1 90,60" fill="none" stroke="#2a2d37" stroke-width="8" stroke-linecap="round"/>
+              <line x1="0" y1="-20" x2="0" y2="70" stroke="#444957" stroke-width="1.5" stroke-dasharray="4,4"/>
+              <text x="0" y="-26" fill="#8e94a5" font-size="10" text-anchor="middle" font-family="Inter">0°</text>
+              <text x="-95" y="70" fill="#00e5ff" font-size="11" font-weight="700" text-anchor="end" font-family="Inter">-45° L</text>
+              <text x="95" y="70" fill="#00e5ff" font-size="11" font-weight="700" text-anchor="start" font-family="Inter">+45° R</text>
+              <g id="moto-tilt-group" transform="rotate(0, 0, 45)">
+                <circle cx="0" cy="45" r="28" fill="#1b1d24" stroke="#e10600" stroke-width="3"/>
+                <ellipse cx="0" cy="72" rx="14" ry="4" fill="#ff2a2a"/>
+                <path d="M -8,30 L 0,0 L 8,30 Z" fill="#e10600"/>
+                <circle cx="0" cy="-2" r="10" fill="#ffffff" stroke="#e10600" stroke-width="2"/>
+                <path d="M -6,-2 Q 0,-6 6,-2" fill="none" stroke="#121212" stroke-width="2.5"/>
+                <polygon points="-5,22 0,16 5,22" fill="#ff0033"/>
+              </g>
+            </svg>
+          </div>
+          <div class="lean-peak-row">
+            <span class="peak-item">Max Left: <strong id="peak-lean-left" class="text-cyan">0.0°</strong></span>
+            <span class="peak-item">Max Right: <strong id="peak-lean-right" class="text-cyan">0.0°</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. G-G Diagram & Friction Circle Card -->
+      <div class="data-card gg-card" id="card-gg" data-card-id="gg" draggable="true">
+        <div class="card-header-bar">
+          <div class="card-header-left">
+            <span class="card-drag-handle" title="Drag to reorder card">⋮⋮</span>
+            <span class="card-title-text">G-G FRICTION CIRCLE</span>
+          </div>
+          <div class="card-header-right">
+            <span id="val-gg-total" class="badge badge-best-lap">0.00 G</span>
+            <button class="btn-card-collapse" title="Collapse / Expand Card">
+              <svg class="card-collapse-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="card-content-body">
+          <div class="gg-canvas-container">
+            <canvas id="gg-canvas" class="gg-canvas" width="240" height="200"></canvas>
+          </div>
+          <div class="gg-stats-row">
+            <span class="peak-item">Brake: <strong id="val-max-brake-g" class="text-red">0.00g</strong></span>
+            <span class="peak-item">Accel: <strong id="val-max-accel-g" class="text-green">0.00g</strong></span>
+            <span class="peak-item">Corner: <strong id="val-max-lat-g" class="text-cyan">0.00g</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6. Riding Phases & Coast Time Distribution Card -->
+      <div class="data-card phases-card" id="card-phases" data-card-id="phases" draggable="true">
+        <div class="card-header-bar">
+          <div class="card-header-left">
+            <span class="card-drag-handle" title="Drag to reorder card">⋮⋮</span>
+            <span class="card-title-text">RIDING PHASES & ROLL TIME</span>
+          </div>
+          <div class="card-header-right">
+            <span id="val-coast-summary" class="badge badge-accent">0.0s Coast</span>
+            <button class="btn-card-collapse" title="Collapse / Expand Card">
+              <svg class="card-collapse-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="card-content-body">
+          <div class="phases-bar-container">
+            <div class="phases-progress-bar">
+              <div id="phase-bar-accel" class="phase-segment phase-accel" style="width: 35%;" title="Full Power / Accel (TPS >= 60%)"></div>
+              <div id="phase-bar-maint" class="phase-segment phase-maint" style="width: 25%;" title="Maintenance / Part Throttle (5% - 60%)"></div>
+              <div id="phase-bar-brake" class="phase-segment phase-brake" style="width: 20%;" title="Heavy Braking (Decel < -0.35g)"></div>
+              <div id="phase-bar-coast" class="phase-segment phase-coast" style="width: 20%;" title="Coasting / Roll Time (No Gas, No Hard Brake)"></div>
+            </div>
+          </div>
+          <div class="phases-legend-grid">
+            <div class="phase-legend-item">
+              <span class="phase-dot dot-accel"></span>
+              <span class="phase-lbl">Full Gas:</span>
+              <strong id="val-phase-accel-pct" class="phase-val">0%</strong>
+            </div>
+            <div class="phase-legend-item">
+              <span class="phase-dot dot-maint"></span>
+              <span class="phase-lbl">Maint:</span>
+              <strong id="val-phase-maint-pct" class="phase-val">0%</strong>
+            </div>
+            <div class="phase-legend-item">
+              <span class="phase-dot dot-brake"></span>
+              <span class="phase-lbl">Brake:</span>
+              <strong id="val-phase-brake-pct" class="phase-val">0%</strong>
+            </div>
+            <div class="phase-legend-item">
+              <span class="phase-dot dot-coast"></span>
+              <span class="phase-lbl">Coast:</span>
+              <strong id="val-phase-coast-pct" class="phase-val text-warning">0%</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
     </aside>
   </div> <!-- End workspace-layout-row -->
 
