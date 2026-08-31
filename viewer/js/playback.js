@@ -332,6 +332,18 @@ function startPlayback() {
   if (dom.iconPlay) dom.iconPlay.style.display = 'none';
   if (dom.iconPause) dom.iconPause.style.display = 'block';
   if (dom.btnPlayPause) dom.btnPlayPause.classList.add('btn-playing');
+
+  if (dom.videoPlayer && state.video && state.video.hasVideo) {
+    const curR = state.activeRecords[Math.floor(state.currentIndex)];
+    const curTelTime = curR ? curR.time_s : 0;
+    const targetVideoTime = curTelTime + state.video.offsetSeconds;
+    if (isFinite(targetVideoTime) && targetVideoTime >= 0) {
+      dom.videoPlayer.currentTime = targetVideoTime;
+      dom.videoPlayer.playbackRate = state.playbackSpeed;
+      dom.videoPlayer.play().catch(() => {});
+    }
+  }
+
   state.lastFrameTime = performance.now();
   playbackLoop(state.lastFrameTime);
 }
@@ -344,6 +356,13 @@ function pausePlayback() {
   if (state.animationFrameId) {
     cancelAnimationFrame(state.animationFrameId);
     state.animationFrameId = null;
+  }
+
+  if (dom.videoPlayer && !dom.videoPlayer.paused) {
+    dom.videoPlayer.pause();
+  }
+  if (dom.videoLapBPlayer && !dom.videoLapBPlayer.paused) {
+    dom.videoLapBPlayer.pause();
   }
 }
 

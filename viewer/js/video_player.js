@@ -165,12 +165,9 @@ function loadVideoFile(file, isLapB = false) {
     // Default to split mode when video is loaded
     setVideoViewMode('split');
 
-    // Auto-calculate initial offset if telemetry is present
-    if (state.records && state.records.length > 0) {
-      const curTelTime = state.records[state.currentIndex]?.time_s || 0;
-      state.video.offsetSeconds = -curTelTime;
-      updateOffsetDisplay();
-    }
+    // Default initial offset to 0.0s
+    state.video.offsetSeconds = 0.0;
+    updateOffsetDisplay();
   } else {
     state.video.videoLapB.hasVideo = true;
     state.video.videoLapB.file = file;
@@ -263,6 +260,8 @@ function updateOffsetDisplay() {
   }
 }
 
+let lastVideoSyncSeekTime = 0;
+
 function syncVideoPlayback(currentTimeS, isPlaying, playbackSpeed) {
   if (!state.video.hasVideo || !dom.videoPlayer) return;
 
@@ -270,21 +269,34 @@ function syncVideoPlayback(currentTimeS, isPlaying, playbackSpeed) {
   const targetTime = currentTimeS + state.video.offsetSeconds;
 
   if (isFinite(targetTime) && targetTime >= 0 && vPlayer.duration && targetTime <= vPlayer.duration) {
-    vPlayer.playbackRate = playbackSpeed;
-
     if (isPlaying) {
       if (vPlayer.paused) {
-        vPlayer.play().catch(() => {});
-      }
-      // Check drift
-      if (Math.abs(vPlayer.currentTime - targetTime) > 0.12) {
         vPlayer.currentTime = targetTime;
+        vPlayer.playbackRate = playbackSpeed;
+        vPlayer.play().catch(() => {});
+      } else {
+        const drift = targetTime - vPlayer.currentTime;
+        // If huge drift (e.g. user jumped lap), hard seek once with throttle
+        if (Math.abs(drift) > 0.8) {
+          const now = performance.now();
+          if (now - lastVideoSyncSeekTime > 400) {
+            vPlayer.currentTime = targetTime;
+            lastVideoSyncSeekTime = now;
+          }
+        } else if (Math.abs(drift) > 0.08) {
+          // Soft rate micro-adjustment to smoothly catch up without seeking
+          const nudgeRate = drift > 0 ? 1.06 : 0.94;
+          vPlayer.playbackRate = playbackSpeed * nudgeRate;
+        } else {
+          vPlayer.playbackRate = playbackSpeed;
+        }
       }
     } else {
       if (!vPlayer.paused) {
         vPlayer.pause();
       }
-      if (Math.abs(vPlayer.currentTime - targetTime) > 0.04) {
+      // When paused or scrubbing, update currentTime cleanly
+      if (Math.abs(vPlayer.currentTime - targetTime) > 0.033) {
         vPlayer.currentTime = targetTime;
       }
     }
@@ -300,11 +312,26 @@ function syncVideoPlayback(currentTimeS, isPlaying, playbackSpeed) {
     const vLapB = dom.videoLapBPlayer;
     const targetB = currentTimeS + state.video.videoLapB.offsetSeconds;
     if (isFinite(targetB) && targetB >= 0 && vLapB.duration) {
-      vLapB.playbackRate = playbackSpeed;
-      if (isPlaying && vLapB.paused) vLapB.play().catch(() => {});
-      else if (!isPlaying && !vLapB.paused) vLapB.pause();
-      if (Math.abs(vLapB.currentTime - targetB) > 0.12) {
-        vLapB.currentTime = targetB;
+      if (isPlaying) {
+        if (vLapB.paused) {
+          vLapB.currentTime = targetB;
+          vLapB.playbackRate = playbackSpeed;
+          vLapB.play().catch(() => {});
+        } else {
+          const driftB = targetB - vLapB.currentTime;
+          if (Math.abs(driftB) > 0.8) {
+            vLapB.currentTime = targetB;
+          } else if (Math.abs(driftB) > 0.08) {
+            vLapB.playbackRate = playbackSpeed * (driftB > 0 ? 1.06 : 0.94);
+          } else {
+            vLapB.playbackRate = playbackSpeed;
+          }
+        }
+      } else {
+        if (!vLapB.paused) vLapB.pause();
+        if (Math.abs(vLapB.currentTime - targetB) > 0.033) {
+          vLapB.currentTime = targetB;
+        }
       }
     }
   }
