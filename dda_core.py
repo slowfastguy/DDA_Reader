@@ -804,7 +804,7 @@ class DDAParser:
             with open(js_path, "r", encoding="utf-8") as f:
                 js_content = f.read()
 
-        session_json_str = json.dumps(self.to_dict(), separators=(',', ':'))
+        session_json_str = json.dumps(self.to_dict(), separators=(',', ':')).replace("</", "<\\/").replace("<", "\\u003c")
         embedded_json_tag = f'<script id="embedded-data" type="application/json">{session_json_str}</script>'
 
         html_content = html_content.replace(

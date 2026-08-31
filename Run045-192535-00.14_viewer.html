@@ -3928,6 +3928,16 @@ function formatLapTime(sec) {
   return `${m.toString().padStart(2, '0')}:${s.toFixed(2).padStart(5, '0')}`;
 }
 
+function escapeHTML(str) {
+  if (str === undefined || str === null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 function updateWorkspaceLayout(forceState = null) {
   const grid = document.querySelector('.workspace-grid');
   if (!grid) return;
@@ -6335,7 +6345,7 @@ function updateSectionUI() {
       tr.innerHTML = `
         <td>
           <span class="lap-color-indicator" style="background: ${l.color};"></span>
-          <strong>${l.lapName}</strong>
+          <strong>${escapeHTML(l.lapName)}</strong>
         </td>
         <td><strong>${l.duration_s.toFixed(2)}s</strong></td>
         <td class="${deltaClass}"><strong>${deltaStr}</strong></td>
@@ -6414,8 +6424,8 @@ function renderTrackLibrary() {
     card.innerHTML = `
       <div class="track-item-header">
         <div>
-          <span class="track-item-title">${trk.name}</span>
-          <span class="track-item-loc">(${trk.location || 'Circuit'})</span>
+          <span class="track-item-title">${escapeHTML(trk.name)}</span>
+          <span class="track-item-loc">(${escapeHTML(trk.location || 'Circuit')})</span>
         </div>
         <span class="badge">${(trk.gates || []).length} Gates</span>
       </div>
@@ -8110,7 +8120,7 @@ function renderLapListTable() {
     const maxSpd = l.max_speed_kmh ? (state.unitMph ? (l.max_speed_kmh * 0.621371).toFixed(0) : l.max_speed_kmh.toFixed(0)) : '-';
 
     tr.innerHTML = `
-      <td>${l.is_best ? '🏆 ' : ''}${l.name}</td>
+      <td>${l.is_best ? '🏆 ' : ''}${escapeHTML(l.name)}</td>
       <td><strong>${durStr}</strong></td>
       <td>${s1}</td>
       <td>${s2}</td>

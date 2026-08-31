@@ -32,8 +32,8 @@ function renderTrackLibrary() {
     card.innerHTML = `
       <div class="track-item-header">
         <div>
-          <span class="track-item-title">${trk.name}</span>
-          <span class="track-item-loc">(${trk.location || 'Circuit'})</span>
+          <span class="track-item-title">${escapeHTML(trk.name)}</span>
+          <span class="track-item-loc">(${escapeHTML(trk.location || 'Circuit')})</span>
         </div>
         <span class="badge">${(trk.gates || []).length} Gates</span>
       </div>

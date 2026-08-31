@@ -518,6 +518,16 @@ function formatLapTime(sec) {
   return `${m.toString().padStart(2, '0')}:${s.toFixed(2).padStart(5, '0')}`;
 }
 
+function escapeHTML(str) {
+  if (str === undefined || str === null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 function updateWorkspaceLayout(forceState = null) {
   const grid = document.querySelector('.workspace-grid');
   if (!grid) return;

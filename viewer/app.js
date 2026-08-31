@@ -48,7 +48,7 @@ function renderLapListTable() {
     const maxSpd = l.max_speed_kmh ? (state.unitMph ? (l.max_speed_kmh * 0.621371).toFixed(0) : l.max_speed_kmh.toFixed(0)) : '-';
 
     tr.innerHTML = `
-      <td>${l.is_best ? '🏆 ' : ''}${l.name}</td>
+      <td>${l.is_best ? '🏆 ' : ''}${escapeHTML(l.name)}</td>
       <td><strong>${durStr}</strong></td>
       <td>${s1}</td>
       <td>${s2}</td>

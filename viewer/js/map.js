@@ -880,7 +880,7 @@ function updateSectionUI() {
       tr.innerHTML = `
         <td>
           <span class="lap-color-indicator" style="background: ${l.color};"></span>
-          <strong>${l.lapName}</strong>
+          <strong>${escapeHTML(l.lapName)}</strong>
         </td>
         <td><strong>${l.duration_s.toFixed(2)}s</strong></td>
         <td class="${deltaClass}"><strong>${deltaStr}</strong></td>
