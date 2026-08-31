@@ -228,6 +228,7 @@ function parseUploadedFile(file) {
 }
 
 function bindEvents() {
+  if (typeof initVideoPlayer === 'function') initVideoPlayer();
   if (dom.btnPlayPause) dom.btnPlayPause.addEventListener('click', togglePlayPause);
   if (dom.btnStepPrev) dom.btnStepPrev.addEventListener('click', () => seekToIndex(state.currentIndex - 1));
   if (dom.btnStepNext) dom.btnStepNext.addEventListener('click', () => seekToIndex(state.currentIndex + 1));
@@ -780,6 +781,14 @@ function bindEvents() {
       }
     } else if (e.code === 'KeyL') {
       if (typeof toggleWorkspaceLayout === 'function') toggleWorkspaceLayout();
+    } else if (e.code === 'KeyV') {
+      const modes = ['split', 'video-only', 'pip', 'map-only'];
+      const nextIdx = (modes.indexOf(state.video.viewMode) + 1) % modes.length;
+      if (typeof setVideoViewMode === 'function') setVideoViewMode(modes[nextIdx]);
+    } else if (e.code === 'BracketLeft') {
+      if (typeof nudgeVideoOffset === 'function') nudgeVideoOffset(-0.0333);
+    } else if (e.code === 'BracketRight') {
+      if (typeof nudgeVideoOffset === 'function') nudgeVideoOffset(0.0333);
     } else if (e.code === 'KeyS') {
       if (state.sectionSelection.active) {
         setSyncMode(state.sectionSelection.syncMode === 'time' ? 'dist' : 'time');

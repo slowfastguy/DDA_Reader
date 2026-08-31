@@ -836,6 +836,7 @@ class DDAParser:
             "state.js",
             "motogp_card.js",
             "video_export.js",
+            "video_player.js",
             "map.js",
             "gates.js",
             "charts.js",

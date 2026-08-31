@@ -314,6 +314,11 @@ function updateUI() {
   if (typeof updateScrubberLinePosition === 'function') {
     updateScrubberLinePosition();
   }
+
+  // 14. Video Player Frame-Accurate Synchronization
+  if (typeof syncVideoPlayback === 'function' && r0) {
+    syncVideoPlayback(interpTime || r0.time_s || 0, state.isPlaying, state.playbackSpeed);
+  }
 }
 
 function togglePlayPause() {

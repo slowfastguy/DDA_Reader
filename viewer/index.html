@@ -89,6 +89,10 @@
         <span>🎬 Export Video Overlay</span>
       </button>
 
+      <button id="btn-header-load-video" class="btn btn-secondary" title="Load On-Bike Video or Calibrate Sync (V)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+        <span id="lbl-header-video-status">Load Video</span>
+      </button>
       <button id="btn-toggle-layout" class="btn btn-secondary" title="Toggle 3-Column Side-by-Side Comparison Layout (L)">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="7" height="18" rx="1"/><rect x="19" y="3" width="2" height="18" rx="1"/></svg>
         <span id="lbl-layout-toggle">3-Col Split</span>
@@ -106,6 +110,8 @@
       </button>
       <input type="file" id="file-input" accept=".json,.dda,.csv" style="display: none;">
       <input type="file" id="settings-file-input" accept=".json" style="display: none;">
+      <input type="file" id="video-file-input" accept="video/mp4,video/quicktime,video/webm,video/*" style="display: none;">
+      <input type="file" id="video-lap-b-file-input" accept="video/mp4,video/quicktime,video/webm,video/*" style="display: none;">
     </div>
   </header>
 
@@ -216,6 +222,88 @@
           <span id="legend-max">114 mph</span>
         </div>
         <span class="legend-hint">🔴 Apex Min Speed & 🟢 Top Speed Markers | Drag along track to stack corner data</span>
+      </div>
+    </section>
+
+    <!-- Left Column Top / Split: In-Browser Onboard Video Player Panel -->
+    <section id="panel-video" class="panel panel-video" style="display: none;">
+      <div class="panel-header">
+        <div class="panel-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/></svg>
+          <span id="video-panel-title">Onboard Video Sync</span>
+        </div>
+        <div class="video-panel-controls">
+          <!-- View Mode Switcher -->
+          <div class="video-view-mode-group">
+            <button id="btn-video-view-map" class="btn-tool-sm" title="Show Map Only">🗺️ Map</button>
+            <button id="btn-video-view-split" class="btn-tool-sm active" title="Split Screen: Map & Video Side-by-Side">◫ Split</button>
+            <button id="btn-video-view-video" class="btn-tool-sm" title="Show Video Primary">🎬 Video</button>
+            <button id="btn-video-view-pip" class="btn-tool-sm" title="Floating Picture-in-Picture Video">🗖 PIP</button>
+          </div>
+          <button id="btn-open-video-sync" class="btn-tool" title="Toggle Synchronization Calibration Drawer">⏱️ Sync Calibration</button>
+          <button id="btn-toggle-video-overlay" class="btn-tool active" title="Toggle Live Telemetry HUD Overlay on Video">📊 HUD: ON</button>
+          <button id="btn-toggle-video-mute" class="btn-icon" title="Toggle Video Audio (Mute/Unmute)">
+            <svg id="icon-vol-on" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+            <svg id="icon-vol-off" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Video Viewport Container -->
+      <div class="video-container" id="video-viewport-container">
+        <!-- Single Video View -->
+        <div id="single-video-wrapper" class="video-wrapper">
+          <video id="video-player" class="video-element" playsinline preload="auto"></video>
+          <canvas id="video-overlay-canvas" class="video-overlay-canvas"></canvas>
+          
+          <!-- Drag & Drop Zone (Visible when no video loaded) -->
+          <div id="video-dropzone" class="video-dropzone">
+            <div class="dropzone-content">
+              <div class="dropzone-icon">🎬</div>
+              <h3>Drag & Drop On-Bike Video</h3>
+              <p>Supports GoPro, Insta360, DJI, or phone MP4/MOV footage</p>
+              <button class="btn btn-primary btn-sm" onclick="document.getElementById('video-file-input').click()">📁 Select Video File</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dual Video View (Compare Mode) -->
+        <div id="dual-video-wrapper" class="dual-video-wrapper" style="display: none;">
+          <div class="dual-video-col">
+            <div class="dual-video-label" id="lbl-video-lap-a-title">Lap A Onboard</div>
+            <div class="video-wrapper">
+              <video id="video-player-a-clone" class="video-element" playsinline preload="auto"></video>
+            </div>
+          </div>
+          <div class="dual-video-col">
+            <div class="dual-video-label" id="lbl-video-lap-b-title">Lap B Onboard</div>
+            <div class="video-wrapper">
+              <video id="video-lap-b-player" class="video-element" playsinline preload="auto"></video>
+              <div id="video-dropzone-b" class="video-dropzone-sm" onclick="document.getElementById('video-lap-b-file-input').click()">
+                <span>+ Load Lap B Video</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Video Sync Calibration Drawer -->
+        <div id="video-sync-drawer" class="video-sync-drawer" style="display: none;">
+          <div class="sync-drawer-content">
+            <div class="sync-info">
+              <span class="sync-tag">⏱️ SYNC OFFSET:</span>
+              <span id="lbl-video-offset" class="sync-val">+0.00s</span>
+            </div>
+            <div class="sync-actions">
+              <button id="btn-sync-sf" class="btn-sync-action" title="Set video frame to match current Start/Finish crossing">🏁 1-Click Sync at S/F</button>
+              <div class="nudge-group">
+                <button id="btn-nudge-back-10" class="btn-nudge" title="Nudge back 0.5s">-0.5s</button>
+                <button id="btn-nudge-back-1" class="btn-nudge" title="Nudge back 1 frame (0.033s)">-1 Fr</button>
+                <button id="btn-nudge-fwd-1" class="btn-nudge" title="Nudge forward 1 frame (0.033s)">+1 Fr</button>
+                <button id="btn-nudge-fwd-10" class="btn-nudge" title="Nudge forward 0.5s">+0.5s</button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -1043,6 +1131,7 @@
   <script src="js/state.js"></script>
   <script src="js/motogp_card.js"></script>
   <script src="js/video_export.js"></script>
+  <script src="js/video_player.js"></script>
   <script src="js/map.js"></script>
   <script src="js/gates.js"></script>
   <script src="js/charts.js"></script>

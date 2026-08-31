@@ -143,6 +143,24 @@ const state = {
     gLong: false,
     gLat: false
   },
+  video: {
+    hasVideo: false,
+    file: null,
+    videoUrl: null,
+    offsetSeconds: 0.0,    // t_video = t_telemetry + offsetSeconds
+    viewMode: 'split',     // 'map-only', 'split', 'video-only', 'pip'
+    overlayEnabled: true,
+    overlayTheme: 'motogp', // 'motogp', 'panigale_dash', 'minimal'
+    audioMuted: false,
+    volume: 1.0,
+    pipPosition: { x: 20, y: 20 },
+    videoLapB: {
+      hasVideo: false,
+      file: null,
+      videoUrl: null,
+      offsetSeconds: 0.0
+    }
+  },
   zoomRange: [0, 1],
   sectionSelection: {
     active: false,
@@ -325,6 +343,35 @@ const dom = {
   sectionTableBody: document.getElementById('section-table-body'),
   sectionTableCard: document.getElementById('section-table-card'),
   btnToggleSectionDrawer: document.getElementById('btn-toggle-section-drawer'),
+
+  // Video Integration Elements
+  panelVideo: document.getElementById('panel-video'),
+  videoPlayer: document.getElementById('video-player'),
+  videoOverlayCanvas: document.getElementById('video-overlay-canvas'),
+  videoDropzone: document.getElementById('video-dropzone'),
+  videoFileInput: document.getElementById('video-file-input'),
+  videoLapBFileInput: document.getElementById('video-lap-b-file-input'),
+  videoSyncDrawer: document.getElementById('video-sync-drawer'),
+  lblVideoOffset: document.getElementById('lbl-video-offset'),
+  btnSyncSF: document.getElementById('btn-sync-sf'),
+  btnNudgeBack10: document.getElementById('btn-nudge-back-10'),
+  btnNudgeBack1: document.getElementById('btn-nudge-back-1'),
+  btnNudgeFwd1: document.getElementById('btn-nudge-fwd-1'),
+  btnNudgeFwd10: document.getElementById('btn-nudge-fwd-10'),
+  btnVideoViewMap: document.getElementById('btn-video-view-map'),
+  btnVideoViewSplit: document.getElementById('btn-video-view-split'),
+  btnVideoViewVideo: document.getElementById('btn-video-view-video'),
+  btnVideoViewPip: document.getElementById('btn-video-view-pip'),
+  btnToggleVideoMute: document.getElementById('btn-toggle-video-mute'),
+  btnToggleVideoOverlay: document.getElementById('btn-toggle-video-overlay'),
+  btnOpenVideoSync: document.getElementById('btn-open-video-sync'),
+  btnHeaderLoadVideo: document.getElementById('btn-header-load-video'),
+  lblHeaderVideoStatus: document.getElementById('lbl-header-video-status'),
+  videoLapBPlayer: document.getElementById('video-lap-b-player'),
+  dualVideoWrapper: document.getElementById('dual-video-wrapper'),
+  singleVideoWrapper: document.getElementById('single-video-wrapper'),
+  lblVideoLapATitle: document.getElementById('lbl-video-lap-a-title'),
+  lblVideoLapBTitle: document.getElementById('lbl-video-lap-b-title'),
   sectionLegendRow: document.getElementById('section-legend-row'),
 
   // MotoGP Elements
