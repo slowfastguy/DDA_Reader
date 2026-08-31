@@ -19,6 +19,7 @@ function initMap() {
   state.trackPolylineGroup = L.featureGroup().addTo(state.map);
   state.gatesLayerGroup = L.featureGroup().addTo(state.map);
   state.extremaLayerGroup = L.featureGroup().addTo(state.map);
+  state.apexesLayerGroup = L.featureGroup().addTo(state.map);
   state.sectionHighlightLayer = L.featureGroup().addTo(state.map);
   state.sectionHandlesLayer = L.featureGroup().addTo(state.map);
   state.sectionGhostsLayer = L.featureGroup().addTo(state.map);
@@ -50,12 +51,27 @@ function initMap() {
   state.ghostMarker = L.marker([38.1615, -122.4580], { icon: ghostIcon, zIndexOffset: 990 });
 
   state.map.on('click', (e) => {
-    if (state.gateEditMode && typeof handleGateMapClick === 'function') {
+    if (state.turnEditMode && typeof handleTurnMapClick === 'function') {
+      handleTurnMapClick(e.latlng);
+    } else if (state.gateEditMode && typeof handleGateMapClick === 'function') {
       handleGateMapClick(e.latlng);
     }
   });
 
   initSectionDragInteractions();
+}
+
+function getTrackTangentBearing(lat, lon) {
+  const closest = findClosestTrackPoint(lat, lon);
+  if (closest && state.records && closest.orig_index !== undefined) {
+    const i = closest.orig_index;
+    const pPrev = state.records[Math.max(0, i - 2)];
+    const pNext = state.records[Math.min(state.records.length - 1, i + 2)];
+    if (pPrev && pNext && pPrev.gps_lat !== null && pNext.gps_lat !== null) {
+      return calculateBearing(pPrev.gps_lat, pPrev.gps_lon, pNext.gps_lat, pNext.gps_lon);
+    }
+  }
+  return 0;
 }
 
 function renderMapTrack(shouldFitBounds = false) {
@@ -98,29 +114,31 @@ function renderMapTrack(shouldFitBounds = false) {
     } else if (state.heatmapMode === 'elevation') {
       const alt = p1.gps_alt_m !== null ? p1.gps_alt_m : 0;
       const minAlt = state.sessionData?.stats?.min_alt_m || 0;
-      const maxAlt = Math.max(minAlt + 10, state.sessionData?.stats?.max_alt_m || 100);
-      const ratio = Math.max(0, Math.min(1.0, (alt - minAlt) / (maxAlt - minAlt)));
+      const maxAlt = state.sessionData?.stats?.max_alt_m || 100;
+      const altSpan = Math.max(1.0, maxAlt - minAlt);
+      const ratio = Math.max(0, Math.min(1.0, (alt - minAlt) / altSpan));
       color = getHeatmapColor(ratio);
     } else if (state.heatmapMode === 'throttle') {
-      const ratio = (p1.tps_pct || 0) / 100.0;
+      const ratio = Math.min(1.0, (p1.tps_pct || 0) / 100.0);
       color = getHeatmapColor(ratio);
     } else if (state.heatmapMode === 'lean') {
       const ratio = Math.min(1.0, Math.abs(p1.lean_angle_deg || 0) / maxLean);
       color = getHeatmapColor(ratio);
     } else if (state.heatmapMode === 'gear') {
-      const gearColors = ['#9e9e9e', '#00e5ff', '#00e676', '#ffd600', '#ff9100', '#ff0055', '#d500f9'];
-      color = gearColors[p1.gear || 0] || '#e10600';
+      const g = p1.gear || 0;
+      const gearColors = ['#888888', '#e10600', '#ff9100', '#ffd600', '#00e676', '#00e5ff', '#c084fc'];
+      color = gearColors[Math.min(g, 6)] || '#00e5ff';
     }
 
     const poly = L.polyline([[p1.gps_lat, p1.gps_lon], [p2.gps_lat, p2.gps_lon]], {
       color: color,
       weight: 4.5,
-      opacity: 0.85
+      opacity: 0.95
     });
 
     const targetIdx = p1.local_index !== undefined ? p1.local_index : i;
     poly.on('click', () => {
-      if (!state.sectionSelection.isSelecting && !state.sectionSelection.isDragging) {
+      if (!state.sectionSelection.isSelecting && !state.sectionSelection.isDragging && !state.turnEditMode && !state.gateEditMode) {
         if (typeof seekToIndex === 'function') seekToIndex(targetIdx);
       }
     });
@@ -189,7 +207,234 @@ function renderMapTrack(shouldFitBounds = false) {
   }
 
   renderSpeedExtremaMarkers();
+  renderTurnApexMarkers();
   updateRidingPhasesBreakdown();
+}
+
+function renderTurnApexMarkers() {
+  if (!state.apexesLayerGroup) return;
+  state.apexesLayerGroup.clearLayers();
+  if (!state.showApexMarkers) return;
+
+  const trk = typeof getActiveTrackProfile === 'function' ? getActiveTrackProfile() : null;
+  const turns = trk ? trk.turns : (typeof getActiveTrackTurns === 'function' ? getActiveTrackTurns() : null);
+  if (!turns || turns.length === 0) return;
+
+  turns.forEach((t, tIdx) => {
+    if (t.lat === undefined || t.lon === undefined) return;
+    const isLeft = (t.direction || '').toLowerCase().includes('left');
+    const isHighlighted = state.highlightedTurnId === t.id;
+
+    // 1. Calculate Tangent Bearing on the Track
+    let trackBearing = t.bearing;
+    if (!trackBearing || isNaN(trackBearing) || trackBearing === 0) {
+      trackBearing = getTrackTangentBearing(t.lat, t.lon);
+    }
+    if (!trackBearing || isNaN(trackBearing)) trackBearing = 0;
+
+    // 2. Perpendicular Offset from Racing Line (16 meters to the inside/outside)
+    const perpBearing = (isLeft ? (trackBearing - 90 + 360) : (trackBearing + 90)) % 360;
+    const badgeCoord = moveCoordinate(t.lat, t.lon, perpBearing, 16.0);
+
+    // 3. Subtle Leader Line connecting Apex point on track to the offset Badge
+    const leaderLine = L.polyline([[t.lat, t.lon], [badgeCoord.lat, badgeCoord.lon]], {
+      color: isLeft ? '#00e5ff' : '#ffd600',
+      weight: 1.5,
+      dashArray: '3, 3',
+      opacity: 0.75
+    });
+    state.apexesLayerGroup.addLayer(leaderLine);
+
+    // 4. Glowing Apex Dot on the exact racing line
+    const dotIcon = L.divIcon({
+      className: 'apex-dot-icon',
+      html: `<div class="apex-dot ${isLeft ? 'apex-dot-left' : 'apex-dot-right'} ${isHighlighted ? 'apex-dot-highlight' : ''}" title="Turn ${t.number} Apex Point"></div>`,
+      iconSize: [12, 12],
+      iconAnchor: [6, 6]
+    });
+    const apexDotMarker = L.marker([t.lat, t.lon], {
+      icon: dotIcon,
+      draggable: true,
+      zIndexOffset: 840
+    });
+
+    const cleanNum = (t.number !== undefined ? t.number : (tIdx + 1)).toString().replace(/^T/i, '');
+
+    // 5. Floating Badge Marker
+    const pillIcon = L.divIcon({
+      className: 'apex-marker-icon',
+      html: `
+        <div class="apex-marker-pill ${isLeft ? 'apex-pill-left' : 'apex-pill-right'} ${isHighlighted ? 'apex-pill-highlight' : ''}" title="Turn ${cleanNum} (${escapeHTML(t.name)}) - Drag to move or click to inspect">
+          <span class="apex-num">T${cleanNum}</span>
+          <span class="apex-name">${escapeHTML(t.name)}</span>
+        </div>
+      `,
+      iconSize: [84, 24],
+      iconAnchor: [42, 12]
+    });
+
+    const badgeMarker = L.marker([badgeCoord.lat, badgeCoord.lon], {
+      icon: pillIcon,
+      draggable: true,
+      zIndexOffset: 860
+    });
+
+    // 6. Interactive Popup for Manual Turn Adjustment
+    const popupDiv = document.createElement('div');
+    popupDiv.className = 'gate-popup-card';
+    popupDiv.innerHTML = `
+      <div class="gate-popup-header">
+        <strong class="gate-popup-title">📍 Turn ${cleanNum}: ${escapeHTML(t.name)}</strong>
+        <span class="gate-heading-text ${isLeft ? 'text-cyan' : 'text-yellow'}">${isLeft ? 'Left ↰' : 'Right ↱'}</span>
+      </div>
+      <div class="track-item-loc" style="margin-bottom: 8px;">${escapeHTML(t.description || 'Apex on racing line')}</div>
+      <div class="gate-popup-buttons">
+        <button class="btn-popup-action btn-set-turn-num">🏷️ Set Turn # (e.g. 5, 3A)</button>
+        <button class="btn-popup-action btn-edit-name">✏️ Rename</button>
+        <button class="btn-popup-action btn-flip-dir">🔄 Flip Direction (${isLeft ? 'Right ↱' : 'Left ↰'})</button>
+        <button class="btn-popup-action btn-snap-min">📐 Snap to Min Speed</button>
+        <button class="btn-popup-action btn-sort-turns">📐 Auto-Sort along Track</button>
+        <button class="btn-popup-action btn-popup-danger btn-del-turn">🗑️ Delete Turn</button>
+      </div>
+    `;
+
+    popupDiv.querySelector('.btn-set-turn-num').onclick = () => {
+      const curNum = (t.number !== undefined ? t.number : (tIdx + 1)).toString().replace(/^T/i, '');
+      const newNum = prompt(`Enter Turn Label / Number for this corner (e.g. 1, 2, 3A, 5, 8A, T11):`, curNum);
+      if (newNum && newNum.trim()) {
+        const cleaned = newNum.trim().replace(/^T/i, '');
+        t.number = cleaned;
+        if (t.name.match(/^Turn \d+[A-Z]?$/i) || !t.name) {
+          t.name = `Turn ${cleaned}`;
+        }
+        t.id = `t_${cleaned.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+        if (typeof sortTrackTurnsByCircuitDistance === 'function') sortTrackTurnsByCircuitDistance(trk);
+        saveSettingsToStorage();
+        renderTurnApexMarkers();
+        if (typeof renderTrackLibrary === 'function') renderTrackLibrary();
+        if (dom.modalScorecard && dom.modalScorecard.style.display !== 'none') {
+          renderScorecardTable(dom.selectScorecardLap ? parseInt(dom.selectScorecardLap.value, 10) : -1);
+        }
+      }
+    };
+
+    popupDiv.querySelector('.btn-flip-dir').onclick = () => {
+      t.direction = isLeft ? 'right' : 'left';
+      saveSettingsToStorage();
+      renderTurnApexMarkers();
+      if (dom.modalScorecard && dom.modalScorecard.style.display !== 'none') {
+        renderScorecardTable(dom.selectScorecardLap ? parseInt(dom.selectScorecardLap.value, 10) : -1);
+      }
+    };
+
+    popupDiv.querySelector('.btn-snap-min').onclick = () => {
+      if (state.records && state.records.length > 20) {
+        let minSpd = Infinity;
+        let bestR = null;
+        for (const r of state.records) {
+          if (r.gps_lat === null || r.gps_lon === null) continue;
+          const d = haversineDistanceM(t.lat, t.lon, r.gps_lat, r.gps_lon);
+          if (d <= 50.0 && (r.speed_kmh || 0) < minSpd) {
+            minSpd = r.speed_kmh || 0;
+            bestR = r;
+          }
+        }
+        if (bestR) {
+          t.lat = bestR.gps_lat;
+          t.lon = bestR.gps_lon;
+          t.bearing = getTrackTangentBearing(t.lat, t.lon);
+          saveSettingsToStorage();
+          renderTurnApexMarkers();
+          if (dom.modalScorecard && dom.modalScorecard.style.display !== 'none') {
+            renderScorecardTable(dom.selectScorecardLap ? parseInt(dom.selectScorecardLap.value, 10) : -1);
+          }
+        }
+      }
+    };
+
+    popupDiv.querySelector('.btn-edit-name').onclick = () => {
+      const newName = prompt('Enter turn name / description:', t.name);
+      if (newName && newName.trim()) {
+        t.name = newName.trim();
+        saveSettingsToStorage();
+        renderTurnApexMarkers();
+        if (dom.modalScorecard && dom.modalScorecard.style.display !== 'none') {
+          renderScorecardTable(dom.selectScorecardLap ? parseInt(dom.selectScorecardLap.value, 10) : -1);
+        }
+      }
+    };
+
+    popupDiv.querySelector('.btn-sort-turns').onclick = () => {
+      if (typeof sortTrackTurnsByCircuitDistance === 'function') {
+        sortTrackTurnsByCircuitDistance(trk);
+        saveSettingsToStorage();
+        renderTurnApexMarkers();
+        if (typeof renderTrackLibrary === 'function') renderTrackLibrary();
+        if (dom.modalScorecard && dom.modalScorecard.style.display !== 'none') {
+          renderScorecardTable(dom.selectScorecardLap ? parseInt(dom.selectScorecardLap.value, 10) : -1);
+        }
+      }
+    };
+
+    popupDiv.querySelector('.btn-del-turn').onclick = () => {
+      if (confirm(`Delete Turn ${cleanNum} (${t.name})?`)) {
+        if (trk && trk.turns) {
+          trk.turns = trk.turns.filter(item => item !== t);
+        }
+        saveSettingsToStorage();
+        renderTurnApexMarkers();
+        if (typeof renderTrackLibrary === 'function') renderTrackLibrary();
+        if (dom.modalScorecard && dom.modalScorecard.style.display !== 'none') {
+          renderScorecardTable(dom.selectScorecardLap ? parseInt(dom.selectScorecardLap.value, 10) : -1);
+        }
+      }
+    };
+
+    badgeMarker.bindPopup(popupDiv);
+    apexDotMarker.bindPopup(popupDiv);
+
+    // 7. Drag interactions for badge & apex dot
+    function handleMarkerDrag(e) {
+      const newLatLng = e.target.getLatLng();
+      const closest = findClosestTrackPoint(newLatLng.lat, newLatLng.lng);
+      if (closest && closest.lat !== undefined) {
+        t.lat = closest.lat;
+        t.lon = closest.lon;
+        t.bearing = getTrackTangentBearing(t.lat, t.lon);
+      } else {
+        t.lat = newLatLng.lat;
+        t.lon = newLatLng.lng;
+      }
+      saveSettingsToStorage();
+      renderTurnApexMarkers();
+      if (dom.modalScorecard && dom.modalScorecard.style.display !== 'none') {
+        renderScorecardTable(dom.selectScorecardLap ? parseInt(dom.selectScorecardLap.value, 10) : -1);
+      }
+    }
+
+    badgeMarker.on('dragend', handleMarkerDrag);
+    apexDotMarker.on('dragend', handleMarkerDrag);
+
+    // Click to select & seek
+    badgeMarker.on('click', () => {
+      state.highlightedTurnId = t.id;
+      const closest = findClosestTrackPoint(t.lat, t.lon);
+      if (closest && typeof seekToIndex === 'function') {
+        seekToIndex(closest.orig_index);
+      }
+      if (dom.modalScorecard && dom.modalScorecard.style.display !== 'none') {
+        const row = document.querySelector(`.scorecard-row[data-turn-id="${t.id}"]`);
+        if (row) {
+          document.querySelectorAll('.scorecard-row').forEach(r => r.classList.remove('selected-row'));
+          row.classList.add('selected-row');
+          row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }
+    });
+
+    state.apexesLayerGroup.addLayer(apexDotMarker);
+    state.apexesLayerGroup.addLayer(badgeMarker);
+  });
 }
 
 function updateRidingPhasesBreakdown() {

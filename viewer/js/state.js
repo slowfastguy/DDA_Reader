@@ -12,6 +12,11 @@ const DEFAULT_SETTINGS = {
     heatmapMode: "speed",
     smoothingLevel: "med",
     showSpeedExtrema: true,
+    showApexMarkers: true,
+    showChartTurnMarkers: true,
+    redlineRpm: 12000,
+    shiftLightStartRpm: 9600,
+    shiftLightEndRpm: 12000,
     followBike: true,
     playbackSpeed: 1.0,
     motogp: {
@@ -53,6 +58,20 @@ const DEFAULT_SETTINGS = {
         { id: "sf", name: "Start / Finish", type: "sf", lat: 38.161580, lon: -122.454640, bearing: 310.0 },
         { id: "s1", name: "Sector 1 (Carousel)", type: "split", lat: 38.164320, lon: -122.458900, bearing: 265.0 },
         { id: "s2", name: "Sector 2 (Esses)", type: "split", lat: 38.158210, lon: -122.457800, bearing: 180.0 }
+      ],
+      turns: [
+        { id: "t1", number: 1, name: "Turn 1", direction: "left", lat: 38.162168, lon: -122.455656, radius_m: 45, bearing: 320.0, description: "Uphill left sweep from front straight" },
+        { id: "t2", number: 2, name: "Turn 2", direction: "right", lat: 38.161114, lon: -122.458717, radius_m: 45, bearing: 280.0, description: "Turn 2 crest & blind downhill right" },
+        { id: "t3", number: 3, name: "Turn 3", direction: "left", lat: 38.162484, lon: -122.460971, radius_m: 40, bearing: 315.0, description: "Turn 3 off-camber uphill left" },
+        { id: "t3a", number: "3A", name: "Turn 3A", direction: "right", lat: 38.162663, lon: -122.462052, radius_m: 40, bearing: 340.0, description: "Turn 3A transition crest right" },
+        { id: "t4", number: 4, name: "Turn 4", direction: "right", lat: 38.164039, lon: -122.463375, radius_m: 45, bearing: 30.0, description: "Turn 4 downhill right chute" },
+        { id: "t6", number: 6, name: "Turn 6 (Carousel)", direction: "right", lat: 38.164446, lon: -122.461381, radius_m: 55, bearing: 115.0, description: "High-speed sweeping Carousel" },
+        { id: "t7", number: 7, name: "Turn 7", direction: "left", lat: 38.162654, lon: -122.459171, radius_m: 45, bearing: 155.0, description: "Turn 7 heavy braking hairpin left" },
+        { id: "t8", number: 8, name: "Turn 8 (Esses)", direction: "left", lat: 38.162933, lon: -122.458235, radius_m: 40, bearing: 45.0, description: "Turn 8 uphill Esses entry left" },
+        { id: "t8a", number: "8A", name: "Turn 8A (Esses)", direction: "right", lat: 38.163750, lon: -122.458050, radius_m: 40, bearing: 30.0, description: "Turn 8A Esses crest right" },
+        { id: "t9", number: 9, name: "Turn 9", direction: "right", lat: 38.166251, lon: -122.462596, radius_m: 45, bearing: 290.0, description: "Turn 9 downhill right kink" },
+        { id: "t10", number: 10, name: "Turn 10", direction: "right", lat: 38.165677, lon: -122.460327, radius_m: 50, bearing: 120.0, description: "Turn 10 fast sweeping right" },
+        { id: "t11", number: 11, name: "Turn 11 (Hairpin)", direction: "right", lat: 38.160052, lon: -122.452472, radius_m: 40, bearing: 220.0, description: "Turn 11 slow hairpin onto front straight" }
       ]
     },
     laguna_seca: {
@@ -66,6 +85,20 @@ const DEFAULT_SETTINGS = {
         { id: "sf", name: "Start / Finish", type: "sf", lat: 36.585500, lon: -121.754000, bearing: 240.0 },
         { id: "s1", name: "Sector 1 (Andretti Hairpin)", type: "split", lat: 36.586200, lon: -121.758500, bearing: 135.0 },
         { id: "s2", name: "Sector 2 (Corkscrew)", type: "split", lat: 36.582800, lon: -121.751200, bearing: 210.0 }
+      ],
+      turns: [
+        { id: "t1", number: 1, name: "Turn 1", direction: "left", lat: 36.585700, lon: -121.755800, radius_m: 45, bearing: 250.0, description: "Fast crest kink on front straight" },
+        { id: "t2", number: 2, name: "Turn 2 (Andretti)", direction: "left", lat: 36.586400, lon: -121.758700, radius_m: 50, bearing: 140.0, description: "Andretti Hairpin double-apex left" },
+        { id: "t3", number: 3, name: "Turn 3", direction: "right", lat: 36.587800, lon: -121.755400, radius_m: 40, bearing: 95.0, description: "90-degree right onto short chute" },
+        { id: "t4", number: 4, name: "Turn 4", direction: "right", lat: 36.588000, lon: -121.753400, radius_m: 45, bearing: 120.0, description: "Fast sweeping right" },
+        { id: "t5", number: 5, name: "Turn 5", direction: "left", lat: 36.585500, lon: -121.749500, radius_m: 45, bearing: 155.0, description: "Uphill sweeping banking left" },
+        { id: "t6", number: 6, name: "Turn 6", direction: "left", lat: 36.584100, lon: -121.748700, radius_m: 45, bearing: 175.0, description: "Fast uphill left toward Rahal Straight" },
+        { id: "t7", number: 7, name: "Turn 7", direction: "right", lat: 36.583300, lon: -121.749500, radius_m: 45, bearing: 235.0, description: "Rahal Straight uphill crest right" },
+        { id: "t8", number: 8, name: "Turn 8 (Corkscrew)", direction: "left", lat: 36.582800, lon: -121.751100, radius_m: 40, bearing: 210.0, description: "Blind crest & 59ft downhill drop left" },
+        { id: "t8a", number: "8A", name: "Turn 8A (Corkscrew Exit)", direction: "right", lat: 36.582500, lon: -121.751500, radius_m: 40, bearing: 230.0, description: "Corkscrew compression right transition" },
+        { id: "t9", number: 9, name: "Turn 9 (Rainey Curve)", direction: "left", lat: 36.581600, lon: -121.753500, radius_m: 50, bearing: 290.0, description: "High-speed sweeping downhill left" },
+        { id: "t10", number: 10, name: "Turn 10", direction: "right", lat: 36.582300, lon: -121.756200, radius_m: 45, bearing: 335.0, description: "Positive camber fast downhill right" },
+        { id: "t11", number: 11, name: "Turn 11", direction: "left", lat: 36.583900, lon: -121.756800, radius_m: 40, bearing: 55.0, description: "Slow 90-degree left onto front straight" }
       ]
     },
     thunderhill_east: {
@@ -79,6 +112,23 @@ const DEFAULT_SETTINGS = {
         { id: "sf", name: "Start / Finish", type: "sf", lat: 39.537200, lon: -122.331500, bearing: 355.0 },
         { id: "s1", name: "Sector 1 (The Cyclone)", type: "split", lat: 39.544100, lon: -122.336200, bearing: 270.0 },
         { id: "s2", name: "Sector 2 (Turn 9/10)", type: "split", lat: 39.538500, lon: -122.337800, bearing: 160.0 }
+      ],
+      turns: [
+        { id: "t1", number: 1, name: "Turn 1", direction: "left", lat: 39.540800, lon: -122.331700, radius_m: 45, bearing: 340.0, description: "Fast entry left off front straight" },
+        { id: "t2", number: 2, name: "Turn 2", direction: "left", lat: 39.544100, lon: -122.332700, radius_m: 55, bearing: 270.0, description: "Long continuous sweeping carousel left" },
+        { id: "t3", number: 3, name: "Turn 3", direction: "right", lat: 39.545800, lon: -122.333800, radius_m: 45, bearing: 235.0, description: "Off-camber downhill right" },
+        { id: "t4", number: 4, name: "Turn 4", direction: "left", lat: 39.545200, lon: -122.334900, radius_m: 40, bearing: 180.0, description: "Uphill transition left" },
+        { id: "t5", number: 5, name: "Turn 5 (The Cyclone)", direction: "left", lat: 39.544000, lon: -122.336300, radius_m: 45, bearing: 205.0, description: "Steep blind crest & compression drop left" },
+        { id: "t6", number: 6, name: "Turn 6", direction: "right", lat: 39.542200, lon: -122.336700, radius_m: 45, bearing: 175.0, description: "Fast sweeping right" },
+        { id: "t7", number: 7, name: "Turn 7", direction: "left", lat: 39.541000, lon: -122.337000, radius_m: 40, bearing: 165.0, description: "Left kink onto back straight" },
+        { id: "t8", number: 8, name: "Turn 8", direction: "left", lat: 39.538500, lon: -122.337800, radius_m: 50, bearing: 155.0, description: "High-speed 100+ mph sweeping left" },
+        { id: "t9", number: 9, name: "Turn 9", direction: "left", lat: 39.536000, lon: -122.337500, radius_m: 45, bearing: 85.0, description: "Uphill blind crest left" },
+        { id: "t10", number: 10, name: "Turn 10", direction: "right", lat: 39.535000, lon: -122.336500, radius_m: 45, bearing: 120.0, description: "Fast downhill right sweep" },
+        { id: "t11", number: 11, name: "Turn 11", direction: "left", lat: 39.534800, lon: -122.334500, radius_m: 40, bearing: 40.0, description: "Heavy braking tight left hairpin" },
+        { id: "t12", number: 12, name: "Turn 12", direction: "right", lat: 39.535300, lon: -122.334000, radius_m: 40, bearing: 30.0, description: "Esses right transition" },
+        { id: "t13", number: 13, name: "Turn 13", direction: "right", lat: 39.535800, lon: -122.333500, radius_m: 40, bearing: 350.0, description: "Esses right kink" },
+        { id: "t14", number: 14, name: "Turn 14", direction: "left", lat: 39.536200, lon: -122.332800, radius_m: 40, bearing: 330.0, description: "Approach left before final turn" },
+        { id: "t15", number: 15, name: "Turn 15", direction: "left", lat: 39.536700, lon: -122.332000, radius_m: 45, bearing: 10.0, description: "Final fast left onto front straight" }
       ]
     }
   }
@@ -102,9 +152,15 @@ const state = {
   unitMph: true,
   followBike: true,
   showSpeedExtrema: true,
+  showApexMarkers: true,
+  showChartTurnMarkers: true,
+  redlineRpm: 12000,
+  shiftLightStartRpm: 9600,
+  shiftLightEndRpm: 12000,
   heatmapMode: 'speed',
   smoothingLevel: 'med',
   gateEditMode: null,
+  turnEditMode: false,
   isCompareMode: false,
   compareLapA: 8,
   compareLapB: 2,
@@ -114,6 +170,8 @@ const state = {
   trackPolylineGroup: null,
   gatesLayerGroup: null,
   extremaLayerGroup: null,
+  apexesLayerGroup: null,
+  highlightedTurnId: null,
   bikeMarker: null,
   ghostMarker: null,
   lastBikeHeading: 0,
@@ -253,8 +311,15 @@ const dom = {
   btnDropdownVideo: document.getElementById('btn-dropdown-video'),
   btnMenuSelectSection: document.getElementById('btn-menu-select-section'),
   btnMenuOptimalLap: document.getElementById('btn-menu-optimal-lap'),
+  btnMenuAddTurn: document.getElementById('btn-menu-add-turn'),
   btnMenuExtrema: document.getElementById('btn-menu-extrema'),
   lblMenuExtrema: document.getElementById('lbl-menu-extrema'),
+  btnToggleApexMarkers: document.getElementById('btn-toggle-apex-markers'),
+  lblMenuApexes: document.getElementById('lbl-menu-apexes'),
+  btnToggleChartTurns: document.getElementById('btn-toggle-chart-turns'),
+  lblMenuChartTurns: document.getElementById('lbl-menu-chart-turns'),
+  btnChartTurnsToggle: document.getElementById('btn-chart-turns-toggle'),
+  prefShowChartTurns: document.getElementById('pref-show-chart-turns'),
   btnMenuFitBounds: document.getElementById('btn-menu-fit-bounds'),
   btnMenuOpenSync: document.getElementById('btn-menu-open-sync'),
   lblMotogpStatus: document.getElementById('lbl-motogp-status'),
@@ -266,6 +331,7 @@ const dom = {
   chartsPanelTitle: document.getElementById('charts-panel-title'),
   btnGateSf: document.getElementById('btn-gate-sf'),
   btnGateSplit: document.getElementById('btn-gate-split'),
+  btnAddTurn: document.getElementById('btn-add-turn'),
   btnGateReset: document.getElementById('btn-gate-reset'),
   btnSaveTrackGates: document.getElementById('btn-save-track-gates'),
   btnToggleExtrema: document.getElementById('btn-toggle-extrema'),
@@ -293,6 +359,25 @@ const dom = {
   peakLeanRight: document.getElementById('peak-lean-right'),
   valRpmNumeric: document.getElementById('val-rpm-numeric'),
   tachBarFill: document.getElementById('tach-bar-fill'),
+  lblTachRedline: document.getElementById('lbl-tach-redline'),
+  lblScaleRedline: document.getElementById('lbl-scale-redline'),
+  tachScaleRow: document.getElementById('tach-scale-row'),
+  btnQuickRedline: document.getElementById('btn-quick-redline'),
+  prefRedlineSlider: document.getElementById('pref-redline-slider'),
+  prefRedlineInput: document.getElementById('pref-redline-input'),
+  prefShiftStartSlider: document.getElementById('pref-shift-start-slider'),
+  prefShiftStartInput: document.getElementById('pref-shift-start-input'),
+  prefShiftEndSlider: document.getElementById('pref-shift-end-slider'),
+  prefShiftEndInput: document.getElementById('pref-shift-end-input'),
+  dataMenuRedlineSlider: document.getElementById('data-menu-redline-slider'),
+  dataMenuRedlineInput: document.getElementById('data-menu-redline-input'),
+  dataMenuShiftStartSlider: document.getElementById('data-menu-shift-start-slider'),
+  dataMenuShiftStartInput: document.getElementById('data-menu-shift-start-input'),
+  dataMenuShiftEndSlider: document.getElementById('data-menu-shift-end-slider'),
+  dataMenuShiftEndInput: document.getElementById('data-menu-shift-end-input'),
+  lblBandGreen: document.getElementById('lbl-band-green'),
+  lblBandYellow: document.getElementById('lbl-band-yellow'),
+  lblBandRed: document.getElementById('lbl-band-red'),
   valSpeedNumeric: document.getElementById('val-speed-numeric'),
   lblSpeedUnit: document.getElementById('lbl-speed-unit'),
   valGear: document.getElementById('val-gear'),
@@ -378,9 +463,16 @@ const dom = {
   btnCloseScorecard: document.getElementById('btn-close-scorecard'),
   selectScorecardLap: document.getElementById('select-scorecard-lap'),
   kpiScorecardTurns: document.getElementById('kpi-scorecard-turns'),
+  kpiScorecardTurns: document.getElementById('kpi-scorecard-turns'),
   kpiScorecardApexSpd: document.getElementById('kpi-scorecard-apex-spd'),
   kpiScorecardCoast: document.getElementById('kpi-scorecard-coast'),
+  kpiScorecardConsistency: document.getElementById('kpi-scorecard-consistency'),
+  kpiScorecardBestApex: document.getElementById('kpi-scorecard-best-apex'),
   scorecardTableBody: document.getElementById('scorecard-table-body'),
+  btnCopyScorecard: document.getElementById('btn-copy-scorecard'),
+  btnExportScorecardCsv: document.getElementById('btn-export-scorecard-csv'),
+  btnToggleApexMarkers: document.getElementById('btn-toggle-apex-markers'),
+  lblMenuApexes: document.getElementById('lbl-menu-apexes'),
 
   // Section Drag Comparison Elements
   btnSelectSection: document.getElementById('btn-select-section'),
@@ -480,7 +572,8 @@ const dom = {
   renderProgressBarWrap: document.getElementById('render-progress-bar-wrap'),
   renderProgressFill: document.getElementById('render-progress-fill'),
   renderProgressText: document.getElementById('render-progress-text'),
-  btnRenderVideo: document.getElementById('btn-render-video')
+  btnRenderVideo: document.getElementById('btn-render-video'),
+  prefShowApexMarkers: document.getElementById('pref-show-apex-markers')
 };
 
 // Settings Initialization & Sync
@@ -498,7 +591,19 @@ function initSettings() {
     if (loaded.preferences) Object.assign(base.preferences, loaded.preferences);
     if (loaded.preferences && loaded.preferences.channels) Object.assign(base.preferences.channels, loaded.preferences.channels);
     if (loaded.preferences && loaded.preferences.motogp) Object.assign(base.preferences.motogp, loaded.preferences.motogp);
-    if (loaded.tracks) Object.assign(base.tracks, loaded.tracks);
+    if (loaded.tracks) {
+      for (const trackKey in loaded.tracks) {
+        if (base.tracks[trackKey]) {
+          const loadedTrk = loaded.tracks[trackKey];
+          if (!loadedTrk.turns && base.tracks[trackKey].turns) {
+            loadedTrk.turns = base.tracks[trackKey].turns;
+          }
+          base.tracks[trackKey] = Object.assign(base.tracks[trackKey], loadedTrk);
+        } else {
+          base.tracks[trackKey] = loaded.tracks[trackKey];
+        }
+      }
+    }
   }
 
   state.tracks = base.tracks;
@@ -508,6 +613,7 @@ function initSettings() {
   state.heatmapMode = p.heatmapMode || 'speed';
   state.smoothingLevel = p.smoothingLevel || 'med';
   state.showSpeedExtrema = p.showSpeedExtrema !== undefined ? p.showSpeedExtrema : true;
+  state.showApexMarkers = p.showApexMarkers !== undefined ? p.showApexMarkers : true;
   state.followBike = p.followBike !== undefined ? p.followBike : true;
   state.playbackSpeed = p.playbackSpeed || 1.0;
   if (p.motogp) Object.assign(state.motogp, p.motogp);
@@ -522,6 +628,13 @@ function initSettings() {
     dom.btnToggleExtrema.classList.toggle('active', state.showSpeedExtrema);
     dom.btnToggleExtrema.textContent = state.showSpeedExtrema ? '⚡ Speeds: ON' : '⚡ Speeds: OFF';
   }
+  if (dom.btnToggleApexMarkers) {
+    dom.btnToggleApexMarkers.classList.toggle('active', state.showApexMarkers);
+    dom.btnToggleApexMarkers.textContent = state.showApexMarkers ? '📍 Apexes: ON' : '📍 Apexes: OFF';
+  }
+  if (dom.lblMenuApexes) {
+    dom.lblMenuApexes.textContent = state.showApexMarkers ? 'Turn Apex Markers: ON' : 'Turn Apex Markers: OFF';
+  }
   if (dom.btnFollowBike) dom.btnFollowBike.classList.toggle('active', state.followBike);
 
   // Sync Preferences Tab Inputs
@@ -531,6 +644,30 @@ function initSettings() {
   if (dom.prefHeatmap) dom.prefHeatmap.value = state.heatmapMode;
   if (dom.prefFollowBike) dom.prefFollowBike.checked = state.followBike;
   if (dom.prefShowExtrema) dom.prefShowExtrema.checked = state.showSpeedExtrema;
+  if (dom.prefShowApexMarkers) dom.prefShowApexMarkers.checked = state.showApexMarkers;
+  if (dom.prefShowChartTurns) dom.prefShowChartTurns.checked = state.showChartTurnMarkers !== false;
+  if (dom.prefRedlineSlider) dom.prefRedlineSlider.value = state.redlineRpm || 12000;
+  if (dom.prefRedlineInput) dom.prefRedlineInput.value = state.redlineRpm || 12000;
+  if (dom.prefShiftStartSlider) dom.prefShiftStartSlider.value = state.shiftLightStartRpm || Math.round((state.redlineRpm || 12000) * 0.80);
+  if (dom.prefShiftStartInput) dom.prefShiftStartInput.value = state.shiftLightStartRpm || Math.round((state.redlineRpm || 12000) * 0.80);
+  if (dom.prefShiftEndSlider) dom.prefShiftEndSlider.value = state.shiftLightEndRpm || (state.redlineRpm || 12000);
+  if (dom.prefShiftEndInput) dom.prefShiftEndInput.value = state.shiftLightEndRpm || (state.redlineRpm || 12000);
+  if (dom.dataMenuRedlineSlider) dom.dataMenuRedlineSlider.value = state.redlineRpm || 12000;
+  if (dom.dataMenuRedlineInput) dom.dataMenuRedlineInput.value = state.redlineRpm || 12000;
+  if (dom.dataMenuShiftStartSlider) dom.dataMenuShiftStartSlider.value = state.shiftLightStartRpm || Math.round((state.redlineRpm || 12000) * 0.80);
+  if (dom.dataMenuShiftStartInput) dom.dataMenuShiftStartInput.value = state.shiftLightStartRpm || Math.round((state.redlineRpm || 12000) * 0.80);
+  if (dom.dataMenuShiftEndSlider) dom.dataMenuShiftEndSlider.value = state.shiftLightEndRpm || (state.redlineRpm || 12000);
+  if (dom.dataMenuShiftEndInput) dom.dataMenuShiftEndInput.value = state.shiftLightEndRpm || (state.redlineRpm || 12000);
+  if (dom.lblTachRedline) dom.lblTachRedline.textContent = (state.redlineRpm || 12000).toLocaleString();
+  if (typeof updateTachScale === 'function') updateTachScale(state.redlineRpm || 12000);
+  if (typeof updateShiftLightBandsUI === 'function') updateShiftLightBandsUI();
+  if (dom.btnChartTurnsToggle) {
+    dom.btnChartTurnsToggle.classList.toggle('active', state.showChartTurnMarkers !== false);
+    dom.btnChartTurnsToggle.textContent = state.showChartTurnMarkers !== false ? '📍 Turns: ON' : '📍 Turns: OFF';
+  }
+  if (dom.lblMenuChartTurns) {
+    dom.lblMenuChartTurns.textContent = state.showChartTurnMarkers !== false ? 'Chart Turn Markers: ON' : 'Chart Turn Markers: OFF';
+  }
 
   // Sync channel toggle buttons
   document.querySelectorAll('.channel-toggle-btn').forEach(btn => {
@@ -553,6 +690,11 @@ function saveSettingsToStorage() {
       heatmapMode: state.heatmapMode,
       smoothingLevel: state.smoothingLevel,
       showSpeedExtrema: state.showSpeedExtrema,
+      showApexMarkers: state.showApexMarkers,
+      showChartTurnMarkers: state.showChartTurnMarkers !== false,
+      redlineRpm: state.redlineRpm || 12000,
+      shiftLightStartRpm: state.shiftLightStartRpm || Math.round((state.redlineRpm || 12000) * 0.80),
+      shiftLightEndRpm: state.shiftLightEndRpm || (state.redlineRpm || 12000),
       followBike: state.followBike,
       playbackSpeed: state.playbackSpeed,
       motogp: state.motogp,
@@ -576,6 +718,11 @@ function exportSettingsFile() {
       heatmapMode: state.heatmapMode,
       smoothingLevel: state.smoothingLevel,
       showSpeedExtrema: state.showSpeedExtrema,
+      showApexMarkers: state.showApexMarkers,
+      showChartTurnMarkers: state.showChartTurnMarkers !== false,
+      redlineRpm: state.redlineRpm || 12000,
+      shiftLightStartRpm: state.shiftLightStartRpm || Math.round((state.redlineRpm || 12000) * 0.80),
+      shiftLightEndRpm: state.shiftLightEndRpm || (state.redlineRpm || 12000),
       followBike: state.followBike,
       playbackSpeed: state.playbackSpeed,
       motogp: state.motogp,
@@ -604,6 +751,10 @@ function importSettingsFile(file) {
         state.smoothingLevel = data.preferences.smoothingLevel || state.smoothingLevel;
         state.currentLayer = data.preferences.currentLayer || state.currentLayer;
         state.heatmapMode = data.preferences.heatmapMode || state.heatmapMode;
+        if (data.preferences.showChartTurnMarkers !== undefined) state.showChartTurnMarkers = data.preferences.showChartTurnMarkers;
+        if (data.preferences.redlineRpm !== undefined) state.redlineRpm = data.preferences.redlineRpm;
+        if (data.preferences.shiftLightStartRpm !== undefined) state.shiftLightStartRpm = data.preferences.shiftLightStartRpm;
+        if (data.preferences.shiftLightEndRpm !== undefined) state.shiftLightEndRpm = data.preferences.shiftLightEndRpm;
         if (data.preferences.motogp) Object.assign(state.motogp, data.preferences.motogp);
       }
       if (data.tracks) {

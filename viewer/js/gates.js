@@ -20,6 +20,7 @@ function renderTrackLibrary() {
 
     const sfGate = (trk.gates || []).find(g => g.type === 'sf') || (trk.gates || [])[0];
     const splits = (trk.gates || []).filter(g => g.type === 'split');
+    const turns = trk.turns || [];
 
     let chipsHtml = '';
     if (sfGate) {
@@ -28,6 +29,44 @@ function renderTrackLibrary() {
     splits.forEach((s, idx) => {
       chipsHtml += `<span class="gate-chip">⏱️ S${idx + 1}: ${Math.round(s.bearing || 0)}°</span>`;
     });
+    if (turns.length > 0) {
+      chipsHtml += `<span class="gate-chip gate-chip-turns">📍 ${turns.length} Turn Apexes</span>`;
+    }
+
+    let turnsListHtml = '';
+    if (turns.length > 0) {
+      turnsListHtml = `
+        <div class="track-turns-drawer" id="drawer-turns-${id}" style="display: none;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+            <div style="font-size: 11px; font-weight: 700; color: var(--text-dim);">Corner Apex Coordinates (${turns.length} Turns):</div>
+            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+              <button class="btn-tool-sm btn-drawer-add-turn" title="Add a new turn to this track">+ Add Turn</button>
+              <button class="btn-tool-sm btn-drawer-sort-turns" title="Auto-sort all turns sequentially along the track from S/F line">📐 Sort by Track</button>
+              <button class="btn-tool-sm btn-drawer-renumber-turns" title="Renumber turns sequentially (T1, T2, T3...)">🔢 Renumber</button>
+              <button class="btn-tool-sm btn-drawer-redetect-turns" title="Re-detect turns from loaded session">⚡ Auto-Detect</button>
+            </div>
+          </div>
+          <div class="track-turns-grid">
+            ${turns.map((t, tIdx) => {
+              const isL = (t.direction || '').toLowerCase().includes('left');
+              const cleanNum = (t.number !== undefined ? t.number : (tIdx + 1)).toString().replace(/^T/i, '');
+              return `
+                <div class="turn-mini-pill ${isL ? 'turn-pill-left' : 'turn-pill-right'}" data-turn-idx="${tIdx}" title="${escapeHTML(t.name)} (Click to seek)">
+                  <strong style="cursor: pointer;" class="pill-turn-label">T${cleanNum} ${isL ? '↰' : '↱'}</strong>
+                  <span style="opacity: 0.9; cursor: pointer;" class="pill-turn-name">${escapeHTML(t.name)}</span>
+                  <div class="turn-mini-actions">
+                    <button class="btn-pill-action btn-pill-action-edit btn-edit-mini-num" data-turn-idx="${tIdx}" title="Edit Turn Number / Label (e.g. 3A, 5)">🏷️</button>
+                    <button class="btn-pill-action btn-move-mini-up" data-turn-idx="${tIdx}" title="Move earlier in order">▲</button>
+                    <button class="btn-pill-action btn-move-mini-down" data-turn-idx="${tIdx}" title="Move later in order">▼</button>
+                    <button class="btn-pill-action btn-pill-action-del btn-del-mini-turn" data-turn-idx="${tIdx}" title="Delete turn">&times;</button>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
 
     card.innerHTML = `
       <div class="track-item-header">
@@ -35,14 +74,19 @@ function renderTrackLibrary() {
           <span class="track-item-title">${escapeHTML(trk.name)}</span>
           <span class="track-item-loc">(${escapeHTML(trk.location || 'Circuit')})</span>
         </div>
-        <span class="badge">${(trk.gates || []).length} Gates</span>
+        <div class="track-badges-wrap">
+          <span class="badge">${(trk.gates || []).length} Gates</span>
+          <span class="badge ${turns.length > 0 ? 'badge-cyan' : 'badge-muted'}">${turns.length} Turns</span>
+        </div>
       </div>
       <div class="gate-chips-row">
         ${chipsHtml}
       </div>
+      ${turnsListHtml}
       <div class="track-item-actions">
         <button class="btn-popup-action btn-apply-track">⚡ Apply to Session</button>
-        <button class="btn-popup-action btn-update-track">💾 Overwrite with Map</button>
+        ${turns.length > 0 ? `<button class="btn-popup-action btn-toggle-turns">📍 View Turns</button>` : `<button class="btn-popup-action btn-gen-turns">📍 Detect Turns from Session</button>`}
+        <button class="btn-popup-action btn-update-track">💾 Overwrite Gates</button>
         <button class="btn-popup-action btn-rename-track">✏️ Rename</button>
         <button class="btn-popup-action btn-delete-track" style="color: #ff0055;">🗑️ Delete</button>
       </div>
@@ -53,8 +97,208 @@ function renderTrackLibrary() {
       dom.metaTrackName.textContent = trk.name;
       recalculateLapsAndSectors();
       renderMapGates();
+      if (typeof renderTurnApexMarkers === 'function') renderTurnApexMarkers();
       dom.modalSettings.style.display = 'none';
     };
+
+    const btnToggleTurns = card.querySelector('.btn-toggle-turns');
+    if (btnToggleTurns) {
+      btnToggleTurns.onclick = () => {
+        const drawer = card.querySelector(`#drawer-turns-${id}`);
+        if (drawer) {
+          const isOpen = drawer.style.display !== 'none';
+          drawer.style.display = isOpen ? 'none' : 'block';
+          btnToggleTurns.textContent = isOpen ? '📍 View Turns' : '📍 Hide Turns';
+        }
+      };
+    }
+
+    const drawer = card.querySelector(`#drawer-turns-${id}`);
+    if (drawer) {
+      // Pill click to seek on map
+      drawer.querySelectorAll('.turn-mini-pill').forEach(pill => {
+        const idx = parseInt(pill.getAttribute('data-turn-idx'), 10);
+        const t = trk.turns[idx];
+        if (t) {
+          pill.querySelector('.pill-turn-label')?.addEventListener('click', () => {
+            state.highlightedTurnId = t.id;
+            const pt = typeof findClosestTrackPoint === 'function' ? findClosestTrackPoint(t.lat, t.lon) : null;
+            if (pt && typeof seekToIndex === 'function') seekToIndex(pt.orig_index);
+            if (typeof renderTurnApexMarkers === 'function') renderTurnApexMarkers();
+          });
+          pill.querySelector('.pill-turn-name')?.addEventListener('click', () => {
+            state.highlightedTurnId = t.id;
+            const pt = typeof findClosestTrackPoint === 'function' ? findClosestTrackPoint(t.lat, t.lon) : null;
+            if (pt && typeof seekToIndex === 'function') seekToIndex(pt.orig_index);
+            if (typeof renderTurnApexMarkers === 'function') renderTurnApexMarkers();
+          });
+        }
+      });
+
+      // Edit turn number/label
+      drawer.querySelectorAll('.btn-edit-mini-num').forEach(btn => {
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          const idx = parseInt(btn.getAttribute('data-turn-idx'), 10);
+          const t = trk.turns[idx];
+          if (!t) return;
+          const curNum = (t.number !== undefined ? t.number : (idx + 1)).toString().replace(/^T/i, '');
+          const newNum = prompt(`Enter Turn Label / Number for "${t.name}" (e.g. 1, 2, 3A, 5, 8A):`, curNum);
+          if (newNum && newNum.trim()) {
+            const clean = newNum.trim().replace(/^T/i, '');
+            t.number = clean;
+            if (t.name.match(/^Turn \d+[A-Z]?$/i) || !t.name) {
+              t.name = `Turn ${clean}`;
+            }
+            t.id = `t_${clean.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+            saveSettingsToStorage();
+            renderTrackLibrary();
+            if (typeof renderTurnApexMarkers === 'function') renderTurnApexMarkers();
+          }
+        };
+      });
+
+      // Move turn earlier
+      drawer.querySelectorAll('.btn-move-mini-up').forEach(btn => {
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          const idx = parseInt(btn.getAttribute('data-turn-idx'), 10);
+          if (idx > 0) {
+            const temp = trk.turns[idx - 1];
+            trk.turns[idx - 1] = trk.turns[idx];
+            trk.turns[idx] = temp;
+            saveSettingsToStorage();
+            renderTrackLibrary();
+            if (typeof renderTurnApexMarkers === 'function') renderTurnApexMarkers();
+          }
+        };
+      });
+
+      // Move turn later
+      drawer.querySelectorAll('.btn-move-mini-down').forEach(btn => {
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          const idx = parseInt(btn.getAttribute('data-turn-idx'), 10);
+          if (idx < trk.turns.length - 1) {
+            const temp = trk.turns[idx + 1];
+            trk.turns[idx + 1] = trk.turns[idx];
+            trk.turns[idx] = temp;
+            saveSettingsToStorage();
+            renderTrackLibrary();
+            if (typeof renderTurnApexMarkers === 'function') renderTurnApexMarkers();
+          }
+        };
+      });
+
+      // Delete turn
+      drawer.querySelectorAll('.btn-del-mini-turn').forEach(btn => {
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          const idx = parseInt(btn.getAttribute('data-turn-idx'), 10);
+          const t = trk.turns[idx];
+          if (t && confirm(`Delete Turn ${t.number} (${t.name}) from "${trk.name}"?`)) {
+            trk.turns.splice(idx, 1);
+            saveSettingsToStorage();
+            renderTrackLibrary();
+            if (typeof renderTurnApexMarkers === 'function') renderTurnApexMarkers();
+          }
+        };
+      });
+
+      // Sort by track distance
+      const btnSortTurns = drawer.querySelector('.btn-drawer-sort-turns');
+      if (btnSortTurns) {
+        btnSortTurns.onclick = () => {
+          sortTrackTurnsByCircuitDistance(trk);
+          saveSettingsToStorage();
+          renderTrackLibrary();
+          if (typeof renderTurnApexMarkers === 'function') renderTurnApexMarkers();
+          alert(`Auto-sorted all ${trk.turns.length} turns in order along the track!`);
+        };
+      }
+
+      // Renumber sequentially
+      const btnRenumberTurns = drawer.querySelector('.btn-drawer-renumber-turns');
+      if (btnRenumberTurns) {
+        btnRenumberTurns.onclick = () => {
+          if (confirm(`Renumber all turns sequentially (T1, T2, T3...)?`)) {
+            renumberTrackTurnsSequentially(trk);
+            saveSettingsToStorage();
+            renderTrackLibrary();
+            if (typeof renderTurnApexMarkers === 'function') renderTurnApexMarkers();
+          }
+        };
+      }
+
+      const btnDrawerAdd = drawer.querySelector('.btn-drawer-add-turn');
+      if (btnDrawerAdd) {
+        btnDrawerAdd.onclick = () => {
+          dom.modalSettings.style.display = 'none';
+          enterTurnEditMode();
+        };
+      }
+
+      const btnDrawerDetect = drawer.querySelector('.btn-drawer-redetect-turns');
+      if (btnDrawerDetect) {
+        btnDrawerDetect.onclick = () => {
+          if (!state.records || state.records.length < 50) {
+            alert('Load telemetry data first to detect turn apexes.');
+            return;
+          }
+          const detected = typeof analyzeLapCorners === 'function' ? analyzeLapCorners(state.records, null, 1) : [];
+          if (!detected || detected.length === 0) {
+            alert('No distinct turn apexes could be detected from telemetry.');
+            return;
+          }
+          trk.turns = detected.map((d, dIdx) => ({
+            id: `t${dIdx + 1}`,
+            number: dIdx + 1,
+            name: `Turn ${dIdx + 1}`,
+            direction: d.isLeft ? 'left' : 'right',
+            lat: d.lat,
+            lon: d.lon,
+            radius_m: 45,
+            bearing: 0,
+            description: 'Auto-detected from session'
+          }));
+          sortTrackTurnsByCircuitDistance(trk);
+          saveSettingsToStorage();
+          renderTrackLibrary();
+          if (typeof renderTurnApexMarkers === 'function') renderTurnApexMarkers();
+          alert(`Generated ${trk.turns.length} turn apexes for "${trk.name}"!`);
+        };
+      }
+    }
+
+    const btnGenTurns = card.querySelector('.btn-gen-turns');
+    if (btnGenTurns) {
+      btnGenTurns.onclick = () => {
+        if (!state.records || state.records.length < 50) {
+          alert('Load telemetry data into visualizer first to detect turn apexes.');
+          return;
+        }
+        const detected = analyzeLapCorners(state.records, null, 1);
+        if (!detected || detected.length === 0) {
+          alert('No distinct turn apexes could be detected from telemetry.');
+          return;
+        }
+        trk.turns = detected.map((d, dIdx) => ({
+          id: `t${dIdx + 1}`,
+          number: dIdx + 1,
+          name: `Turn ${dIdx + 1}`,
+          direction: d.isLeft ? 'left' : 'right',
+          lat: d.lat,
+          lon: d.lon,
+          radius_m: 45,
+          bearing: 0,
+          description: 'Auto-detected from session telemetry'
+        }));
+        saveSettingsToStorage();
+        renderTrackLibrary();
+        if (typeof renderTurnApexMarkers === 'function') renderTurnApexMarkers();
+        alert(`Successfully generated and saved ${trk.turns.length} turn apexes for "${trk.name}"!`);
+      };
+    }
 
     card.querySelector('.btn-update-track').onclick = () => {
       if (confirm(`Overwrite "${trk.name}" gates with current map gates?`)) {
@@ -101,7 +345,8 @@ function autoDetectTrackFromGps() {
       if (d <= rad) {
         state.gates = JSON.parse(JSON.stringify(trk.gates));
         dom.metaTrackName.textContent = trk.name;
-        console.log(`[+] Auto-matched track: ${trk.name} (${d.toFixed(0)}m from center)`);
+        console.log(`[+] Auto-matched track: ${trk.name} (${d.toFixed(0)}m from center) with ${(trk.turns || []).length} turns`);
+        if (typeof renderTurnApexMarkers === 'function') renderTurnApexMarkers();
         return true;
       }
     }
@@ -123,6 +368,26 @@ function saveCurrentMapAsNewTrack() {
   const trackId = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_');
 
   const sf = state.gates.find(g => g.type === 'sf') || state.gates[0];
+
+  // Auto-generate turn apexes if telemetry exists
+  let autoTurns = [];
+  if (state.records && state.records.length > 50 && typeof analyzeLapCorners === 'function') {
+    const detected = analyzeLapCorners(state.records, null, 1);
+    if (detected && detected.length > 0) {
+      autoTurns = detected.map((d, dIdx) => ({
+        id: `t${dIdx + 1}`,
+        number: dIdx + 1,
+        name: `Turn ${dIdx + 1}`,
+        direction: d.isLeft ? 'left' : 'right',
+        lat: d.lat,
+        lon: d.lon,
+        radius_m: 45,
+        bearing: 0,
+        description: 'Auto-detected from session'
+      }));
+    }
+  }
+
   state.tracks[trackId] = {
     id: trackId,
     name: name.trim(),
@@ -130,12 +395,14 @@ function saveCurrentMapAsNewTrack() {
     center_lat: sf.lat,
     center_lon: sf.lon,
     radius_m: 3500,
-    gates: JSON.parse(JSON.stringify(state.gates))
+    gates: JSON.parse(JSON.stringify(state.gates)),
+    turns: autoTurns
   };
 
   saveSettingsToStorage();
   renderTrackLibrary();
-  alert(`Track "${name.trim()}" saved to library with ${state.gates.length} gates!`);
+  if (typeof renderTurnApexMarkers === 'function') renderTurnApexMarkers();
+  alert(`Track "${name.trim()}" saved to library with ${state.gates.length} gates and ${autoTurns.length} turn apexes!`);
 }
 
 function renderMapGates() {
@@ -303,6 +570,171 @@ function cancelGateEdit() {
   if (dom.gateInstructionToast) dom.gateInstructionToast.style.display = 'none';
   const m = document.getElementById('map-container');
   if (m) m.style.cursor = '';
+}
+
+function enterTurnEditMode() {
+  state.turnEditMode = true;
+  if (typeof cancelGateEdit === 'function') cancelGateEdit();
+  if (dom.btnAddTurn) dom.btnAddTurn.classList.add('active');
+  if (dom.gateInstructionToast) {
+    dom.gateInstructionToast.innerHTML = '<span>📍 Click on track path to place/add a Turn Apex marker. Press <kbd>ESC</kbd> to cancel.</span>';
+    dom.gateInstructionToast.style.display = 'flex';
+  }
+  const m = document.getElementById('map-container');
+  if (m) m.style.cursor = 'crosshair';
+}
+
+function cancelTurnEdit() {
+  state.turnEditMode = false;
+  if (dom.btnAddTurn) dom.btnAddTurn.classList.remove('active');
+  if (dom.gateInstructionToast) dom.gateInstructionToast.style.display = 'none';
+  const m = document.getElementById('map-container');
+  if (m) m.style.cursor = '';
+}
+
+function getCircuitDistanceForCoord(lat, lon, trk) {
+  if (!state.records || state.records.length === 0) return 0;
+
+  // If we have timed laps, use a clean flying lap slice
+  const flyingLap = state.laps && state.laps.find(l => l.lap_number >= 1 && !l.is_optimal && l.duration_s > 40);
+  const recSlice = flyingLap
+    ? state.records.slice(flyingLap.start_index, flyingLap.end_index + 1)
+    : (state.activeRecords && state.activeRecords.length > 20 ? state.activeRecords : state.records);
+
+  let minD = Infinity;
+  let bestRelDist = 0;
+  const baseDist = recSlice[0]?.distance_m || 0;
+
+  for (let i = 0; i < recSlice.length; i++) {
+    const r = recSlice[i];
+    if (r.gps_lat === null || r.gps_lon === null) continue;
+    const d = haversineDistanceM(lat, lon, r.gps_lat, r.gps_lon);
+    if (d < minD) {
+      minD = d;
+      bestRelDist = (r.distance_m || 0) - baseDist;
+    }
+  }
+  return bestRelDist;
+}
+
+function sortTrackTurnsByCircuitDistance(trk) {
+  if (!trk || !trk.turns || trk.turns.length < 2) return;
+  trk.turns.forEach(t => {
+    t._circuitDist = getCircuitDistanceForCoord(t.lat, t.lon, trk);
+  });
+  trk.turns.sort((a, b) => (a._circuitDist || 0) - (b._circuitDist || 0));
+  trk.turns.forEach(t => delete t._circuitDist);
+}
+
+function renumberTrackTurnsSequentially(trk) {
+  if (!trk || !trk.turns) return;
+  sortTrackTurnsByCircuitDistance(trk);
+  trk.turns.forEach((t, idx) => {
+    t.number = idx + 1;
+    t.name = `Turn ${idx + 1}`;
+    t.id = `t${idx + 1}`;
+  });
+}
+
+function handleTurnMapClick(latlng) {
+  const closest = typeof findClosestTrackPoint === 'function' ? findClosestTrackPoint(latlng.lat, latlng.lng) : null;
+  if (!closest) return;
+
+  const trk = typeof getActiveTrackProfile === 'function' ? getActiveTrackProfile() : null;
+  if (!trk) {
+    alert('No active track found. Please select or save a track in the Track Library first.');
+    cancelTurnEdit();
+    return;
+  }
+
+  if (!trk.turns) trk.turns = [];
+
+  // Calculate distance along circuit for clicked point
+  const clickDist = getCircuitDistanceForCoord(closest.lat, closest.lon, trk);
+
+  // Find neighbor turns along the circuit to suggest turn number
+  let prevTurn = null;
+  let nextTurn = null;
+  const sortedExisting = trk.turns.slice().map(t => ({
+    turn: t,
+    dist: getCircuitDistanceForCoord(t.lat, t.lon, trk)
+  })).sort((a, b) => a.dist - b.dist);
+
+  for (let i = 0; i < sortedExisting.length; i++) {
+    if (sortedExisting[i].dist < clickDist) {
+      prevTurn = sortedExisting[i].turn;
+    } else if (sortedExisting[i].dist >= clickDist && !nextTurn) {
+      nextTurn = sortedExisting[i].turn;
+    }
+  }
+
+  // Generate smart suggested label
+  let suggestedNum = '';
+  if (prevTurn && nextTurn) {
+    const prevN = parseInt(prevTurn.number, 10);
+    const nextN = parseInt(nextTurn.number, 10);
+    if (!isNaN(prevN) && !isNaN(nextN) && nextN - prevN > 1) {
+      suggestedNum = `${prevN + 1}`;
+    } else if (prevTurn.number) {
+      suggestedNum = `${prevTurn.number}A`;
+    }
+  } else if (prevTurn) {
+    const prevN = parseInt(prevTurn.number, 10);
+    suggestedNum = !isNaN(prevN) ? `${prevN + 1}` : `${trk.turns.length + 1}`;
+  } else {
+    suggestedNum = '1';
+  }
+
+  const promptMsg = prevTurn && nextTurn
+    ? `Placing Turn between ${prevTurn.name || ('T' + prevTurn.number)} and ${nextTurn.name || ('T' + nextTurn.number)}.\n\nEnter Turn Label / Number (e.g. 5, 3A, 8A, T11):`
+    : `Enter Turn Label / Number for this corner (e.g. 1, 2, 3A, 5, 8A):`;
+
+  const userNumInput = prompt(promptMsg, suggestedNum);
+  if (userNumInput === null) {
+    cancelTurnEdit();
+    return; // Cancelled
+  }
+
+  const cleanNum = (userNumInput.trim() || suggestedNum).replace(/^T/i, '');
+  const suggestedName = `Turn ${cleanNum}`;
+  const userNameInput = prompt(`Enter Turn Name / Description:`, suggestedName);
+  const turnName = (userNameInput && userNameInput.trim()) ? userNameInput.trim() : suggestedName;
+
+  const closestRec = state.records && closest.orig_index !== undefined ? state.records[closest.orig_index] : null;
+  const isLeftLean = closestRec && (closestRec.lean_angle_deg || 0) < 0;
+
+  let tangentBrg = 0;
+  if (state.records && closest.orig_index !== undefined) {
+    const i = closest.orig_index;
+    const pPrev = state.records[Math.max(0, i - 2)];
+    const pNext = state.records[Math.min(state.records.length - 1, i + 2)];
+    if (pPrev && pNext && pPrev.gps_lat !== null && pNext.gps_lat !== null) {
+      tangentBrg = calculateBearing(pPrev.gps_lat, pPrev.gps_lon, pNext.gps_lat, pNext.gps_lon);
+    }
+  }
+
+  const newTurn = {
+    id: `t_${cleanNum.toLowerCase().replace(/[^a-z0-9]/g, '')}_${Date.now().toString().slice(-4)}`,
+    number: cleanNum,
+    name: turnName,
+    direction: isLeftLean ? 'left' : 'right',
+    lat: closest.lat,
+    lon: closest.lon,
+    radius_m: 45,
+    bearing: tangentBrg,
+    description: `Apex on racing line`
+  };
+
+  trk.turns.push(newTurn);
+  sortTrackTurnsByCircuitDistance(trk);
+  saveSettingsToStorage();
+  cancelTurnEdit();
+
+  if (typeof renderTurnApexMarkers === 'function') renderTurnApexMarkers();
+  if (typeof renderTrackLibrary === 'function') renderTrackLibrary();
+  if (dom.modalScorecard && dom.modalScorecard.style.display !== 'none') {
+    renderScorecardTable(dom.selectScorecardLap ? parseInt(dom.selectScorecardLap.value, 10) : -1);
+  }
 }
 
 function findGateCrossings(gate, records, minIntervalS = 35.0) {

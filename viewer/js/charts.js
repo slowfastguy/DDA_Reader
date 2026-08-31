@@ -246,6 +246,9 @@ function renderCharts() {
     ctx.stroke();
   }
 
+  // Draw Vertical Turn Apex Markers across all channels
+  drawVerticalTurnMarkers(ctx, w, h, viewRecords, count, false);
+
   updateScrubberLinePosition();
 }
 
@@ -700,6 +703,9 @@ function renderCompareCharts(ctx, w, h) {
     ctx.setLineDash([]);
   }
 
+  // Draw Vertical Turn Apex Markers across compare channels
+  drawVerticalTurnMarkers(ctx, w, h, null, 0, true, recsA, maxDist);
+
   updateScrubberLinePosition();
 }
 
@@ -718,6 +724,176 @@ function updateScrubberLinePosition() {
   } else {
     dom.chartScrubberLine.style.display = 'none';
   }
+}
+
+function drawVerticalTurnMarkers(ctx, w, h, viewRecords, count, isCompare = false, recsA = null, maxDist = 0) {
+  if (state.showChartTurnMarkers === false) return;
+  const trk = typeof getActiveTrackProfile === 'function' ? getActiveTrackProfile() : null;
+  const turns = trk ? trk.turns : (typeof getActiveTrackTurns === 'function' ? getActiveTrackTurns() : null);
+  if (!turns || turns.length === 0) return;
+
+  const markersToDraw = [];
+
+  if (!isCompare && viewRecords && count > 1) {
+    const vStartT = viewRecords[0]?.time_s !== undefined ? viewRecords[0].time_s : 0;
+    const vEndT = viewRecords[count - 1]?.time_s !== undefined ? viewRecords[count - 1].time_s : 0;
+
+    // Check if we have segmented laps in state.laps that overlap with viewRecords
+    const lapsToScan = (state.laps && state.laps.length > 0)
+      ? state.laps.filter(l => !l.is_optimal && l.start_time_s <= vEndT && l.end_time_s >= vStartT)
+      : null;
+
+    turns.forEach((t, tIdx) => {
+      if (t.lat === undefined || t.lon === undefined) return;
+      const maxThreshold = (t.radius_m || 45.0) * 1.6;
+
+      if (lapsToScan && lapsToScan.length > 0) {
+        // Find turn apex for EACH lap in viewRecords
+        lapsToScan.forEach(lap => {
+          let minD = Infinity;
+          let bestI = -1;
+          for (let i = 0; i < count; i++) {
+            const r = viewRecords[i];
+            if (r.time_s < lap.start_time_s || r.time_s > lap.end_time_s) continue;
+            if (r.gps_lat === null || r.gps_lon === null) continue;
+            const d = haversineDistanceM(t.lat, t.lon, r.gps_lat, r.gps_lon);
+            if (d < minD) {
+              minD = d;
+              bestI = i;
+            }
+          }
+          if (bestI !== -1 && minD <= maxThreshold) {
+            const x = (bestI / (count - 1)) * w;
+            markersToDraw.push({ t, tIdx, x, bestI });
+          }
+        });
+      } else {
+        // Fallback: Local minima detection across full viewRecords
+        let bestLocalI = -1;
+        let minLocalD = Infinity;
+        let inProximity = false;
+        let lastApexI = -9999;
+
+        for (let i = 0; i < count; i++) {
+          const r = viewRecords[i];
+          if (r.gps_lat === null || r.gps_lon === null) continue;
+          const d = haversineDistanceM(t.lat, t.lon, r.gps_lat, r.gps_lon);
+
+          if (d <= maxThreshold) {
+            inProximity = true;
+            if (d < minLocalD) {
+              minLocalD = d;
+              bestLocalI = i;
+            }
+          } else if (inProximity) {
+            if (bestLocalI !== -1 && (bestLocalI - lastApexI) > 40) {
+              const x = (bestLocalI / (count - 1)) * w;
+              markersToDraw.push({ t, tIdx, x, bestI: bestLocalI });
+              lastApexI = bestLocalI;
+            }
+            inProximity = false;
+            bestLocalI = -1;
+            minLocalD = Infinity;
+          }
+        }
+        if (inProximity && bestLocalI !== -1 && (bestLocalI - lastApexI) > 40) {
+          const x = (bestLocalI / (count - 1)) * w;
+          markersToDraw.push({ t, tIdx, x, bestI: bestLocalI });
+        }
+      }
+    });
+  } else if (isCompare && recsA && maxDist > 0) {
+    // Dual lap comparison mode (aligned by distance along lap A)
+    turns.forEach((t, tIdx) => {
+      if (t.lat === undefined || t.lon === undefined) return;
+      const maxThreshold = (t.radius_m || 45.0) * 1.6;
+      let minD = Infinity;
+      let bestRelDist = 0;
+      for (let i = 0; i < recsA.length; i++) {
+        const r = recsA[i];
+        if (r.gps_lat === null || r.gps_lon === null) continue;
+        const d = haversineDistanceM(t.lat, t.lon, r.gps_lat, r.gps_lon);
+        if (d < minD) {
+          minD = d;
+          bestRelDist = (r.distance_m || 0) - (recsA[0].distance_m || 0);
+        }
+      }
+      if (minD <= maxThreshold) {
+        const x = (bestRelDist / maxDist) * w;
+        markersToDraw.push({ t, tIdx, x, bestI: 0 });
+      }
+    });
+  }
+
+  // Sort markers left to right by X coordinate
+  markersToDraw.sort((a, b) => a.x - b.x);
+
+  // Render all markers
+  markersToDraw.forEach(m => {
+    const { t, tIdx, x } = m;
+    if (x < 0 || x > w) return;
+
+    const isLeft = (t.direction || '').toLowerCase().includes('left');
+    const cleanNum = (t.number !== undefined ? t.number : (tIdx + 1)).toString().replace(/^T/i, '');
+    const isHighlighted = state.highlightedTurnId === t.id;
+
+    // 1. Draw Vertical Accent Line
+    ctx.save();
+    if (isHighlighted) {
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2.0;
+      ctx.setLineDash([]);
+      ctx.shadowColor = isLeft ? '#00e5ff' : '#ffd600';
+      ctx.shadowBlur = 8;
+    } else {
+      ctx.strokeStyle = isLeft ? 'rgba(0, 229, 255, 0.42)' : 'rgba(255, 214, 0, 0.42)';
+      ctx.lineWidth = 1.2;
+      ctx.setLineDash([4, 4]);
+    }
+
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, h);
+    ctx.stroke();
+    ctx.restore();
+
+    // 2. Draw Top Turn Pill Badge
+    const tagText = `T${cleanNum}`;
+    ctx.save();
+    ctx.font = '800 8.5px "Outfit", sans-serif';
+    const textW = ctx.measureText(tagText).width;
+    const pillW = Math.max(20, textW + 7);
+    const pillH = 13;
+    const pillX = Math.max(2, Math.min(w - pillW - 2, x - pillW / 2));
+    const pillY = 2;
+
+    ctx.fillStyle = isHighlighted ? (isLeft ? '#00e5ff' : '#ffd600') : 'rgba(10, 14, 22, 0.90)';
+    ctx.strokeStyle = isLeft ? '#00e5ff' : '#ffd600';
+    ctx.lineWidth = 1;
+
+    // Rounded rectangle
+    const rad = 3;
+    ctx.beginPath();
+    ctx.moveTo(pillX + rad, pillY);
+    ctx.lineTo(pillX + pillW - rad, pillY);
+    ctx.quadraticCurveTo(pillX + pillW, pillY, pillX + pillW, pillY + rad);
+    ctx.lineTo(pillX + pillW, pillY + pillH - rad);
+    ctx.quadraticCurveTo(pillX + pillW, pillY + pillH, pillX + pillW - rad, pillY + pillH);
+    ctx.lineTo(pillX + rad, pillY + pillH);
+    ctx.quadraticCurveTo(pillX, pillY + pillH, pillX, pillY + pillH - rad);
+    ctx.lineTo(pillX, pillY + rad);
+    ctx.quadraticCurveTo(pillX, pillY, pillX + rad, pillY);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Pill text
+    ctx.fillStyle = isHighlighted ? '#000000' : (isLeft ? '#00e5ff' : '#ffd600');
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(tagText, pillX + pillW / 2, pillY + pillH / 2 + 0.5);
+    ctx.restore();
+  });
 }
 
 function showChartTooltip(idx, mouseX, mouseY) {
@@ -886,7 +1062,24 @@ function showChartTooltip(idx, mouseX, mouseY) {
   const glat = r.accel_lat_g !== undefined ? r.accel_lat_g.toFixed(2) : '0.00';
   const gtot = r.accel_total_g !== undefined ? r.accel_total_g.toFixed(2) : '0.00';
 
+  // Check for proximity to a turn apex
+  let turnNearHtml = '';
+  const trk = typeof getActiveTrackProfile === 'function' ? getActiveTrackProfile() : null;
+  const turns = trk ? trk.turns : (typeof getActiveTrackTurns === 'function' ? getActiveTrackTurns() : null);
+  if (turns && turns.length > 0 && r.gps_lat !== null && r.gps_lon !== null) {
+    for (let t of turns) {
+      const d = haversineDistanceM(t.lat, t.lon, r.gps_lat, r.gps_lon);
+      if (d <= 35.0) {
+        const isL = (t.direction || '').toLowerCase().includes('left');
+        const cNum = (t.number || '').toString().replace(/^T/i, '');
+        turnNearHtml = `<div style="font-weight:800; color:${isL ? '#00e5ff' : '#ffd600'}; margin-bottom:2px;">📍 Turn ${cNum}: ${escapeHTML(t.name)} (Apex Zone)</div>`;
+        break;
+      }
+    }
+  }
+
   dom.chartTooltip.innerHTML = `
+    ${turnNearHtml}
     <strong>Time: ${formatTime(r.time_s)} | Dist: ${r.distance_m ? r.distance_m.toFixed(0) : 0}m</strong><br>
     Speed: <span style="color:#00e5ff">${spd.toFixed(1)} ${spdUnit}</span> | RPM: <span style="color:#ff9100">${r.rpm || 0}</span><br>
     TPS: <span style="color:#00e676">${(r.tps_pct || 0).toFixed(0)}%</span> | Gear: <span style="color:#d500f9">${r.gear || 'N'}</span> | Lean: <span style="color:#ff0055">${(r.lean_angle_deg || 0).toFixed(1)}°</span><br>
@@ -898,17 +1091,75 @@ function showChartTooltip(idx, mouseX, mouseY) {
 }
 
 function updateShiftLights(rpm) {
-  const thresholds = [5500, 6500, 7500, 8500, 9200, 9900, 10500, 11000, 11500, 12000];
-  dom.leds.forEach((led, i) => {
+  const redline = state.redlineRpm || 12000;
+  const startRpm = state.shiftLightStartRpm !== undefined ? state.shiftLightStartRpm : Math.round(redline * 0.80);
+  const finishRpm = state.shiftLightEndRpm !== undefined ? state.shiftLightEndRpm : redline;
+  const leds = (dom.leds && dom.leds.length > 0) ? dom.leds : document.querySelectorAll('.shift-lights .led');
+  if (!leds || leds.length === 0) return;
+
+  const count = leds.length; // 10 LEDs
+  const range = Math.max(100, finishRpm - startRpm);
+
+  // Redline percentages:
+  // Green: startRpm to 90% of Redline
+  // Yellow: 91% to 99% of Redline
+  // Red: 100% of Redline and up
+  const greenCeiling = 0.905 * redline;
+  const yellowCeiling = 0.995 * redline;
+  const isRedlineZone = rpm >= redline;
+
+  leds.forEach((led, i) => {
     if (!led) return;
     led.className = 'led';
-    if (rpm >= thresholds[i]) {
-      if (i < 3) led.classList.add('led-active-green');
-      else if (i < 6) led.classList.add('led-active-yellow');
-      else if (i < 9) led.classList.add('led-active-red');
-      else led.classList.add('led-active-blue');
+
+    // Calculate threshold for LED i linearly across the start to finish window
+    const ledThreshold = startRpm + (i / (count - 1)) * range;
+
+    if (rpm >= ledThreshold) {
+      if (ledThreshold >= yellowCeiling || isRedlineZone) {
+        // Red zone: 100% of redline and up
+        led.classList.add(rpm >= redline + 200 ? 'led-active-flash' : 'led-active-red');
+      } else if (ledThreshold >= greenCeiling) {
+        // Yellow zone: 91% to 99% of redline
+        led.classList.add('led-active-yellow');
+      } else {
+        // Green zone: 80% to 90% of redline
+        led.classList.add('led-active-green');
+      }
     }
   });
+}
+
+function updateShiftLightBandsUI() {
+  const redline = state.redlineRpm || 12000;
+  const startRpm = state.shiftLightStartRpm !== undefined ? state.shiftLightStartRpm : Math.round(redline * 0.80);
+  const greenMax = Math.round(redline * 0.90);
+  const yellowMin = Math.round(redline * 0.91);
+  const yellowMax = Math.round(redline * 0.99);
+
+  if (dom.lblBandGreen) dom.lblBandGreen.textContent = `${startRpm.toLocaleString()} - ${greenMax.toLocaleString()} RPM (${Math.round((startRpm / redline) * 100)}%-90%)`;
+  if (dom.lblBandYellow) dom.lblBandYellow.textContent = `${yellowMin.toLocaleString()} - ${yellowMax.toLocaleString()} RPM (91%-99%)`;
+  if (dom.lblBandRed) dom.lblBandRed.textContent = `${redline.toLocaleString()}+ RPM (100%+)`;
+}
+
+function updateTachScale(redline) {
+  const rline = redline || state.redlineRpm || 12000;
+  if (!dom.tachScaleRow) return;
+
+  const k1 = Math.round((rline * 0.25) / 1000);
+  const k2 = Math.round((rline * 0.50) / 1000);
+  const k3 = Math.round((rline * 0.75) / 1000);
+  const k4 = Math.round((rline * 0.90) / 1000);
+  const kRed = (rline / 1000).toFixed(1).replace('.0', '');
+
+  dom.tachScaleRow.innerHTML = `
+    <span>0</span>
+    <span>${k1}k</span>
+    <span>${k2}k</span>
+    <span>${k3}k</span>
+    <span>${k4}k</span>
+    <span class="text-red" id="lbl-scale-redline" style="font-weight:800;">${kRed}k</span>
+  `;
 }
 
 // ==========================================================================

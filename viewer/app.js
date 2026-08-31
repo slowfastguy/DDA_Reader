@@ -859,6 +859,36 @@ function bindEvents() {
     });
   }
 
+  if (dom.btnToggleApexMarkers) {
+    dom.btnToggleApexMarkers.addEventListener('click', () => {
+      state.showApexMarkers = !state.showApexMarkers;
+      if (dom.lblMenuApexes) dom.lblMenuApexes.textContent = state.showApexMarkers ? 'Turn Apex Markers: ON' : 'Turn Apex Markers: OFF';
+      if (dom.prefShowApexMarkers) dom.prefShowApexMarkers.checked = state.showApexMarkers;
+      saveSettingsToStorage();
+      if (typeof renderTurnApexMarkers === 'function') renderTurnApexMarkers();
+    });
+  }
+
+  function toggleChartTurnMarkers() {
+    state.showChartTurnMarkers = !state.showChartTurnMarkers;
+    if (dom.lblMenuChartTurns) dom.lblMenuChartTurns.textContent = state.showChartTurnMarkers ? 'Chart Turn Markers: ON' : 'Chart Turn Markers: OFF';
+    if (dom.btnChartTurnsToggle) {
+      dom.btnChartTurnsToggle.classList.toggle('active', state.showChartTurnMarkers);
+      dom.btnChartTurnsToggle.textContent = state.showChartTurnMarkers ? '📍 Turns: ON' : '📍 Turns: OFF';
+    }
+    if (dom.prefShowChartTurns) dom.prefShowChartTurns.checked = state.showChartTurnMarkers;
+    saveSettingsToStorage();
+    if (typeof renderCharts === 'function') renderCharts();
+  }
+
+  if (dom.btnToggleChartTurns) {
+    dom.btnToggleChartTurns.addEventListener('click', toggleChartTurnMarkers);
+  }
+
+  if (dom.btnChartTurnsToggle) {
+    dom.btnChartTurnsToggle.addEventListener('click', toggleChartTurnMarkers);
+  }
+
   if (dom.btnMenuSelectSection) {
     dom.btnMenuSelectSection.addEventListener('click', () => {
       if (typeof toggleSectionSelectMode === 'function') toggleSectionSelectMode();
@@ -925,6 +955,40 @@ function bindEvents() {
     dom.selectScorecardLap.addEventListener('change', (e) => {
       const lapNum = parseInt(e.target.value, 10);
       if (typeof renderScorecardTable === 'function') renderScorecardTable(lapNum);
+    });
+  }
+  if (dom.btnCopyScorecard) {
+    dom.btnCopyScorecard.addEventListener('click', () => {
+      const lapNum = dom.selectScorecardLap ? parseInt(dom.selectScorecardLap.value, 10) : -1;
+      if (typeof generateScorecardSummaryText === 'function') {
+        const text = generateScorecardSummaryText(lapNum);
+        navigator.clipboard.writeText(text).then(() => {
+          const orig = dom.btnCopyScorecard.textContent;
+          dom.btnCopyScorecard.textContent = '✅ Copied!';
+          setTimeout(() => { dom.btnCopyScorecard.textContent = orig; }, 2000);
+        }).catch(err => {
+          console.error('Clipboard copy failed:', err);
+          alert('Failed to copy to clipboard.');
+        });
+      }
+    });
+  }
+  if (dom.btnExportScorecardCsv) {
+    dom.btnExportScorecardCsv.addEventListener('click', () => {
+      const lapNum = dom.selectScorecardLap ? parseInt(dom.selectScorecardLap.value, 10) : -1;
+      if (typeof generateScorecardCsv === 'function') {
+        const csv = generateScorecardCsv(lapNum);
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const trackSlug = (dom.metaTrackName ? dom.metaTrackName.textContent.trim() : 'track').toLowerCase().replace(/[^a-z0-9]+/g, '_');
+        a.href = url;
+        a.download = `dda_scorecard_${trackSlug}_${lapNum === -1 ? 'all_laps' : 'lap_' + lapNum}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
     });
   }
 
@@ -1071,11 +1135,28 @@ function bindEvents() {
         state.gateEditMode = 'split';
         dom.btnGateSplit.classList.add('active');
         if (dom.btnGateSf) dom.btnGateSf.classList.remove('active');
+        if (dom.btnAddTurn) dom.btnAddTurn.classList.remove('active');
         if (dom.gateToastMsg) dom.gateToastMsg.textContent = 'Click on track map to add a Sector Split Gate...';
         if (dom.gateInstructionToast) dom.gateInstructionToast.style.display = 'flex';
         const m = document.getElementById('map-container');
         if (m) m.style.cursor = 'crosshair';
       }
+    });
+  }
+
+  if (dom.btnAddTurn) {
+    dom.btnAddTurn.addEventListener('click', () => {
+      if (state.turnEditMode) {
+        if (typeof cancelTurnEdit === 'function') cancelTurnEdit();
+      } else {
+        if (typeof enterTurnEditMode === 'function') enterTurnEditMode();
+      }
+    });
+  }
+
+  if (dom.btnMenuAddTurn) {
+    dom.btnMenuAddTurn.addEventListener('click', () => {
+      if (typeof enterTurnEditMode === 'function') enterTurnEditMode();
     });
   }
 
@@ -1235,6 +1316,156 @@ function bindEvents() {
       renderSpeedExtremaMarkers();
     });
   }
+  if (dom.prefShowApexMarkers) {
+    dom.prefShowApexMarkers.addEventListener('change', (e) => {
+      state.showApexMarkers = e.target.checked;
+      if (dom.lblMenuApexes) dom.lblMenuApexes.textContent = state.showApexMarkers ? 'Turn Apex Markers: ON' : 'Turn Apex Markers: OFF';
+      saveSettingsToStorage();
+      if (typeof renderTurnApexMarkers === 'function') renderTurnApexMarkers();
+    });
+  }
+  if (dom.prefShowChartTurns) {
+    dom.prefShowChartTurns.addEventListener('change', (e) => {
+      state.showChartTurnMarkers = e.target.checked;
+      if (dom.lblMenuChartTurns) dom.lblMenuChartTurns.textContent = state.showChartTurnMarkers ? 'Chart Turn Markers: ON' : 'Chart Turn Markers: OFF';
+      if (dom.btnChartTurnsToggle) {
+        dom.btnChartTurnsToggle.classList.toggle('active', state.showChartTurnMarkers);
+        dom.btnChartTurnsToggle.textContent = state.showChartTurnMarkers ? '📍 Turns: ON' : '📍 Turns: OFF';
+      }
+      saveSettingsToStorage();
+      if (typeof renderCharts === 'function') renderCharts();
+    });
+  }
+
+  function setRedlineRpm(rpm) {
+    const parsed = parseInt(rpm, 10);
+    if (isNaN(parsed)) return;
+    state.redlineRpm = Math.max(5000, Math.min(18000, parsed));
+    state.shiftLightStartRpm = Math.round(state.redlineRpm * 0.80);
+    state.shiftLightEndRpm = state.redlineRpm;
+
+    if (dom.lblTachRedline) dom.lblTachRedline.textContent = state.redlineRpm.toLocaleString();
+    if (dom.prefRedlineSlider) dom.prefRedlineSlider.value = state.redlineRpm;
+    if (dom.prefRedlineInput) dom.prefRedlineInput.value = state.redlineRpm;
+    if (dom.dataMenuRedlineSlider) dom.dataMenuRedlineSlider.value = state.redlineRpm;
+    if (dom.dataMenuRedlineInput) dom.dataMenuRedlineInput.value = state.redlineRpm;
+
+    if (dom.prefShiftStartSlider) dom.prefShiftStartSlider.value = state.shiftLightStartRpm;
+    if (dom.prefShiftStartInput) dom.prefShiftStartInput.value = state.shiftLightStartRpm;
+    if (dom.dataMenuShiftStartSlider) dom.dataMenuShiftStartSlider.value = state.shiftLightStartRpm;
+    if (dom.dataMenuShiftStartInput) dom.dataMenuShiftStartInput.value = state.shiftLightStartRpm;
+
+    if (dom.prefShiftEndSlider) dom.prefShiftEndSlider.value = state.shiftLightEndRpm;
+    if (dom.prefShiftEndInput) dom.prefShiftEndInput.value = state.shiftLightEndRpm;
+    if (dom.dataMenuShiftEndSlider) dom.dataMenuShiftEndSlider.value = state.shiftLightEndRpm;
+    if (dom.dataMenuShiftEndInput) dom.dataMenuShiftEndInput.value = state.shiftLightEndRpm;
+
+    if (typeof updateTachScale === 'function') updateTachScale(state.redlineRpm);
+    if (typeof updateShiftLightBandsUI === 'function') updateShiftLightBandsUI();
+    saveSettingsToStorage();
+    if (state.records && state.records.length > 0) {
+      updateUI();
+    }
+  }
+
+  function setShiftLightStartRpm(rpm) {
+    const parsed = parseInt(rpm, 10);
+    if (isNaN(parsed)) return;
+    state.shiftLightStartRpm = Math.max(3000, Math.min(state.shiftLightEndRpm || state.redlineRpm || 12000, parsed));
+    if (dom.prefShiftStartSlider) dom.prefShiftStartSlider.value = state.shiftLightStartRpm;
+    if (dom.prefShiftStartInput) dom.prefShiftStartInput.value = state.shiftLightStartRpm;
+    if (dom.dataMenuShiftStartSlider) dom.dataMenuShiftStartSlider.value = state.shiftLightStartRpm;
+    if (dom.dataMenuShiftStartInput) dom.dataMenuShiftStartInput.value = state.shiftLightStartRpm;
+    if (typeof updateShiftLightBandsUI === 'function') updateShiftLightBandsUI();
+    saveSettingsToStorage();
+    if (state.records && state.records.length > 0) {
+      updateUI();
+    }
+  }
+
+  function setShiftLightEndRpm(rpm) {
+    const parsed = parseInt(rpm, 10);
+    if (isNaN(parsed)) return;
+    state.shiftLightEndRpm = Math.max(state.shiftLightStartRpm || 8000, Math.min(18000, parsed));
+    if (dom.prefShiftEndSlider) dom.prefShiftEndSlider.value = state.shiftLightEndRpm;
+    if (dom.prefShiftEndInput) dom.prefShiftEndInput.value = state.shiftLightEndRpm;
+    if (dom.dataMenuShiftEndSlider) dom.dataMenuShiftEndSlider.value = state.shiftLightEndRpm;
+    if (dom.dataMenuShiftEndInput) dom.dataMenuShiftEndInput.value = state.shiftLightEndRpm;
+    if (typeof updateShiftLightBandsUI === 'function') updateShiftLightBandsUI();
+    saveSettingsToStorage();
+    if (state.records && state.records.length > 0) {
+      updateUI();
+    }
+  }
+
+  if (dom.btnQuickRedline) {
+    dom.btnQuickRedline.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const wrap = document.getElementById('dropdown-cards-wrap');
+      if (wrap) {
+        document.querySelectorAll('.dropdown-wrapper').forEach(w => w.classList.remove('open'));
+        wrap.classList.add('open');
+        if (dom.dataMenuRedlineInput) {
+          dom.dataMenuRedlineInput.focus();
+          dom.dataMenuRedlineInput.select();
+        }
+      }
+    });
+  }
+
+  // Prevent dropdown closing when interacting with DATA section settings sliders/inputs
+  const dataMenuRedlineWrap = document.getElementById('data-menu-redline-wrap');
+  if (dataMenuRedlineWrap) {
+    dataMenuRedlineWrap.addEventListener('click', (e) => e.stopPropagation());
+    dataMenuRedlineWrap.addEventListener('pointerdown', (e) => e.stopPropagation());
+  }
+
+  if (dom.prefRedlineSlider) {
+    dom.prefRedlineSlider.addEventListener('input', (e) => setRedlineRpm(e.target.value));
+  }
+  if (dom.prefRedlineInput) {
+    dom.prefRedlineInput.addEventListener('input', (e) => setRedlineRpm(e.target.value));
+  }
+  if (dom.dataMenuRedlineSlider) {
+    dom.dataMenuRedlineSlider.addEventListener('input', (e) => setRedlineRpm(e.target.value));
+  }
+  if (dom.dataMenuRedlineInput) {
+    dom.dataMenuRedlineInput.addEventListener('input', (e) => setRedlineRpm(e.target.value));
+  }
+
+  if (dom.prefShiftStartSlider) {
+    dom.prefShiftStartSlider.addEventListener('input', (e) => setShiftLightStartRpm(e.target.value));
+  }
+  if (dom.prefShiftStartInput) {
+    dom.prefShiftStartInput.addEventListener('input', (e) => setShiftLightStartRpm(e.target.value));
+  }
+  if (dom.dataMenuShiftStartSlider) {
+    dom.dataMenuShiftStartSlider.addEventListener('input', (e) => setShiftLightStartRpm(e.target.value));
+  }
+  if (dom.dataMenuShiftStartInput) {
+    dom.dataMenuShiftStartInput.addEventListener('input', (e) => setShiftLightStartRpm(e.target.value));
+  }
+
+  if (dom.prefShiftEndSlider) {
+    dom.prefShiftEndSlider.addEventListener('input', (e) => setShiftLightEndRpm(e.target.value));
+  }
+  if (dom.prefShiftEndInput) {
+    dom.prefShiftEndInput.addEventListener('input', (e) => setShiftLightEndRpm(e.target.value));
+  }
+  if (dom.dataMenuShiftEndSlider) {
+    dom.dataMenuShiftEndSlider.addEventListener('input', (e) => setShiftLightEndRpm(e.target.value));
+  }
+  if (dom.dataMenuShiftEndInput) {
+    dom.dataMenuShiftEndInput.addEventListener('input', (e) => setShiftLightEndRpm(e.target.value));
+  }
+
+  document.querySelectorAll('.btn-redline-preset').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const rpm = btn.dataset.rpm;
+      if (rpm) setRedlineRpm(rpm);
+    });
+  });
 
   // Backup & Sync
   if (dom.btnExportSettings) dom.btnExportSettings.addEventListener('click', exportSettingsFile);
@@ -1415,6 +1646,9 @@ function bindEvents() {
           if (typeof renderLeanThrottleMatrix === 'function') renderLeanThrottleMatrix(lapNum);
         }
       }
+    } else if (e.code === 'KeyT' && e.altKey) {
+      e.preventDefault();
+      toggleChartTurnMarkers();
     } else if (e.code === 'KeyT') {
       if (dom.modalScorecard) {
         const isVis = dom.modalScorecard.style.display === 'flex';
@@ -1424,6 +1658,8 @@ function bindEvents() {
           if (typeof renderScorecardTable === 'function') renderScorecardTable(lapNum);
         }
       }
+    } else if (e.code === 'KeyA') {
+      if (dom.btnToggleApexMarkers) dom.btnToggleApexMarkers.click();
     } else if (e.code === 'KeyL') {
       if (typeof toggleWorkspaceLayout === 'function') toggleWorkspaceLayout();
     } else if (e.code === 'KeyV') {
@@ -1461,6 +1697,9 @@ function bindEvents() {
       }
       if (state.gateEditMode && typeof cancelGatePlacement === 'function') {
         cancelGatePlacement();
+      }
+      if (state.turnEditMode && typeof cancelTurnEdit === 'function') {
+        cancelTurnEdit();
       }
     }
   });

@@ -102,11 +102,25 @@ function updateUI() {
   if (dom.lblSpeedUnit) dom.lblSpeedUnit.textContent = state.unitMph ? 'MPH' : 'KM/H';
   if (dom.headerClusterSpeed) dom.headerClusterSpeed.textContent = `${spd.toFixed(1)} ${state.unitMph ? 'MPH' : 'KM/H'}`;
 
-  // 3. RPM & Shift Lights
+  // 3. RPM & Shift Lights (White below redline, Red at/above redline)
   const interpRpm = (r0.rpm || 0) + ((r1.rpm || 0) - (r0.rpm || 0)) * frac;
-  if (dom.valRpmNumeric) dom.valRpmNumeric.innerHTML = `${Math.round(interpRpm).toLocaleString()} <small>RPM</small>`;
-  const rpmPct = Math.min(100, Math.max(0, (interpRpm / 12500) * 100));
-  if (dom.tachBarFill) dom.tachBarFill.style.width = `${rpmPct}%`;
+  const redline = state.redlineRpm || 12000;
+  const isRedline = interpRpm >= redline;
+
+  if (dom.valRpmNumeric) {
+    dom.valRpmNumeric.innerHTML = `${Math.round(interpRpm).toLocaleString()} <small>RPM</small>`;
+    dom.valRpmNumeric.style.color = isRedline ? '#ff0033' : '#ffffff';
+    dom.valRpmNumeric.style.textShadow = isRedline ? '0 0 10px rgba(255, 0, 51, 0.8)' : 'none';
+  }
+
+  const maxDisplayRpm = Math.max(redline + 500, redline * 1.06);
+  const rpmPct = Math.min(100, Math.max(0, (interpRpm / maxDisplayRpm) * 100));
+
+  if (dom.tachBarFill) {
+    dom.tachBarFill.style.width = `${rpmPct}%`;
+    dom.tachBarFill.classList.toggle('tach-redline', isRedline);
+  }
+
   if (typeof updateShiftLights === 'function') updateShiftLights(interpRpm);
 
   // 4. Gear
@@ -118,8 +132,9 @@ function updateUI() {
 
   // 5. Throttle (TPS)
   const interpTps = (r0.tps_pct || 0) + ((r1.tps_pct || 0) - (r0.tps_pct || 0)) * frac;
-  if (dom.tpsMeterFill) dom.tpsMeterFill.style.height = `${interpTps}%`;
-  if (dom.valTpsNumeric) dom.valTpsNumeric.textContent = `${interpTps.toFixed(0)}%`;
+  const tpsClamped = Math.min(100, Math.max(0, interpTps));
+  if (dom.tpsMeterFill) dom.tpsMeterFill.style.width = `${tpsClamped}%`;
+  if (dom.valTpsNumeric) dom.valTpsNumeric.textContent = `${tpsClamped.toFixed(0)}%`;
 
   // 6. Lean Angle & Motorcycle Tilt Animation
   const interpLean = (r0.lean_angle_deg || 0) + ((r1.lean_angle_deg || 0) - (r0.lean_angle_deg || 0)) * frac;

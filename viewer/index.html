@@ -104,6 +104,12 @@
               <span>View Optimal Lap Ghost</span>
             </span>
           </button>
+          <button id="btn-menu-add-turn" class="dropdown-item" title="Click on track to place/adjust a Turn Apex marker">
+            <span class="dropdown-item-left">
+              <span class="dropdown-item-icon">📍</span>
+              <span>Place / Add Turn Apex</span>
+            </span>
+          </button>
         </div>
       </div>
 
@@ -162,6 +168,19 @@
             <span class="dropdown-item-left">
               <span class="dropdown-item-icon">⚡</span>
               <span id="lbl-menu-extrema">Apex/Top Speeds: ON</span>
+            </span>
+          </button>
+          <button id="btn-toggle-apex-markers" class="dropdown-item" title="Toggle Track Apex Markers on Map (A)">
+            <span class="dropdown-item-left">
+              <span class="dropdown-item-icon">📍</span>
+              <span id="lbl-menu-apexes">Turn Apex Markers: ON</span>
+            </span>
+            <kbd>A</kbd>
+          </button>
+          <button id="btn-toggle-chart-turns" class="dropdown-item" title="Toggle Vertical Turn Markers on Telemetry Charts">
+            <span class="dropdown-item-left">
+              <span class="dropdown-item-icon">📊</span>
+              <span id="lbl-menu-chart-turns">Chart Turn Markers: ON</span>
             </span>
           </button>
           <button id="btn-menu-fit-bounds" class="dropdown-item" title="Fit Entire Circuit on Screen (F)">
@@ -264,6 +283,7 @@
                   <button id="btn-clear-section" class="btn-tool-sm btn-clear-section" style="display: none;" title="Clear corner selection">✕ Clear</button>
                   <button id="btn-gate-sf" class="btn-tool" title="Click on track to set Start/Finish line">🏁 Set S/F</button>
                   <button id="btn-gate-split" class="btn-tool" title="Click on track to add Sector Split (S1, S2, S3)">⏱️ + Split</button>
+                  <button id="btn-add-turn" class="btn-tool" title="Click on track to place/adjust a Turn Apex marker">📍 + Turn</button>
                   <button id="btn-save-track-gates" class="btn-tool" title="Save current track and gate locations to Track Library">💾 Save Track</button>
                   <button id="btn-gate-reset" class="btn-tool-sm" title="Reset gates to default track layout">↺ Reset</button>
                 </div>
@@ -498,6 +518,7 @@
               <button class="channel-toggle-btn active" data-channel="lineDelta" id="leg-compare-linedelta" style="--c: #ff007f; display: none;">
                 <span class="ch-dot"></span>Racing Line Δ
               </button>
+              <button id="btn-chart-turns-toggle" class="btn-tool-sm active" style="margin-left: 2px;" title="Toggle Vertical Turn Markers on Telemetry Graphs">📍 Turns: ON</button>
               <button id="btn-reset-zoom" class="btn-xs">Reset Zoom</button>
             </div>
 
@@ -607,6 +628,56 @@
               <input type="checkbox" id="chk-card-phases" checked data-card="phases">
               <span>Riding Phases & Coast Time</span>
             </label>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-header">Engine Redline & Shift Lights</div>
+            <div class="dropdown-item-section" id="data-menu-redline-wrap" style="padding: 8px 10px; display: flex; flex-direction: column; gap: 6px;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 11px; font-weight: 700; color: #ffffff;">Redline Limit:</span>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                  <input type="number" id="data-menu-redline-input" min="5000" max="18000" step="250" value="12000" style="width: 72px; text-align: right;" class="control-input-sm">
+                  <span style="font-size: 9.5px; color: var(--text-dim);">RPM</span>
+                </div>
+              </div>
+              <input type="range" id="data-menu-redline-slider" min="5000" max="18000" step="250" value="12000" class="control-slider">
+
+              <!-- Quick Presets -->
+              <div class="redline-presets-row" style="display: flex; gap: 3px; flex-wrap: wrap; margin-top: 2px;">
+                <button type="button" class="btn-tool-sm btn-redline-preset" data-rpm="10500" title="Street / Twin (10,500 RPM)">10.5k</button>
+                <button type="button" class="btn-tool-sm btn-redline-preset" data-rpm="12000" title="Panigale V2 (12,000 RPM)">12.0k</button>
+                <button type="button" class="btn-tool-sm btn-redline-preset" data-rpm="13500" title="Panigale V4 (13,500 RPM)">13.5k</button>
+                <button type="button" class="btn-tool-sm btn-redline-preset" data-rpm="15250" title="Panigale V4 R (15,250 RPM)">15.2k</button>
+                <button type="button" class="btn-tool-sm btn-redline-preset" data-rpm="16500" title="MotoGP (16,500 RPM)">16.5k</button>
+              </div>
+
+              <!-- Shift Light Activation Window -->
+              <div style="margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 6px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                  <span style="font-size: 10.5px; color: var(--text-dim);">Shift Start (80%):</span>
+                  <div style="display: flex; align-items: center; gap: 4px;">
+                    <input type="number" id="data-menu-shift-start-input" min="3000" max="17000" step="100" value="9600" style="width: 68px; text-align: right;" class="control-input-sm">
+                    <span style="font-size: 9px; color: var(--text-dim);">RPM</span>
+                  </div>
+                </div>
+                <input type="range" id="data-menu-shift-start-slider" min="3000" max="17000" step="100" value="9600" class="control-slider">
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; margin-bottom: 2px;">
+                  <span style="font-size: 10.5px; color: var(--text-dim);">Shift Finish (100%):</span>
+                  <div style="display: flex; align-items: center; gap: 4px;">
+                    <input type="number" id="data-menu-shift-end-input" min="5000" max="18000" step="100" value="12000" style="width: 68px; text-align: right;" class="control-input-sm">
+                    <span style="font-size: 9px; color: var(--text-dim);">RPM</span>
+                  </div>
+                </div>
+                <input type="range" id="data-menu-shift-end-slider" min="5000" max="18000" step="100" value="12000" class="control-slider">
+
+                <!-- Color Bands summary -->
+                <div style="display: flex; gap: 4px; margin-top: 5px; font-size: 9px; font-family: var(--font-mono); flex-wrap: wrap;">
+                  <span class="badge" style="background: rgba(0, 230, 118, 0.15); color: #00e676; border: 1px solid rgba(0, 230, 118, 0.3); padding: 1px 4px;">🟢 80-90%</span>
+                  <span class="badge" style="background: rgba(255, 214, 0, 0.15); color: #ffd600; border: 1px solid rgba(255, 214, 0, 0.3); padding: 1px 4px;">🟡 91-99%</span>
+                  <span class="badge" style="background: rgba(255, 0, 51, 0.15); color: #ff3366; border: 1px solid rgba(255, 0, 51, 0.3); padding: 1px 4px;">🔴 100%+</span>
+                </div>
+              </div>
+            </div>
+
             <div class="dropdown-divider"></div>
             <div class="dropdown-header">Density & Arrangement</div>
             <button id="btn-toggle-density" class="dropdown-item">
@@ -750,27 +821,27 @@
               <span id="val-rpm-numeric" class="rpm-display">0 <small>RPM</small></span>
             </div>
             <div class="shift-lights">
-              <span class="led led-green" id="led-1"></span>
-              <span class="led led-green" id="led-2"></span>
-              <span class="led led-green" id="led-3"></span>
-              <span class="led led-yellow" id="led-4"></span>
-              <span class="led led-yellow" id="led-5"></span>
-              <span class="led led-yellow" id="led-6"></span>
-              <span class="led led-red" id="led-7"></span>
-              <span class="led led-red" id="led-8"></span>
-              <span class="led led-red" id="led-9"></span>
-              <span class="led led-blue" id="led-10"></span>
+              <span class="led" id="led-1"></span>
+              <span class="led" id="led-2"></span>
+              <span class="led" id="led-3"></span>
+              <span class="led" id="led-4"></span>
+              <span class="led" id="led-5"></span>
+              <span class="led" id="led-6"></span>
+              <span class="led" id="led-7"></span>
+              <span class="led" id="led-8"></span>
+              <span class="led" id="led-9"></span>
+              <span class="led" id="led-10"></span>
             </div>
             <div class="tach-bar-bg">
               <div id="tach-bar-fill" class="tach-bar-fill" style="width: 0%;"></div>
             </div>
-            <div class="tach-scale">
+            <div class="tach-scale" id="tach-scale-row">
               <span>0</span>
               <span>3k</span>
               <span>6k</span>
               <span>9k</span>
               <span>11k</span>
-              <span class="text-red">12.5k</span>
+              <span class="text-red" id="lbl-scale-redline">12k</span>
             </div>
           </div>
 
@@ -787,15 +858,22 @@
               <span class="lbl-dim">GEAR</span>
               <div id="val-gear" class="gear-big">N</div>
             </div>
+          </div>
 
-            <div class="tps-box">
-              <span class="lbl-dim">TPS</span>
-              <div class="tps-meter-wrap">
-                <div class="tps-meter-bg">
-                  <div id="tps-meter-fill" class="tps-meter-fill" style="height: 0%;"></div>
-                </div>
-                <span id="val-tps-numeric" class="tps-numeric">0%</span>
-              </div>
+          <div class="tps-container">
+            <div class="tps-header">
+              <span class="lbl-dim">THROTTLE POSITION (TPS)</span>
+              <span id="val-tps-numeric" class="tps-numeric">0%</span>
+            </div>
+            <div class="tps-bar-bg">
+              <div id="tps-meter-fill" class="tps-bar-fill" style="width: 0%;"></div>
+            </div>
+            <div class="tps-scale">
+              <span>0%</span>
+              <span>25%</span>
+              <span>50%</span>
+              <span>75%</span>
+              <span>100%</span>
             </div>
           </div>
 
@@ -1245,6 +1323,60 @@
               <label>Show Speed Extrema (Apex/Top) Markers</label>
               <input type="checkbox" id="pref-show-extrema" checked>
             </div>
+            <div class="pref-item">
+              <label>Show Turn Apex Markers on Map</label>
+              <input type="checkbox" id="pref-show-apex-markers" checked>
+            </div>
+            <div class="pref-item">
+              <label>Show Vertical Turn Markers on Telemetry Charts</label>
+              <input type="checkbox" id="pref-show-chart-turns" checked>
+            </div>
+            <div class="pref-group-header" style="margin-top: 14px; font-weight: 800; font-size: 11px; color: var(--text-dim); text-transform: uppercase;">Engine Tachometer & Redline</div>
+            <div class="pref-item" style="flex-direction: column; align-items: stretch; gap: 8px;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <label for="pref-redline-slider">Engine Redline RPM</label>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                  <input type="number" id="pref-redline-input" min="6000" max="17000" step="250" value="12000" style="width: 75px; text-align: right;" class="control-input-sm">
+                  <span style="font-size: 10px; color: var(--text-dim);">RPM</span>
+                </div>
+              </div>
+              <input type="range" id="pref-redline-slider" min="6000" max="17000" step="250" value="12000" class="control-slider">
+              <div class="redline-presets-row" style="display: flex; gap: 4px; flex-wrap: wrap; margin-top: 2px;">
+                <button type="button" class="btn-tool-sm btn-redline-preset" data-rpm="10500">10.5k (Street/Twin)</button>
+                <button type="button" class="btn-tool-sm btn-redline-preset" data-rpm="12000">12.0k (Panigale V2)</button>
+                <button type="button" class="btn-tool-sm btn-redline-preset" data-rpm="13500">13.5k (Panigale V4)</button>
+                <button type="button" class="btn-tool-sm btn-redline-preset" data-rpm="15250">15.2k (V4 R)</button>
+                <button type="button" class="btn-tool-sm btn-redline-preset" data-rpm="16500">16.5k (MotoGP)</button>
+              </div>
+            </div>
+
+            <div class="pref-group-header" style="margin-top: 14px; font-weight: 800; font-size: 11px; color: var(--text-dim); text-transform: uppercase;">Shift Lights Activation Window</div>
+            <div class="pref-item" style="flex-direction: column; align-items: stretch; gap: 8px;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <label for="pref-shift-start-slider">Shift Lights Start RPM (Default 80% Redline)</label>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                  <input type="number" id="pref-shift-start-input" min="4000" max="16000" step="100" value="9600" style="width: 75px; text-align: right;" class="control-input-sm">
+                  <span style="font-size: 10px; color: var(--text-dim);">RPM</span>
+                </div>
+              </div>
+              <input type="range" id="pref-shift-start-slider" min="4000" max="16000" step="100" value="9600" class="control-slider">
+
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+                <label for="pref-shift-end-slider">Shift Lights Finish RPM (Redline Threshold)</label>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                  <input type="number" id="pref-shift-end-input" min="6000" max="17500" step="100" value="12000" style="width: 75px; text-align: right;" class="control-input-sm">
+                  <span style="font-size: 10px; color: var(--text-dim);">RPM</span>
+                </div>
+              </div>
+              <input type="range" id="pref-shift-end-slider" min="6000" max="17500" step="100" value="12000" class="control-slider">
+
+              <!-- Live Shift Light Color Bands Legend -->
+              <div style="display: flex; gap: 6px; margin-top: 6px; font-size: 10px; font-family: var(--font-mono); flex-wrap: wrap;">
+                <span class="badge" style="background: rgba(0, 230, 118, 0.15); color: #00e676; border: 1px solid rgba(0, 230, 118, 0.3);">🟢 Green: <span id="lbl-band-green">80% - 90%</span></span>
+                <span class="badge" style="background: rgba(255, 214, 0, 0.15); color: #ffd600; border: 1px solid rgba(255, 214, 0, 0.3);">🟡 Yellow: <span id="lbl-band-yellow">91% - 99%</span></span>
+                <span class="badge" style="background: rgba(255, 0, 51, 0.15); color: #ff3366; border: 1px solid rgba(255, 0, 51, 0.3);">🔴 Red: <span id="lbl-band-red">100%+</span></span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1284,6 +1416,9 @@
         <div class="shortcut-row"><kbd>Shift</kbd> + <kbd>←</kbd> / <kbd>→</kbd> <span>Jump 5.0s</span></div>
         <div class="shortcut-row"><kbd>Home</kbd> / <kbd>End</kbd> <span>Start / End of Session/Lap</span></div>
         <div class="shortcut-row"><kbd>C</kbd> <span>Toggle Lap Comparison Mode</span></div>
+        <div class="shortcut-row"><kbd>T</kbd> <span>Open Turn Performance Scorecard</span></div>
+        <div class="shortcut-row"><kbd>Alt</kbd> + <kbd>T</kbd> <span>Toggle Chart Turn Markers</span></div>
+        <div class="shortcut-row"><kbd>A</kbd> <span>Toggle Map Turn Apex Markers</span></div>
         <div class="shortcut-row"><kbd>M</kbd> <span>Toggle Lean vs Throttle Matrix</span></div>
         <div class="shortcut-row"><kbd>L</kbd> <span>Toggle 3-Column Split Comparison Layout</span></div>
         <div class="shortcut-row"><kbd>S</kbd> <span>Toggle Corner Sync Mode (Time vs Distance)</span></div>
@@ -1359,7 +1494,11 @@
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
           <h3>Turn-by-Turn Rider Performance Scorecard</h3>
         </div>
-        <button id="btn-close-scorecard" class="btn-close">&times;</button>
+        <div class="modal-header-actions-group">
+          <button id="btn-copy-scorecard" class="btn btn-tool-sm" title="Copy formatted coaching summary to clipboard">📋 Copy Report</button>
+          <button id="btn-export-scorecard-csv" class="btn btn-tool-sm" title="Export CSV scorecard file">📊 Export CSV</button>
+          <button id="btn-close-scorecard" class="btn-close">&times;</button>
+        </div>
       </div>
 
       <div class="scorecard-body">
@@ -1372,16 +1511,24 @@
           </div>
           <div class="scorecard-summary-pills">
             <div class="scorecard-kpi-pill">
-              <span>Turns Analyzed:</span>
+              <span>Turns:</span>
               <strong id="kpi-scorecard-turns" class="text-cyan">--</strong>
             </div>
             <div class="scorecard-kpi-pill">
-              <span>Avg Apex Min Speed:</span>
+              <span>Avg Apex Spd:</span>
               <strong id="kpi-scorecard-apex-spd" class="text-green">--</strong>
             </div>
             <div class="scorecard-kpi-pill">
-              <span>Total Lap Coast Time:</span>
+              <span>Fastest Turn:</span>
+              <strong id="kpi-scorecard-best-apex" class="text-cyan">--</strong>
+            </div>
+            <div class="scorecard-kpi-pill">
+              <span>Lap Coast:</span>
               <strong id="kpi-scorecard-coast" class="text-warning">--</strong>
+            </div>
+            <div class="scorecard-kpi-pill">
+              <span>Consistency / Lean:</span>
+              <strong id="kpi-scorecard-consistency" style="color: #c084fc;">--</strong>
             </div>
           </div>
         </div>
@@ -1393,12 +1540,12 @@
                 <th>Turn</th>
                 <th>Type</th>
                 <th>Braking Point</th>
-                <th>Apex Speed</th>
-                <th>Max Lean</th>
+                <th>Apex Min Speed</th>
+                <th>Peak Lean</th>
                 <th>Throttle Pickup</th>
                 <th>Exit Speed</th>
                 <th>Coasting</th>
-                <th>Rider Coaching Cue</th>
+                <th>Rider Coaching Feedback</th>
               </tr>
             </thead>
             <tbody id="scorecard-table-body">
