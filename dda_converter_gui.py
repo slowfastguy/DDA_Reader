@@ -12,6 +12,7 @@ import sys
 import argparse
 import importlib
 import webbrowser
+from pathlib import Path
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import dda_core
@@ -390,8 +391,8 @@ class DDAConverterApp(tk.Tk):
             self.parser.export_html(out_html)
             self._log(f"[+] Generated Interactive Visualizer: {out_html}")
             
-            # Open directly in browser
-            webbrowser.open("file://" + os.path.abspath(out_html))
+            # Open directly in browser via RFC-compliant file URI
+            webbrowser.open(Path(out_html).resolve().as_uri())
         except Exception as e:
             self._log(f"[-] Error launching viewer: {e}")
             messagebox.showerror("Viewer Error", f"Failed to launch visualizer:\n{e}")
@@ -626,7 +627,7 @@ def cli_main():
 
         if args.viewer:
             print("  [*] Launching interactive telemetry viewer in browser...")
-            webbrowser.open("file://" + os.path.abspath(base + "_viewer.html"))
+            webbrowser.open(Path(base + "_viewer.html").resolve().as_uri())
         return
 
     # Otherwise launch GUI
