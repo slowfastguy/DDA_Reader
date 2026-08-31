@@ -242,7 +242,7 @@ function initDropdownMenus() {
   const wrappers = document.querySelectorAll('.dropdown-wrapper');
   
   wrappers.forEach(wrap => {
-    const trigger = wrap.querySelector('.btn-dropdown, .btn-icon');
+    const trigger = wrap.querySelector('.btn-dropdown, .btn-icon, .btn-tool-sm, .dropdown-trigger');
     if (!trigger) return;
 
     trigger.addEventListener('click', (e) => {
@@ -1305,12 +1305,61 @@ function bindEvents() {
       saveSettingsToStorage();
     });
   }
+  function toggleExtremaMarkers() {
+    state.showSpeedExtrema = !(state.showSpeedExtrema !== false);
+    if (dom.prefShowExtrema) dom.prefShowExtrema.checked = state.showSpeedExtrema;
+    if (dom.btnToggleExtrema) {
+      dom.btnToggleExtrema.classList.toggle('active', state.showSpeedExtrema);
+      dom.btnToggleExtrema.textContent = state.showSpeedExtrema ? '⚡ Speeds: ON' : '⚡ Speeds: OFF';
+    }
+    if (dom.btnMenuToggleExtrema) {
+      dom.btnMenuToggleExtrema.classList.toggle('active', state.showSpeedExtrema);
+    }
+    if (dom.lblMenuExtrema) {
+      dom.lblMenuExtrema.textContent = state.showSpeedExtrema ? 'Speed Markers: ON' : 'Speed Markers: OFF';
+    }
+    saveSettingsToStorage();
+    if (typeof renderSpeedExtremaMarkers === 'function') renderSpeedExtremaMarkers();
+  }
+
+  if (dom.btnToggleExtrema) dom.btnToggleExtrema.addEventListener('click', toggleExtremaMarkers);
+  if (dom.btnMenuToggleExtrema) dom.btnMenuToggleExtrema.addEventListener('click', toggleExtremaMarkers);
+
+  // Map Options dropdown items for Layer and Smoothing
+  document.querySelectorAll('.btn-layer-opt').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const layer = btn.dataset.layer;
+      if (layer && dom.selectMapLayer) {
+        dom.selectMapLayer.value = layer;
+        dom.selectMapLayer.dispatchEvent(new Event('change'));
+        document.querySelectorAll('.btn-layer-opt').forEach(b => b.classList.toggle('active', b.dataset.layer === layer));
+      }
+    });
+  });
+
+  document.querySelectorAll('.btn-smooth-opt').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const smooth = btn.dataset.smooth;
+      if (smooth && dom.selectSmoothing) {
+        dom.selectSmoothing.value = smooth;
+        dom.selectSmoothing.dispatchEvent(new Event('change'));
+        document.querySelectorAll('.btn-smooth-opt').forEach(b => b.classList.toggle('active', b.dataset.smooth === smooth));
+      }
+    });
+  });
+
   if (dom.prefShowExtrema) {
     dom.prefShowExtrema.addEventListener('change', (e) => {
       state.showSpeedExtrema = e.target.checked;
       if (dom.btnToggleExtrema) {
         dom.btnToggleExtrema.classList.toggle('active', state.showSpeedExtrema);
         dom.btnToggleExtrema.textContent = state.showSpeedExtrema ? '⚡ Speeds: ON' : '⚡ Speeds: OFF';
+      }
+      if (dom.btnMenuToggleExtrema) {
+        dom.btnMenuToggleExtrema.classList.toggle('active', state.showSpeedExtrema);
+      }
+      if (dom.lblMenuExtrema) {
+        dom.lblMenuExtrema.textContent = state.showSpeedExtrema ? 'Speed Markers: ON' : 'Speed Markers: OFF';
       }
       saveSettingsToStorage();
       renderSpeedExtremaMarkers();

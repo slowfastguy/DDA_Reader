@@ -348,6 +348,58 @@ body.dark-theme {
   color: var(--accent-cyan);
 }
 
+/* Top Navigation Workspace View Mode Switcher */
+.header-view-mode-group {
+  display: inline-flex;
+  align-items: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  gap: 2px;
+}
+
+.btn-header-vmode {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-dim);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.btn-header-vmode:hover {
+  color: var(--text-main);
+  background: var(--bg-card-hover);
+}
+
+.btn-header-vmode.active {
+  background: var(--accent-cyan);
+  color: #000000;
+  font-weight: 800;
+  box-shadow: var(--shadow-glow-cyan);
+}
+
+@media (max-width: 1200px) {
+  .btn-header-vmode {
+    padding: 3px 6px;
+    font-size: 10.5px;
+  }
+}
+@media (max-width: 992px) {
+  .header-view-mode-group {
+    display: none;
+  }
+}
+
 /* Icon-Only Buttons */
 .btn-icon {
   background: var(--bg-card);
@@ -882,7 +934,6 @@ body.dark-theme {
   border-radius: var(--radius-lg);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
   position: relative;
 }
 
@@ -894,6 +945,9 @@ body.dark-theme {
   align-items: center;
   justify-content: space-between;
   padding: 0 10px;
+  position: relative;
+  z-index: 100;
+  overflow: visible;
 }
 
 .panel-title {
@@ -905,6 +959,9 @@ body.dark-theme {
   color: var(--text-dim);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  user-select: none;
 }
 
 /* Controls */
@@ -963,9 +1020,6 @@ body.dark-theme {
   display: flex;
   align-items: center;
   gap: 4px;
-  margin-right: 4px;
-  border-right: 1px solid var(--border-color);
-  padding-right: 6px;
 }
 
 .btn-tool, .btn-tool-sm {
@@ -974,10 +1028,14 @@ body.dark-theme {
   color: var(--text-main);
   border-radius: 4px;
   padding: 2px 7px;
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
 }
 
 .btn-tool:hover, .btn-tool.active {
@@ -988,25 +1046,94 @@ body.dark-theme {
 
 .btn-tool-sm {
   color: var(--text-dim);
-  font-weight: 500;
+  font-weight: 600;
 }
 .btn-tool-sm:hover {
   background: var(--bg-card-hover);
   color: #ffffff;
+  border-color: var(--border-light);
+}
+
+.dropdown-caret {
+  font-size: 9px;
+  opacity: 0.7;
+  margin-left: 2px;
+}
+
+.dropdown-menu-left {
+  left: 0;
+  right: auto;
+  transform-origin: top left;
+}
+.dropdown-menu-right {
+  right: 0;
+  left: auto;
+  transform-origin: top right;
 }
 
 /* =========================================================
    Panel 1: Interactive Map (Left Top)
    ========================================================= */
 .panel-map {
-  grid-column: 1;
-  grid-row: 1;
+  container-type: inline-size;
+  container-name: panelmap;
+  overflow: visible !important;
 }
 
 .map-controls {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: visible;
+}
+
+/* Wide Mode vs Compact Mode inside Map Panel Container */
+.map-opt-compact {
+  display: none !important;
+}
+.map-opt-wide {
+  display: inline-flex !important;
+}
+
+@container panelmap (max-width: 860px) {
+  .map-opt-wide {
+    display: none !important;
+  }
+  .map-opt-compact {
+    display: inline-flex !important;
+  }
+  #select-heatmap-color {
+    max-width: 120px;
+  }
+}
+
+@container panelmap (max-width: 640px) {
+  #map-panel-title {
+    display: none;
+  }
+  #select-heatmap-color {
+    max-width: 105px;
+  }
+  .video-view-mode-group .btn-tool-sm {
+    padding: 2px 5px;
+    font-size: 9px;
+  }
+}
+
+@container panelmap (max-width: 490px) {
+  .video-view-mode-group .btn-vmode-pip,
+  .video-view-mode-group .btn-vmode-video {
+    display: none;
+  }
+  #btn-dropdown-track-tools .btn-tool-label {
+    display: none;
+  }
+  #select-heatmap-color {
+    max-width: 90px;
+    font-size: 9.5px;
+  }
 }
 
 .map-container {
@@ -1015,6 +1142,8 @@ body.dark-theme {
   height: 100%;
   background: #090b10;
   z-index: 1;
+  overflow: hidden;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
 
 .map-legend {
