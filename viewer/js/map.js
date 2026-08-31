@@ -271,6 +271,7 @@ function renderTurnApexMarkers() {
       </div>
       <div class="track-item-loc" style="margin-bottom: 8px;">${escapeHTML(t.description || 'Apex on racing line')}</div>
       <div class="gate-popup-buttons">
+        <button class="btn-popup-action btn-popup-primary btn-compare-corner" style="background: linear-gradient(135deg, #00e5ff, #0077ff); color: #000; font-weight: 800; border: none;">🔍 Compare All Laps (T${cleanNum})</button>
         <button class="btn-popup-action btn-set-turn-num">🏷️ Set Turn # (e.g. 5, 3A)</button>
         <button class="btn-popup-action btn-edit-name">✏️ Rename</button>
         <button class="btn-popup-action btn-flip-dir">🔄 Flip Direction (${isLeft ? 'Right ↱' : 'Left ↰'})</button>
@@ -279,6 +280,11 @@ function renderTurnApexMarkers() {
         <button class="btn-popup-action btn-popup-danger btn-del-turn">🗑️ Delete Turn</button>
       </div>
     `;
+
+    popupDiv.querySelector('.btn-compare-corner').onclick = () => {
+      selectCornerSection(tIdx);
+      state.map.closePopup();
+    };
 
     popupDiv.querySelector('.btn-set-turn-num').onclick = () => {
       const curNum = (t.number !== undefined ? t.number : (tIdx + 1)).toString().replace(/^T/i, '');
@@ -399,6 +405,10 @@ function renderTurnApexMarkers() {
 
     // Click to select & seek
     badgeMarker.on('click', () => {
+      if (state.sectionSelection && state.sectionSelection.isSelecting) {
+        selectCornerSection(tIdx);
+        return;
+      }
       state.highlightedTurnId = t.id;
       const closest = findClosestTrackPoint(t.lat, t.lon);
       if (closest && typeof seekToIndex === 'function') {
@@ -411,6 +421,12 @@ function renderTurnApexMarkers() {
           row.classList.add('selected-row');
           row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
+      }
+    });
+
+    apexDotMarker.on('click', () => {
+      if (state.sectionSelection && state.sectionSelection.isSelecting) {
+        selectCornerSection(tIdx);
       }
     });
 
@@ -558,12 +574,16 @@ function renderSpeedExtremaMarkers() {
 }
 
 function findClosestTrackPoint(lat, lon) {
-  if (!state.records || state.records.length === 0) return null;
+  const targetPool = (state.activeRecords && state.activeRecords.length > 0)
+    ? state.activeRecords
+    : state.records;
+  if (!targetPool || targetPool.length === 0) return null;
+
   let minD = Infinity;
   let best = null;
 
-  for (let i = 0; i < state.records.length; i++) {
-    const r = state.records[i];
+  for (let i = 0; i < targetPool.length; i++) {
+    const r = targetPool[i];
     if (r.gps_lat === null || r.gps_lon === null) continue;
     const d = haversineDistanceM(lat, lon, r.gps_lat, r.gps_lon);
     if (d < minD) {
@@ -574,6 +594,7 @@ function findClosestTrackPoint(lat, lon) {
         distance_m: r.distance_m || 0,
         time_s: r.time_s || 0,
         speed_kmh: r.speed_kmh || 0,
+        active_index: i,
         orig_index: r.orig_index !== undefined ? r.orig_index : i,
         distToClick: d
       };
@@ -773,15 +794,145 @@ function finalizeSectionSelection() {
   if (typeof updateWorkspaceLayout === 'function') updateWorkspaceLayout();
 }
 
+function selectCornerSection(turnIndex) {
+  const trk = typeof getActiveTrackProfile === 'function' ? getActiveTrackProfile() : null;
+  const turns = trk ? trk.turns : (typeof getActiveTrackTurns === 'function' ? getActiveTrackTurns() : null);
+  if (!turns || turns.length === 0 || turnIndex < 0 || turnIndex >= turns.length) return;
+
+  const targetPool = (state.activeRecords && state.activeRecords.length > 0)
+    ? state.activeRecords
+    : state.records;
+  if (!targetPool || targetPool.length < 5) return;
+
+  const tCurr = turns[turnIndex];
+  const tPrev = turnIndex > 0 ? turns[turnIndex - 1] : null;
+  const tNext = turnIndex < turns.length - 1 ? turns[turnIndex + 1] : null;
+
+  let idxCurr = 0;
+  let minDCurr = Infinity;
+  let idxPrev = 0;
+  let minDPrev = Infinity;
+  let idxNext = targetPool.length - 1;
+  let minDNext = Infinity;
+
+  for (let i = 0; i < targetPool.length; i++) {
+    const r = targetPool[i];
+    if (!r || r.gps_lat === null || r.gps_lon === null) continue;
+
+    const dC = haversineDistanceM(r.gps_lat, r.gps_lon, tCurr.lat, tCurr.lon);
+    if (dC < minDCurr) {
+      minDCurr = dC;
+      idxCurr = i;
+    }
+
+    if (tPrev) {
+      const dP = haversineDistanceM(r.gps_lat, r.gps_lon, tPrev.lat, tPrev.lon);
+      if (dP < minDPrev) {
+        minDPrev = dP;
+        idxPrev = i;
+      }
+    }
+
+    if (tNext) {
+      const dN = haversineDistanceM(r.gps_lat, r.gps_lon, tNext.lat, tNext.lon);
+      if (dN < minDNext) {
+        minDNext = dN;
+        idxNext = i;
+      }
+    }
+  }
+
+  // Approach start index (capturing straightaway braking zone into corner)
+  let startIdx = 0;
+  if (tPrev && idxPrev < idxCurr) {
+    startIdx = Math.max(0, idxPrev + Math.floor((idxCurr - idxPrev) * 0.45));
+  } else {
+    startIdx = Math.max(0, idxCurr - 50);
+  }
+
+  // Exit end index (capturing full throttle acceleration zone out of corner)
+  let endIdx = targetPool.length - 1;
+  if (tNext && idxNext > idxCurr) {
+    endIdx = Math.min(targetPool.length - 1, idxCurr + Math.floor((idxNext - idxCurr) * 0.55));
+  } else {
+    endIdx = Math.min(targetPool.length - 1, idxCurr + 50);
+  }
+
+  if (startIdx >= endIdx) {
+    startIdx = Math.max(0, idxCurr - 25);
+    endIdx = Math.min(targetPool.length - 1, idxCurr + 25);
+  }
+
+  const rStart = targetPool[startIdx];
+  const rEnd = targetPool[endIdx];
+
+  state.sectionSelection.startPoint = {
+    lat: rStart.gps_lat,
+    lon: rStart.gps_lon,
+    distance_m: rStart.distance_m || 0,
+    time_s: rStart.time_s || 0,
+    speed_kmh: rStart.speed_kmh || 0,
+    active_index: startIdx,
+    orig_index: rStart.orig_index !== undefined ? rStart.orig_index : startIdx
+  };
+
+  state.sectionSelection.endPoint = {
+    lat: rEnd.gps_lat,
+    lon: rEnd.gps_lon,
+    distance_m: rEnd.distance_m || 0,
+    time_s: rEnd.time_s || 0,
+    speed_kmh: rEnd.speed_kmh || 0,
+    active_index: endIdx,
+    orig_index: rEnd.orig_index !== undefined ? rEnd.orig_index : endIdx
+  };
+
+  state.sectionSelection.active = true;
+  state.sectionSelection.isSelecting = false;
+  if (dom.btnSelectSection) dom.btnSelectSection.classList.remove('active');
+  if (dom.btnClearSection) dom.btnClearSection.style.display = 'inline-flex';
+  if (dom.gateInstructionToast && !state.gateEditMode) dom.gateInstructionToast.style.display = 'none';
+
+  const container = document.getElementById('map-container');
+  if (container) container.style.cursor = '';
+
+  extractMultiLapSection();
+  updateSectionUI();
+  renderSectionHighlight();
+
+  // Focus map on corner with comfortable padding
+  const pts = getTrackLatLngsBetween(state.sectionSelection.startPoint, state.sectionSelection.endPoint);
+  if (pts.length > 1 && state.map) {
+    state.map.fitBounds(L.latLngBounds(pts), { padding: [40, 40] });
+  }
+
+  if (typeof updateWorkspaceLayout === 'function') updateWorkspaceLayout();
+  if (typeof resizeCanvas === 'function') resizeCanvas();
+  if (typeof renderCharts === 'function') renderCharts();
+}
+
 function getTrackLatLngsBetween(startP, endP) {
-  if (!state.records || state.records.length === 0) return [];
-  const idxA = Math.min(startP.orig_index, endP.orig_index);
-  const idxB = Math.max(startP.orig_index, endP.orig_index);
+  const targetPool = (state.activeRecords && state.activeRecords.length > 0)
+    ? state.activeRecords
+    : state.records;
+  if (!targetPool || targetPool.length === 0) return [];
+
+  let idxA = (startP.active_index !== undefined)
+    ? startP.active_index
+    : targetPool.findIndex(r => (r.orig_index !== undefined ? r.orig_index : 0) === startP.orig_index);
+  let idxB = (endP.active_index !== undefined)
+    ? endP.active_index
+    : targetPool.findIndex(r => (r.orig_index !== undefined ? r.orig_index : 0) === endP.orig_index);
+
+  if (idxA === -1) idxA = 0;
+  if (idxB === -1) idxB = targetPool.length - 1;
+
+  const minI = Math.min(idxA, idxB);
+  const maxI = Math.max(idxA, idxB);
 
   const pts = [];
-  for (let i = idxA; i <= idxB; i++) {
-    const r = state.records[i];
-    if (r.gps_lat !== null && r.gps_lon !== null) {
+  for (let i = minI; i <= maxI; i++) {
+    const r = targetPool[i];
+    if (r && r.gps_lat !== null && r.gps_lon !== null) {
       pts.push([r.gps_lat, r.gps_lon]);
     }
   }

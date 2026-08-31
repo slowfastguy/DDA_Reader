@@ -623,10 +623,10 @@ function renderScorecardTable(targetLapNum = -1) {
     const cleanTurnNum = (t.turnNumber !== undefined ? t.turnNumber : (idx + 1)).toString().replace(/^T/i, '');
 
     return `
-      <tr class="scorecard-row" data-turn-id="${t.id}" data-lat="${t.lat || ''}" data-lon="${t.lon || ''}" data-apex-index="${t.apexIndex}" title="Click to view Turn ${cleanTurnNum} on Track Map">
+      <tr class="scorecard-row" data-turn-id="${t.id}" data-turn-index="${idx}" data-lat="${t.lat || ''}" data-lon="${t.lon || ''}" data-apex-index="${t.apexIndex}" title="Click to view Turn ${cleanTurnNum} on Map | Double-click or click badge to Compare Turn across all laps">
         <td>
           <div class="turn-cell-wrap">
-            <span class="turn-badge ${turnBadgeClass}">T${cleanTurnNum}</span>
+            <span class="turn-badge ${turnBadgeClass}" title="Click to Stack & Compare Turn ${cleanTurnNum} across all laps">T${cleanTurnNum}</span>
             <span class="turn-cell-name">${escapeHTML(t.name)}</span>
           </div>
         </td>
@@ -687,6 +687,26 @@ function renderScorecardTable(targetLapNum = -1) {
       document.querySelectorAll('.scorecard-row').forEach(r => r.classList.remove('selected-row'));
       row.classList.add('selected-row');
     });
+
+    row.addEventListener('dblclick', () => {
+      const tIdx = parseInt(row.dataset.turnIndex, 10);
+      if (!isNaN(tIdx) && typeof selectCornerSection === 'function') {
+        if (dom.modalScorecard) dom.modalScorecard.style.display = 'none';
+        selectCornerSection(tIdx);
+      }
+    });
+
+    const badge = row.querySelector('.turn-badge');
+    if (badge) {
+      badge.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const tIdx = parseInt(row.dataset.turnIndex, 10);
+        if (!isNaN(tIdx) && typeof selectCornerSection === 'function') {
+          if (dom.modalScorecard) dom.modalScorecard.style.display = 'none';
+          selectCornerSection(tIdx);
+        }
+      });
+    }
   });
 }
 

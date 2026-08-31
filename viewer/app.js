@@ -257,7 +257,7 @@ function initDropdownMenus() {
     // Close menu when standard action items are clicked
     wrap.querySelectorAll('.dropdown-item').forEach(item => {
       item.addEventListener('click', () => {
-        if (item.id === 'btn-toggle-density') return;
+        if (item.id === 'btn-toggle-density' || item.classList.contains('channel-toggle-btn')) return;
         wrap.classList.remove('open');
       });
     });

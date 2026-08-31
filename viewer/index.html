@@ -637,33 +637,45 @@
                 <span class="ch-dot"></span>RPM
               </button>
               <button class="channel-toggle-btn active" data-channel="tps" style="--c: #00e676;">
-                <span class="ch-dot"></span>Throttle (TPS)
+                <span class="ch-dot"></span>Throttle
               </button>
               <button class="channel-toggle-btn active" data-channel="lean" style="--c: #ff0055;">
-                <span class="ch-dot"></span>Lean Angle
-              </button>
-              <button class="channel-toggle-btn active" data-channel="dtc" style="--c: #ffd600;">
-                <span class="ch-dot"></span>DTC Cut
-              </button>
-              <button class="channel-toggle-btn active" data-channel="gear" style="--c: #d500f9;">
-                <span class="ch-dot"></span>Gear
+                <span class="ch-dot"></span>Lean
               </button>
               <button class="channel-toggle-btn active" data-channel="deltaT" id="leg-compare-delta" style="--c: #00e676; display: none;">
                 <span class="ch-dot"></span>Δt Time Delta
               </button>
-              <button class="channel-toggle-btn" data-channel="gLong" style="--c: #ff1744;">
-                <span class="ch-dot"></span>G-Long (Brake/Drive)
-              </button>
-              <button class="channel-toggle-btn" data-channel="gLat" style="--c: #2979ff;">
-                <span class="ch-dot"></span>G-Lat (Cornering)
-              </button>
-              <button class="channel-toggle-btn" data-channel="elevation" style="--c: #ab47bc;">
-                <span class="ch-dot"></span>Elevation & Grade
-              </button>
-              <button class="channel-toggle-btn active" data-channel="lineDelta" id="leg-compare-linedelta" style="--c: #ff007f; display: none;">
-                <span class="ch-dot"></span>Racing Line Δ
-              </button>
-              <button id="btn-chart-turns-toggle" class="btn-tool-sm active" style="margin-left: 2px;" title="Toggle Vertical Turn Markers on Telemetry Graphs">📍 Turns: ON</button>
+              <button id="btn-chart-turns-toggle" class="btn-tool-sm active" title="Toggle Vertical Turn Markers on Telemetry Graphs">📍 Turns: ON</button>
+
+              <!-- Additional & System Channels Dropdown -->
+              <div class="dropdown-wrapper" id="dropdown-channels-wrap">
+                <button id="btn-dropdown-channels" class="btn-tool-sm dropdown-trigger" title="Additional Telemetry Channels">
+                  <span>⚙️ Channels</span>
+                  <span class="dropdown-caret">▾</span>
+                </button>
+                <div class="dropdown-menu dropdown-menu-right" id="menu-channels" style="min-width: 220px;">
+                  <div class="dropdown-header">Dynamics & System Channels</div>
+                  <button class="dropdown-item channel-toggle-btn active" data-channel="dtc" style="--c: #ffd600;">
+                    <span class="dropdown-item-left"><span class="ch-dot"></span><span>DTC Cut (Traction Control)</span></span>
+                  </button>
+                  <button class="dropdown-item channel-toggle-btn active" data-channel="gear" style="--c: #d500f9;">
+                    <span class="dropdown-item-left"><span class="ch-dot"></span><span>Gear Selection</span></span>
+                  </button>
+                  <button class="dropdown-item channel-toggle-btn" data-channel="gLong" style="--c: #ff1744;">
+                    <span class="dropdown-item-left"><span class="ch-dot"></span><span>G-Long (Braking / Drive)</span></span>
+                  </button>
+                  <button class="dropdown-item channel-toggle-btn" data-channel="gLat" style="--c: #2979ff;">
+                    <span class="dropdown-item-left"><span class="ch-dot"></span><span>G-Lat (Cornering Gs)</span></span>
+                  </button>
+                  <button class="dropdown-item channel-toggle-btn" data-channel="elevation" style="--c: #ab47bc;">
+                    <span class="dropdown-item-left"><span class="ch-dot"></span><span>Elevation & Grade %</span></span>
+                  </button>
+                  <button class="dropdown-item channel-toggle-btn active" data-channel="lineDelta" id="leg-compare-linedelta" style="--c: #ff007f; display: none;">
+                    <span class="dropdown-item-left"><span class="ch-dot"></span><span>Racing Line Lateral Δ</span></span>
+                  </button>
+                </div>
+              </div>
+
               <button id="btn-reset-zoom" class="btn-xs">Reset Zoom</button>
             </div>
 

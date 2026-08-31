@@ -1851,6 +1851,31 @@ body.dark-theme {
   text-decoration: line-through;
 }
 
+.dropdown-item.channel-toggle-btn {
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.dropdown-item.channel-toggle-btn.active {
+  background: rgba(255, 255, 255, 0.04);
+  color: #ffffff;
+}
+.dropdown-item.channel-toggle-btn.channel-off {
+  opacity: 0.45;
+  text-decoration: line-through;
+  background: transparent;
+}
+.dropdown-item.channel-toggle-btn:hover {
+  background: var(--bg-card-hover);
+}
+
 .btn-xs {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
