@@ -19,12 +19,37 @@ import dda_core
 from dda_core import DDAParser
 
 
+IS_MAC = sys.platform == "darwin"
+IS_WIN = sys.platform.startswith("win")
+
+# Cross-Platform High-DPI Typography
+FONT_NAME_SANS = "SF Pro Text" if IS_MAC else ("Segoe UI" if IS_WIN else "DejaVu Sans")
+FONT_NAME_TITLE = "SF Pro Display" if IS_MAC else ("Segoe UI" if IS_WIN else "DejaVu Sans")
+FONT_NAME_MONO = "Menlo" if IS_MAC else ("Consolas" if IS_WIN else "DejaVu Sans Mono")
+
+FONT_MAIN = (FONT_NAME_SANS, 10 if IS_MAC else 9)
+FONT_BOLD = (FONT_NAME_SANS, 10 if IS_MAC else 9, "bold")
+FONT_TITLE = (FONT_NAME_TITLE, 14, "bold")
+FONT_SUB = (FONT_NAME_SANS, 10, "italic")
+FONT_CARD_TITLE = (FONT_NAME_SANS, 10, "bold")
+FONT_MONO = (FONT_NAME_MONO, 10 if IS_MAC else 9)
+
+
 class DDAConverterApp(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Ducati DDA Reader & Telemetry Exporter Pro")
         self.geometry("1120x720")
         self.minsize(980, 600)
+
+        # macOS Window Stacking & Focus Management
+        if IS_MAC:
+            try:
+                self.lift()
+                self.attributes("-topmost", True)
+                self.after_idle(self.attributes, "-topmost", False)
+            except Exception:
+                pass
 
         # Set app styling
         self._setup_theme()
@@ -34,6 +59,12 @@ class DDAConverterApp(tk.Tk):
 
         # Build UI Layout
         self._build_ui()
+
+        # Platform Keyboard Shortcuts (Cmd on macOS, Ctrl on Win/Linux)
+        mod_key = "Command" if IS_MAC else "Control"
+        self.bind_all(f"<{mod_key}-o>", lambda e: self._browse_file())
+        self.bind_all(f"<{mod_key}-w>", lambda e: self.destroy())
+        self.bind_all(f"<{mod_key}-q>", lambda e: self.destroy())
 
     def _setup_theme(self):
         self.style = ttk.Style(self)
@@ -47,43 +78,52 @@ class DDAConverterApp(tk.Tk):
         self.text_color = "#212121"
 
         self.configure(bg=self.bg_color)
-        self.style.configure(".", background=self.bg_color, foreground=self.text_color, font=("Segoe UI", 9))
+        self.style.configure(".", background=self.bg_color, foreground=self.text_color, font=FONT_MAIN)
         self.style.configure("TFrame", background=self.bg_color)
         self.style.configure("Card.TLabelframe", background=self.card_bg, relief=tk.SOLID, borderwidth=1)
-        self.style.configure("Card.TLabelframe.Label", background=self.card_bg, font=("Segoe UI", 10, "bold"), foreground="#333333")
+        self.style.configure("Card.TLabelframe.Label", background=self.card_bg, font=FONT_CARD_TITLE, foreground="#333333")
         
-        self.style.configure("Accent.TButton", background=self.header_bg, foreground="#ffffff", font=("Segoe UI", 9, "bold"), borderwidth=0)
+        self.style.configure("Accent.TButton", background=self.header_bg, foreground="#ffffff", font=FONT_BOLD, borderwidth=0)
         self.style.map("Accent.TButton", background=[("active", self.accent_color), ("pressed", "#8e0000")])
 
-        self.style.configure("Viewer.TButton", background="#00695c", foreground="#ffffff", font=("Segoe UI", 9, "bold"), borderwidth=0)
-        self.style.map("Viewer.TButton", background=[("active", "#004d40"), ("pressed", "#00251a")])
+        self.style.configure("Viewer.TButton", background="#11131a", foreground="#00e5ff", font=FONT_BOLD, borderwidth=1)
+        self.style.map("Viewer.TButton", background=[("active", "#000000"), ("pressed", "#222634")])
 
-        self.style.configure("Action.TButton", font=("Segoe UI", 9, "bold"))
-        self.style.configure("Treeview.Heading", font=("Segoe UI", 9, "bold"), background="#e0e0e0")
-        self.style.configure("Treeview", rowheight=24, font=("Segoe UI", 9))
+        self.style.configure("Action.TButton", font=FONT_BOLD)
+        self.style.configure("Treeview.Heading", font=FONT_BOLD, background="#e0e0e0")
+        self.style.configure("Treeview", rowheight=24, font=FONT_MAIN)
+
+        # Export Hub Button Styles
+        self.style.configure("HtmlExport.TButton", background="#b2dfdb", foreground="#004d40", font=FONT_BOLD, padding=8)
+        self.style.map("HtmlExport.TButton", background=[("active", "#80cbc4"), ("pressed", "#4db6ac")])
+
+        self.style.configure("RcExport.TButton", background="#ffecb3", foreground="#e65100", font=FONT_BOLD, padding=8)
+        self.style.map("RcExport.TButton", background=[("active", "#ffe082"), ("pressed", "#ffd54f")])
+
+        self.style.configure("RczExport.TButton", background="#c8e6c9", foreground="#1b5e20", font=FONT_BOLD, padding=8)
+        self.style.map("RczExport.TButton", background=[("active", "#a5d6a7"), ("pressed", "#81c784")])
+
+        self.style.configure("JsonExport.TButton", background="#e1bee7", foreground="#4a148c", font=FONT_BOLD, padding=8)
+        self.style.map("JsonExport.TButton", background=[("active", "#ce93d8"), ("pressed", "#ba68c8")])
+
+        self.style.configure("CsvExport.TButton", background="#e0e0e0", foreground="#212121", font=FONT_BOLD, padding=8)
+        self.style.map("CsvExport.TButton", background=[("active", "#d5d5d5"), ("pressed", "#bdbdbd")])
 
     def _build_ui(self):
         # 1. Header Banner
         hdr_frame = tk.Frame(self, bg=self.header_bg, height=60, padx=20, pady=10)
         hdr_frame.pack(fill=tk.X)
         
-        lbl_title = tk.Label(hdr_frame, text="DUCATI DATA ANALYZER (.DDA) CONVERTER", font=("Segoe UI", 14, "bold"), bg="#d32f2f", fg="#ffffff")
+        lbl_title = tk.Label(hdr_frame, text="DUCATI DATA ANALYZER (.DDA) CONVERTER", font=FONT_TITLE, bg="#d32f2f", fg="#ffffff")
         lbl_title.pack(side=tk.LEFT)
-        lbl_sub = tk.Label(hdr_frame, text="GPS & Chassis Dynamics Visualizer", font=("Segoe UI", 10, "italic"), bg="#d32f2f", fg="#ffcdd2")
+        lbl_sub = tk.Label(hdr_frame, text="GPS & Chassis Dynamics Visualizer", font=FONT_SUB, bg="#d32f2f", fg="#ffcdd2")
         lbl_sub.pack(side=tk.LEFT, padx=15)
 
         # Header Action Button: Launch Interactive Viewer
-        btn_launch_top = tk.Button(
+        btn_launch_top = ttk.Button(
             hdr_frame,
             text="🚀 Open Interactive Viewer",
-            font=("Segoe UI", 10, "bold"),
-            bg="#11131a",
-            fg="#00e5ff",
-            activebackground="#000000",
-            activeforeground="#ffffff",
-            relief=tk.FLAT,
-            padx=12,
-            pady=4,
+            style="Viewer.TButton",
             cursor="hand2",
             command=self._launch_viewer
         )
@@ -98,7 +138,7 @@ class DDAConverterApp(tk.Tk):
         file_frame.pack(fill=tk.X, pady=(0, 10))
 
         self.file_var = tk.StringVar()
-        entry = ttk.Entry(file_frame, textvariable=self.file_var, font=("Segoe UI", 10))
+        entry = ttk.Entry(file_frame, textvariable=self.file_var, font=FONT_MAIN)
         entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
 
         btn_browse = ttk.Button(file_frame, text="Browse DDA...", command=self._browse_file, style="Action.TButton")
@@ -112,28 +152,28 @@ class DDAConverterApp(tk.Tk):
         self.stats_frame.pack(fill=tk.X, pady=(0, 10))
 
         # Metrics display labels
-        self.lbl_meta_track = ttk.Label(self.stats_frame, text="Track: --", font=("Segoe UI", 10, "bold"))
+        self.lbl_meta_track = ttk.Label(self.stats_frame, text="Track: --", font=FONT_BOLD)
         self.lbl_meta_track.grid(row=0, column=0, sticky="w", padx=10, pady=3)
 
-        self.lbl_meta_rider = ttk.Label(self.stats_frame, text="Rider: --", font=("Segoe UI", 10, "bold"))
+        self.lbl_meta_rider = ttk.Label(self.stats_frame, text="Rider: --", font=FONT_BOLD)
         self.lbl_meta_rider.grid(row=0, column=1, sticky="w", padx=10, pady=3)
 
-        self.lbl_meta_dur = ttk.Label(self.stats_frame, text="Duration: --", font=("Segoe UI", 10))
+        self.lbl_meta_dur = ttk.Label(self.stats_frame, text="Duration: --", font=FONT_MAIN)
         self.lbl_meta_dur.grid(row=0, column=2, sticky="w", padx=10, pady=3)
 
-        self.lbl_meta_gps_count = ttk.Label(self.stats_frame, text="GPS Fixes: --", font=("Segoe UI", 10))
+        self.lbl_meta_gps_count = ttk.Label(self.stats_frame, text="GPS Fixes: --", font=FONT_MAIN)
         self.lbl_meta_gps_count.grid(row=0, column=3, sticky="w", padx=10, pady=3)
 
-        self.lbl_stat_speed = ttk.Label(self.stats_frame, text="Max Speed: -- km/h (-- mph)", foreground="#c62828", font=("Segoe UI", 10, "bold"))
+        self.lbl_stat_speed = ttk.Label(self.stats_frame, text="Max Speed: -- km/h (-- mph)", foreground="#c62828", font=FONT_BOLD)
         self.lbl_stat_speed.grid(row=1, column=0, sticky="w", padx=10, pady=3)
 
-        self.lbl_stat_rpm = ttk.Label(self.stats_frame, text="Max RPM: --", font=("Segoe UI", 10, "bold"))
+        self.lbl_stat_rpm = ttk.Label(self.stats_frame, text="Max RPM: --", font=FONT_BOLD)
         self.lbl_stat_rpm.grid(row=1, column=1, sticky="w", padx=10, pady=3)
 
-        self.lbl_stat_lean = ttk.Label(self.stats_frame, text="Max Lean: L --° / R --°", font=("Segoe UI", 10, "bold"))
+        self.lbl_stat_lean = ttk.Label(self.stats_frame, text="Max Lean: L --° / R --°", font=FONT_BOLD)
         self.lbl_stat_lean.grid(row=1, column=2, sticky="w", padx=10, pady=3)
 
-        self.lbl_stat_alt = ttk.Label(self.stats_frame, text="Elevation: -- m to -- m", font=("Segoe UI", 10))
+        self.lbl_stat_alt = ttk.Label(self.stats_frame, text="Elevation: -- m to -- m", font=FONT_MAIN)
         self.lbl_stat_alt.grid(row=1, column=3, sticky="w", padx=10, pady=3)
 
         # 4. Multi-Tabbed Workspace
@@ -161,30 +201,30 @@ class DDAConverterApp(tk.Tk):
         tab_export = ttk.Frame(tab_control, padding=15)
         tab_control.add(tab_export, text=" Export Hub ")
 
-        lbl_exp_info = ttk.Label(tab_export, text="Export Decoded Session into Visualizers, Telemetry, and GPS Formats:", font=("Segoe UI", 11, "bold"))
+        lbl_exp_info = ttk.Label(tab_export, text="Export Decoded Session into Visualizers, Telemetry, and GPS Formats:", font=FONT_BOLD)
         lbl_exp_info.pack(anchor="w", pady=(0, 10))
 
         btn_grid = ttk.Frame(tab_export)
         btn_grid.pack(fill=tk.X, pady=5)
 
         # Row 0: Visualizers & Dashboards
-        btn_html = tk.Button(btn_grid, text="🌐 Export Standalone HTML Visualizer\n(Self-Contained Interactive Dashboard)", font=("Segoe UI", 10, "bold"), bg="#b2dfdb", relief=tk.GROOVE, padx=15, pady=10, command=lambda: self._export("html"))
+        btn_html = ttk.Button(btn_grid, text="🌐 Export Standalone HTML Visualizer\n(Self-Contained Interactive Dashboard)", style="HtmlExport.TButton", command=lambda: self._export("html"))
         btn_html.grid(row=0, column=0, padx=5, pady=5, sticky="nsew")
 
-        btn_rc_csv = tk.Button(btn_grid, text="🏁 Export RaceChrono CSV (v3)\n(Direct RaceChrono Pro Import)", font=("Segoe UI", 10, "bold"), bg="#ffecb3", relief=tk.GROOVE, padx=15, pady=10, command=lambda: self._export("racechrono_csv"))
+        btn_rc_csv = ttk.Button(btn_grid, text="🏁 Export RaceChrono CSV (v3)\n(Direct RaceChrono Pro Import)", style="RcExport.TButton", command=lambda: self._export("racechrono_csv"))
         btn_rc_csv.grid(row=0, column=1, padx=5, pady=5, sticky="nsew")
 
-        btn_rcz = tk.Button(btn_grid, text="📦 Export RaceChrono Native (.rcz)\n(Direct App Import Archive)", font=("Segoe UI", 10, "bold"), bg="#c8e6c9", relief=tk.GROOVE, padx=15, pady=10, command=lambda: self._export("racechrono_rcz"))
+        btn_rcz = ttk.Button(btn_grid, text="📦 Export RaceChrono Native (.rcz)\n(Direct App Import Archive)", style="RczExport.TButton", command=lambda: self._export("racechrono_rcz"))
         btn_rcz.grid(row=0, column=2, padx=5, pady=5, sticky="nsew")
 
         # Row 1: Telemetry Data Formats
-        btn_json = tk.Button(btn_grid, text="📊 Export Telemetry JSON\n(For Web Apps & Custom Code)", font=("Segoe UI", 10, "bold"), bg="#e1bee7", relief=tk.GROOVE, padx=15, pady=10, command=lambda: self._export("json"))
+        btn_json = ttk.Button(btn_grid, text="📊 Export Telemetry JSON\n(For Web Apps & Custom Code)", style="JsonExport.TButton", command=lambda: self._export("json"))
         btn_json.grid(row=1, column=0, padx=5, pady=5, sticky="nsew")
 
-        btn_csv = tk.Button(btn_grid, text="📄 Export Standard CSV\n(Full Telemetry & Dynamics)", font=("Segoe UI", 10, "bold"), bg="#e0e0e0", relief=tk.GROOVE, padx=15, pady=10, command=lambda: self._export("csv"))
+        btn_csv = ttk.Button(btn_grid, text="📄 Export Standard CSV\n(Full Telemetry & Dynamics)", style="CsvExport.TButton", command=lambda: self._export("csv"))
         btn_csv.grid(row=1, column=1, padx=5, pady=5, sticky="nsew")
 
-        btn_gpx = tk.Button(btn_grid, text="🗺️ Export GPX (1.1)\n(GPS Track & Telemetry Ext)", font=("Segoe UI", 10, "bold"), bg="#e0e0e0", relief=tk.GROOVE, padx=15, pady=10, command=lambda: self._export("gpx"))
+        btn_gpx = ttk.Button(btn_grid, text="🗺️ Export GPX (1.1)\n(GPS Track & Telemetry Ext)", style="CsvExport.TButton", command=lambda: self._export("gpx"))
         btn_gpx.grid(row=1, column=2, padx=5, pady=5, sticky="nsew")
 
         btn_grid.grid_columnconfigure(0, weight=1)
@@ -195,7 +235,7 @@ class DDAConverterApp(tk.Tk):
         batch_frame = ttk.LabelFrame(tab_export, text="Batch Directory Conversion (Select Output Formats)", style="Card.TLabelframe", padding=12)
         batch_frame.pack(fill=tk.X, pady=15)
 
-        ttk.Label(batch_frame, text="Choose which file formats to generate for each .dda file in the target folder:", font=("Segoe UI", 9, "bold")).pack(anchor="w", pady=(0, 8))
+        ttk.Label(batch_frame, text="Choose which file formats to generate for each .dda file in the target folder:", font=FONT_BOLD).pack(anchor="w", pady=(0, 8))
 
         # Checkbox format options
         self.batch_opt_html = tk.BooleanVar(value=True)
@@ -247,7 +287,7 @@ class DDAConverterApp(tk.Tk):
         tab_log = ttk.Frame(tab_control, padding=5)
         tab_control.add(tab_log, text=" Processing Log ")
 
-        self.txt_log = tk.Text(tab_log, wrap=tk.WORD, font=("Consolas", 9), bg="#1e1e1e", fg="#d4d4d4", insertbackground="white")
+        self.txt_log = tk.Text(tab_log, wrap=tk.WORD, font=FONT_MONO, bg="#1e1e1e", fg="#d4d4d4", insertbackground="white")
         log_scroll = ttk.Scrollbar(tab_log, orient=tk.VERTICAL, command=self.txt_log.yview)
         self.txt_log.configure(yscroll=log_scroll.set)
         self.txt_log.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
