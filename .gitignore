@@ -40,3 +40,13 @@ ENV/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Generated exports
+*_viewer.html
+*.rcz
+*.kml
+*.gpx
+sample_run.json
+sample_run.csv
+sample_run_racechrono_v3.csv
+

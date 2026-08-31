@@ -805,7 +805,9 @@ class DDAParser:
             viewer_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "viewer")
 
         html_template_path = os.path.join(viewer_dir, "index.html")
+        leaflet_css_path = os.path.join(viewer_dir, "leaflet.css")
         css_path = os.path.join(viewer_dir, "style.css")
+        leaflet_js_path = os.path.join(viewer_dir, "leaflet.js")
         js_path = os.path.join(viewer_dir, "app.js")
 
         if not os.path.exists(html_template_path):
@@ -814,10 +816,20 @@ class DDAParser:
         with open(html_template_path, "r", encoding="utf-8") as f:
             html_content = f.read()
 
+        leaflet_css_content = ""
+        if os.path.exists(leaflet_css_path):
+            with open(leaflet_css_path, "r", encoding="utf-8") as f:
+                leaflet_css_content = f.read()
+
         css_content = ""
         if os.path.exists(css_path):
             with open(css_path, "r", encoding="utf-8") as f:
                 css_content = f.read()
+
+        leaflet_js_content = ""
+        if os.path.exists(leaflet_js_path):
+            with open(leaflet_js_path, "r", encoding="utf-8") as f:
+                leaflet_js_content = f.read()
 
         webmMuxer_content = ""
         webmMuxer_path = os.path.join(viewer_dir, "webm-muxer.min.js")
@@ -858,9 +870,15 @@ class DDAParser:
         session_json_str = json.dumps(self.to_dict(), separators=(',', ':')).replace("</", "<\\/").replace("<", "\\u003c")
         embedded_json_tag = f'<script id="embedded-data" type="application/json">{session_json_str}</script>'
 
+        # Inline CSS stylesheets
+        if leaflet_css_content:
+            html_content = html_content.replace(
+                '<link rel="stylesheet" href="leaflet.css">',
+                f'<style>\n/* --- Leaflet Core CSS (Offline) --- */\n{leaflet_css_content}\n</style>'
+            )
         html_content = html_content.replace(
             '<link rel="stylesheet" href="style.css">',
-            f'<style>\n{css_content}\n</style>'
+            f'<style>\n/* --- App Style CSS --- */\n{css_content}\n</style>'
         )
         html_content = html_content.replace(
             '<script id="embedded-data" type="application/json">{}</script>',
@@ -869,6 +887,8 @@ class DDAParser:
         
         # Assemble complete bundled JavaScript in strict dependency order
         all_scripts = []
+        if leaflet_js_content:
+            all_scripts.append(f"/* --- Leaflet Mapping Engine (Offline) --- */\n{leaflet_js_content}")
         if webmMuxer_content:
             all_scripts.append(f"/* --- WebM Muxer --- */\n{webmMuxer_content}")
         if mp4Muxer_content:
@@ -882,14 +902,14 @@ class DDAParser:
         bundled_js_payload = "\n\n".join(all_scripts)
         bundled_script_tag = f"<script>\n{bundled_js_payload}\n</script>"
 
-        # Robust replacement: replace the entire script block at bottom of index.html
+        # Robust replacement: replace script blocks from leaflet.js through app.js
         import re
-        # Match from the first local script tag (webm-muxer or js/...) until the end of app.js
-        script_block_pattern = r'<!-- Video Muxing Libraries[\s\S]*?<script[\s\S]*?src=["\']app\.js["\']\s*></script>'
+        script_block_pattern = r'<script\s+[^>]*src=["\']leaflet\.js["\'][\s\S]*?<script\s+[^>]*src=["\']app\.js["\']\s*></script>'
         if re.search(script_block_pattern, html_content):
             html_content = re.sub(script_block_pattern, lambda _: bundled_script_tag, html_content)
         else:
             # Fallback direct tag replacements
+            html_content = re.sub(r'<script\s+src=["\']leaflet\.js["\']\s*></script>', '', html_content)
             html_content = re.sub(r'<script\s+src=["\']webm-muxer\.min\.js["\']\s*></script>', '', html_content)
             html_content = re.sub(r'<script\s+src=["\']mp4-muxer\.min\.js["\']\s*></script>', '', html_content)
             for mod_name in js_modules:

@@ -25,9 +25,9 @@
   --accent-pink: #ff0055;
   --accent-purple: #6f2dbd;
   
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-display: 'Outfit', var(--font-sans);
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-display: 'Outfit', 'Segoe UI', var(--font-sans);
+  --font-mono: 'JetBrains Mono', 'Segoe UI Mono', 'SF Mono', Consolas, Monaco, monospace;
   
   --radius-xs: 3px;
   --radius-sm: 5px;
@@ -85,7 +85,8 @@ body.dark-theme {
   align-items: center;
   justify-content: space-between;
   padding: 0 16px;
-  z-index: 100;
+  position: relative;
+  z-index: 9000;
 }
 
 .header-left {
@@ -536,7 +537,7 @@ body.dark-theme {
   border-radius: var(--radius-md);
   padding: 5px;
   box-shadow: var(--shadow-lg), 0 0 1px rgba(255, 255, 255, 0.15);
-  z-index: 1000;
+  z-index: 9500;
   display: none;
   flex-direction: column;
   gap: 2px;
@@ -946,8 +947,12 @@ body.dark-theme {
   justify-content: space-between;
   padding: 0 10px;
   position: relative;
-  z-index: 100;
+  z-index: 30;
   overflow: visible;
+}
+
+.panel-header .dropdown-menu {
+  z-index: 500;
 }
 
 .panel-title {
@@ -1136,14 +1141,26 @@ body.dark-theme {
   }
 }
 
-.map-container {
+.map-container,
+.leaflet-container {
   flex: 1;
   width: 100%;
   height: 100%;
-  background: #090b10;
+  background-color: #0b0d14 !important;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 32px 32px;
   z-index: 1;
   overflow: hidden;
   border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  font-family: var(--font-sans);
+}
+
+/* Offline Tile Handling: Suppress broken image icon borders when offline */
+.leaflet-tile-container img {
+  border: none !important;
+  outline: none !important;
 }
 
 .map-legend {
