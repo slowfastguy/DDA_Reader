@@ -135,7 +135,29 @@ const state = {
     dtc: true,
     gear: true
   },
-  zoomRange: [0, 1]
+  zoomRange: [0, 1],
+  sectionSelection: {
+    active: false,
+    isSelecting: false,
+    startIdx: null,
+    endIdx: null,
+    startPoint: null, // { lat, lon, dist, orig_index }
+    endPoint: null,   // { lat, lon, dist, orig_index }
+    lapsData: [],     // Array of lap slices with calculated metrics
+    activeLapsFilter: new Set(),
+    syncMode: 'time', // 'time' or 'dist'
+    hoverSectionDist: null,
+    hoverRelTime: null,
+    palette: [
+      '#ffd600', '#00e5ff', '#ff0055', '#00e676', '#ff9100',
+      '#d500f9', '#2979ff', '#ff1744', '#76ff03', '#f50057',
+      '#00b0ff', '#ffea00', '#651fff', '#1de9b6', '#ff3d00'
+    ]
+  },
+  sectionHighlightLayer: null,
+  sectionHandlesLayer: null,
+  sectionGhostsLayer: null,
+  threeColLayout: false
 };
 
 // DOM Elements Cache
@@ -154,6 +176,8 @@ const dom = {
   valDeltaSpeed: document.getElementById('val-delta-speed'),
   valDeltaTps: document.getElementById('val-delta-tps'),
   lapTableBody: document.getElementById('lap-table-body'),
+  btnToggleLayout: document.getElementById('btn-toggle-layout'),
+  lblLayoutToggle: document.getElementById('lbl-layout-toggle'),
   btnToggleUnit: document.getElementById('btn-toggle-unit'),
   lblUnitToggle: document.getElementById('lbl-unit-toggle'),
   btnOpenSettings: document.getElementById('btn-open-settings'),
@@ -237,6 +261,21 @@ const dom = {
   legendMin: document.getElementById('legend-min'),
   legendMax: document.getElementById('legend-max'),
   leds: Array.from({ length: 10 }, (_, i) => document.getElementById(`led-${i + 1}`)),
+
+  // Section Drag Comparison Elements
+  btnSelectSection: document.getElementById('btn-select-section'),
+  btnClearSection: document.getElementById('btn-clear-section'),
+  sectionAnalysisDrawer: document.getElementById('section-analysis-drawer'),
+  sectionBadgeLength: document.getElementById('section-badge-length'),
+  sectionBadgeBestTime: document.getElementById('section-badge-best-time'),
+  sectionBadgeBestLap: document.getElementById('section-badge-best-lap'),
+  sectionBadgeApexAvg: document.getElementById('section-badge-apex-avg'),
+  btnSyncTime: document.getElementById('btn-sync-time'),
+  btnSyncDist: document.getElementById('btn-sync-dist'),
+  sectionTableBody: document.getElementById('section-table-body'),
+  sectionTableCard: document.getElementById('section-table-card'),
+  btnToggleSectionDrawer: document.getElementById('btn-toggle-section-drawer'),
+  sectionLegendRow: document.getElementById('section-legend-row'),
 
   // MotoGP Elements
   btnToggleMotoGP: document.getElementById('btn-toggle-motogp'),
@@ -477,4 +516,33 @@ function formatLapTime(sec) {
   const m = Math.floor(sec / 60);
   const s = sec % 60;
   return `${m.toString().padStart(2, '0')}:${s.toFixed(2).padStart(5, '0')}`;
+}
+
+function updateWorkspaceLayout(forceState = null) {
+  const grid = document.querySelector('.workspace-grid');
+  if (!grid) return;
+
+  const isComparing = forceState !== null
+    ? forceState
+    : (state.threeColLayout || state.isCompareMode || (state.sectionSelection && state.sectionSelection.active));
+
+  grid.classList.toggle('compare-layout-active', isComparing);
+  if (dom.btnToggleLayout) dom.btnToggleLayout.classList.toggle('active', isComparing);
+  if (dom.lblLayoutToggle) dom.lblLayoutToggle.textContent = isComparing ? '2-Col Layout' : '3-Col Split';
+
+  setTimeout(() => {
+    if (typeof resizeCanvas === 'function') resizeCanvas();
+    if (typeof renderCharts === 'function') renderCharts();
+    if (state.map) {
+      state.map.invalidateSize();
+      if (state.trackPolylineGroup && state.trackPolylineGroup.getLayers().length > 0) {
+        state.map.fitBounds(state.trackPolylineGroup.getBounds(), { padding: [25, 25] });
+      }
+    }
+  }, 120);
+}
+
+function toggleWorkspaceLayout() {
+  state.threeColLayout = !state.threeColLayout;
+  updateWorkspaceLayout(state.threeColLayout);
 }

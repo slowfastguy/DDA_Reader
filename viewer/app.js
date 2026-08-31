@@ -601,6 +601,46 @@ function bindEvents() {
   if (dom.btnHelpShortcuts) dom.btnHelpShortcuts.addEventListener('click', () => dom.modalShortcuts.style.display = 'flex');
   if (dom.btnCloseModal) dom.btnCloseModal.addEventListener('click', () => dom.modalShortcuts.style.display = 'none');
 
+  // Section Drag Selection & Comparison
+  if (dom.btnSelectSection) {
+    dom.btnSelectSection.addEventListener('click', () => {
+      if (typeof toggleSectionSelectMode === 'function') toggleSectionSelectMode();
+    });
+  }
+  if (dom.btnClearSection) {
+    dom.btnClearSection.addEventListener('click', () => {
+      if (typeof clearSectionSelection === 'function') clearSectionSelection();
+    });
+  }
+  const btnClearDrawer = document.getElementById('btn-clear-section-drawer');
+  if (btnClearDrawer) {
+    btnClearDrawer.addEventListener('click', () => {
+      if (typeof clearSectionSelection === 'function') clearSectionSelection();
+    });
+  }
+
+  // Sync Mode Toggles (Time vs Distance)
+  function setSyncMode(mode) {
+    state.sectionSelection.syncMode = mode;
+    if (dom.btnSyncTime) dom.btnSyncTime.classList.toggle('active', mode === 'time');
+    if (dom.btnSyncDist) dom.btnSyncDist.classList.toggle('active', mode === 'dist');
+    if (typeof renderCharts === 'function') renderCharts();
+  }
+
+  if (dom.btnSyncTime) {
+    dom.btnSyncTime.addEventListener('click', () => setSyncMode('time'));
+  }
+  if (dom.btnSyncDist) {
+    dom.btnSyncDist.addEventListener('click', () => setSyncMode('dist'));
+  }
+
+  // Layout Toggle
+  if (dom.btnToggleLayout) {
+    dom.btnToggleLayout.addEventListener('click', () => {
+      if (typeof toggleWorkspaceLayout === 'function') toggleWorkspaceLayout();
+    });
+  }
+
   // Keyboard Shortcuts
   window.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
@@ -622,10 +662,23 @@ function bindEvents() {
       seekToIndex(state.activeRecords.length - 1);
     } else if (e.code === 'KeyC') {
       toggleCompareMode();
+    } else if (e.code === 'KeyL') {
+      if (typeof toggleWorkspaceLayout === 'function') toggleWorkspaceLayout();
+    } else if (e.code === 'KeyS') {
+      if (state.sectionSelection.active) {
+        setSyncMode(state.sectionSelection.syncMode === 'time' ? 'dist' : 'time');
+      }
     } else if (e.code === 'KeyU') {
       if (dom.btnToggleUnit) dom.btnToggleUnit.click();
     } else if (e.code === 'KeyF') {
       if (dom.btnFitBounds) dom.btnFitBounds.click();
+    } else if (e.code === 'Escape') {
+      if (state.sectionSelection.active || state.sectionSelection.isSelecting) {
+        if (typeof clearSectionSelection === 'function') clearSectionSelection();
+      }
+      if (state.gateEditMode && typeof cancelGatePlacement === 'function') {
+        cancelGatePlacement();
+      }
     }
   });
 }

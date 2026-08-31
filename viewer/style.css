@@ -314,6 +314,35 @@ body.dark-theme {
   padding: 8px;
   background: var(--bg-dark);
   overflow: hidden;
+  transition: grid-template-columns 0.25s ease, grid-template-rows 0.25s ease;
+}
+
+/* 3-Column Split Mode for Comparisons: [ Map (1fr) ] | [ Telemetry Waveforms (1.4fr Wider) ] | [ DATA Panel (360px) ] */
+.workspace-grid.compare-layout-active {
+  grid-template-columns: 1fr 1.4fr 360px;
+  grid-template-rows: 1fr 50px;
+}
+
+.workspace-grid.compare-layout-active .panel-map {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.workspace-grid.compare-layout-active .panel-charts {
+  grid-column: 2;
+  grid-row: 1;
+  border-left: 1px solid var(--border-color);
+  border-right: 1px solid var(--border-color);
+}
+
+.workspace-grid.compare-layout-active .panel-data {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.workspace-grid.compare-layout-active .transport-bar {
+  grid-column: 1 / span 3;
+  grid-row: 2;
 }
 
 /* Generic Panel Styling */
@@ -935,6 +964,155 @@ body.dark-theme {
   gap: 10px;
   box-shadow: 0 4px 16px rgba(225, 6, 0, 0.5);
   z-index: 1000;
+}
+
+/* Section Drag Handles on Map */
+.section-handle-pill {
+  background: rgba(17, 19, 26, 0.92);
+  backdrop-filter: blur(6px);
+  border: 1.5px solid #ffffff;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 800;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+  cursor: grab;
+  user-select: none;
+  white-space: nowrap;
+  transition: transform 0.15s;
+}
+.section-handle-pill:active { cursor: grabbing; transform: scale(1.1); }
+.section-handle-start { border-color: #00e676; color: #00e676; box-shadow: 0 0 10px rgba(0, 230, 118, 0.4); }
+.section-handle-end { border-color: #ffd600; color: #ffd600; box-shadow: 0 0 10px rgba(255, 214, 0, 0.4); }
+
+.btn-clear-section {
+  background: rgba(255, 0, 85, 0.2) !important;
+  color: #ff0055 !important;
+  border-color: rgba(255, 0, 85, 0.4) !important;
+}
+.btn-clear-section:hover {
+  background: #ff0055 !important;
+  color: #ffffff !important;
+}
+
+/* Section Analysis Drawer */
+.section-analysis-drawer {
+  background: rgba(14, 16, 22, 0.98);
+  border-bottom: 1px solid var(--border-color);
+  padding: 6px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  animation: slideDownSection 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideDownSection {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.section-drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.section-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-badge-tag {
+  background: linear-gradient(135deg, #00e5ff, #0077ff);
+  color: #000000;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.section-name-text {
+  font-size: 11px;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.section-stats-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sec-stat-pill {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 10px;
+  color: var(--text-dim);
+}
+.sec-stat-pill strong { color: #ffffff; margin-left: 2px; }
+
+.section-table-container {
+  max-height: 105px;
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.section-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10px;
+}
+
+.section-table th {
+  background: #11131a;
+  color: var(--text-muted);
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  padding: 4px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+  position: sticky;
+  top: 0;
+}
+
+.section-table td {
+  padding: 3px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  color: var(--text-main);
+  cursor: pointer;
+  user-select: none;
+}
+
+.section-table tr:hover td {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.section-table tr.best-section-row td {
+  background: rgba(213, 0, 249, 0.10);
+  border-bottom-color: rgba(213, 0, 249, 0.2);
+}
+
+.section-table tr.lap-row-disabled td {
+  opacity: 0.35;
+}
+
+.lap-color-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  margin-right: 5px;
+  vertical-align: middle;
 }
 
 /* =========================================================
@@ -2099,4 +2277,283 @@ kbd {
 .drop-box p {
   color: var(--text-dim);
   font-size: 11.5px;
+}
+
+/* =========================================================
+   Map Markers & Multi-Lap Section Ghost Markers
+   ========================================================= */
+.bike-marker-pulse {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(225, 6, 0, 0.35);
+  border: 2px solid #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 14px #e10600;
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
+.bike-marker-ghost {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(255, 214, 0, 0.35);
+  border: 1.5px solid #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 10px #ffd600;
+}
+
+.bike-arrow-svg {
+  display: block;
+  transform-origin: center center;
+  transition: transform 0.04s linear;
+}
+
+.section-ghost-marker {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid #ffffff;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+  transition: transform 0.05s linear;
+}
+
+.section-ghost-marker .ghost-lap-lbl {
+  position: absolute;
+  top: -14px;
+  background: rgba(10, 12, 16, 0.92);
+  color: #ffffff;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 800;
+  padding: 0 4px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.section-ghost-marker .ghost-arrow-svg {
+  display: block;
+  transform-origin: center center;
+}
+
+.section-handle-pill {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 800;
+  color: #ffffff;
+  padding: 2px 7px;
+  border-radius: 12px;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+  cursor: grab;
+  user-select: none;
+}
+.section-handle-pill:active {
+  cursor: grabbing;
+}
+.section-handle-start {
+  background: #00e676;
+  border: 1.5px solid #ffffff;
+  box-shadow: 0 0 10px rgba(0, 230, 118, 0.6);
+}
+.section-handle-end {
+  background: #ff0055;
+  border: 1.5px solid #ffffff;
+  box-shadow: 0 0 10px rgba(255, 0, 85, 0.6);
+}
+
+.speed-extrema-pill {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 4px;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+}
+.speed-extrema-min {
+  background: rgba(0, 229, 255, 0.9);
+  color: #000000;
+  border: 1px solid #ffffff;
+}
+.speed-extrema-max {
+  background: rgba(225, 6, 0, 0.9);
+  color: #ffffff;
+  border: 1px solid #ffffff;
+}
+
+/* =========================================================
+   Section Analysis Drawer & Sync Mode Toggle
+   ========================================================= */
+.section-analysis-drawer {
+  background: #0d1017;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  padding: 8px 10px;
+  gap: 6px;
+  flex-shrink: 0;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.section-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.section-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.section-badge-tag {
+  background: var(--ducati-red);
+  color: #ffffff;
+  font-family: var(--font-display);
+  font-size: 9px;
+  font-weight: 900;
+  padding: 2px 6px;
+  border-radius: 3px;
+  letter-spacing: 0.5px;
+}
+
+.section-name-text {
+  font-size: 11px;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.section-stats-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sec-stat-pill {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.section-sync-toggle-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #151922;
+  padding: 2px 4px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+}
+
+.sync-lbl {
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--text-dim);
+  letter-spacing: 0.5px;
+  margin-right: 2px;
+}
+
+.btn-sync-mode {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-dim);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-sync-mode:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.btn-sync-mode.active {
+  background: var(--ducati-red);
+  color: #ffffff;
+  border-color: var(--ducati-red);
+  box-shadow: 0 0 8px rgba(225, 6, 0, 0.4);
+}
+
+.section-table-container {
+  overflow-x: auto;
+  max-height: 120px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: #090a0f;
+}
+
+.section-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10px;
+  text-align: left;
+}
+
+.section-table th {
+  background: #11141c;
+  color: var(--text-dim);
+  font-weight: 700;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.section-table td {
+  padding: 3px 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  white-space: nowrap;
+}
+
+.section-table tr {
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.section-table tr:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.section-table tr.best-section-row {
+  background: rgba(213, 0, 249, 0.08);
+}
+
+.section-table tr.lap-row-disabled {
+  opacity: 0.35;
+}
+
+.lap-color-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+  vertical-align: middle;
 }

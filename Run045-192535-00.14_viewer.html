@@ -331,6 +331,35 @@ body.dark-theme {
   padding: 8px;
   background: var(--bg-dark);
   overflow: hidden;
+  transition: grid-template-columns 0.25s ease, grid-template-rows 0.25s ease;
+}
+
+/* 3-Column Split Mode for Comparisons: [ Map (1fr) ] | [ Telemetry Waveforms (1.4fr Wider) ] | [ DATA Panel (360px) ] */
+.workspace-grid.compare-layout-active {
+  grid-template-columns: 1fr 1.4fr 360px;
+  grid-template-rows: 1fr 50px;
+}
+
+.workspace-grid.compare-layout-active .panel-map {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.workspace-grid.compare-layout-active .panel-charts {
+  grid-column: 2;
+  grid-row: 1;
+  border-left: 1px solid var(--border-color);
+  border-right: 1px solid var(--border-color);
+}
+
+.workspace-grid.compare-layout-active .panel-data {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.workspace-grid.compare-layout-active .transport-bar {
+  grid-column: 1 / span 3;
+  grid-row: 2;
 }
 
 /* Generic Panel Styling */
@@ -952,6 +981,155 @@ body.dark-theme {
   gap: 10px;
   box-shadow: 0 4px 16px rgba(225, 6, 0, 0.5);
   z-index: 1000;
+}
+
+/* Section Drag Handles on Map */
+.section-handle-pill {
+  background: rgba(17, 19, 26, 0.92);
+  backdrop-filter: blur(6px);
+  border: 1.5px solid #ffffff;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 800;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+  cursor: grab;
+  user-select: none;
+  white-space: nowrap;
+  transition: transform 0.15s;
+}
+.section-handle-pill:active { cursor: grabbing; transform: scale(1.1); }
+.section-handle-start { border-color: #00e676; color: #00e676; box-shadow: 0 0 10px rgba(0, 230, 118, 0.4); }
+.section-handle-end { border-color: #ffd600; color: #ffd600; box-shadow: 0 0 10px rgba(255, 214, 0, 0.4); }
+
+.btn-clear-section {
+  background: rgba(255, 0, 85, 0.2) !important;
+  color: #ff0055 !important;
+  border-color: rgba(255, 0, 85, 0.4) !important;
+}
+.btn-clear-section:hover {
+  background: #ff0055 !important;
+  color: #ffffff !important;
+}
+
+/* Section Analysis Drawer */
+.section-analysis-drawer {
+  background: rgba(14, 16, 22, 0.98);
+  border-bottom: 1px solid var(--border-color);
+  padding: 6px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  animation: slideDownSection 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideDownSection {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.section-drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.section-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-badge-tag {
+  background: linear-gradient(135deg, #00e5ff, #0077ff);
+  color: #000000;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.section-name-text {
+  font-size: 11px;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.section-stats-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sec-stat-pill {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 10px;
+  color: var(--text-dim);
+}
+.sec-stat-pill strong { color: #ffffff; margin-left: 2px; }
+
+.section-table-container {
+  max-height: 105px;
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.section-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10px;
+}
+
+.section-table th {
+  background: #11131a;
+  color: var(--text-muted);
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  padding: 4px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+  position: sticky;
+  top: 0;
+}
+
+.section-table td {
+  padding: 3px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  color: var(--text-main);
+  cursor: pointer;
+  user-select: none;
+}
+
+.section-table tr:hover td {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.section-table tr.best-section-row td {
+  background: rgba(213, 0, 249, 0.10);
+  border-bottom-color: rgba(213, 0, 249, 0.2);
+}
+
+.section-table tr.lap-row-disabled td {
+  opacity: 0.35;
+}
+
+.lap-color-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  margin-right: 5px;
+  vertical-align: middle;
 }
 
 /* =========================================================
@@ -2118,6 +2296,285 @@ kbd {
   font-size: 11.5px;
 }
 
+/* =========================================================
+   Map Markers & Multi-Lap Section Ghost Markers
+   ========================================================= */
+.bike-marker-pulse {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(225, 6, 0, 0.35);
+  border: 2px solid #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 14px #e10600;
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
+.bike-marker-ghost {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(255, 214, 0, 0.35);
+  border: 1.5px solid #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 10px #ffd600;
+}
+
+.bike-arrow-svg {
+  display: block;
+  transform-origin: center center;
+  transition: transform 0.04s linear;
+}
+
+.section-ghost-marker {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid #ffffff;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+  transition: transform 0.05s linear;
+}
+
+.section-ghost-marker .ghost-lap-lbl {
+  position: absolute;
+  top: -14px;
+  background: rgba(10, 12, 16, 0.92);
+  color: #ffffff;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 800;
+  padding: 0 4px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.section-ghost-marker .ghost-arrow-svg {
+  display: block;
+  transform-origin: center center;
+}
+
+.section-handle-pill {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 800;
+  color: #ffffff;
+  padding: 2px 7px;
+  border-radius: 12px;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+  cursor: grab;
+  user-select: none;
+}
+.section-handle-pill:active {
+  cursor: grabbing;
+}
+.section-handle-start {
+  background: #00e676;
+  border: 1.5px solid #ffffff;
+  box-shadow: 0 0 10px rgba(0, 230, 118, 0.6);
+}
+.section-handle-end {
+  background: #ff0055;
+  border: 1.5px solid #ffffff;
+  box-shadow: 0 0 10px rgba(255, 0, 85, 0.6);
+}
+
+.speed-extrema-pill {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 4px;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+}
+.speed-extrema-min {
+  background: rgba(0, 229, 255, 0.9);
+  color: #000000;
+  border: 1px solid #ffffff;
+}
+.speed-extrema-max {
+  background: rgba(225, 6, 0, 0.9);
+  color: #ffffff;
+  border: 1px solid #ffffff;
+}
+
+/* =========================================================
+   Section Analysis Drawer & Sync Mode Toggle
+   ========================================================= */
+.section-analysis-drawer {
+  background: #0d1017;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  padding: 8px 10px;
+  gap: 6px;
+  flex-shrink: 0;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.section-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.section-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.section-badge-tag {
+  background: var(--ducati-red);
+  color: #ffffff;
+  font-family: var(--font-display);
+  font-size: 9px;
+  font-weight: 900;
+  padding: 2px 6px;
+  border-radius: 3px;
+  letter-spacing: 0.5px;
+}
+
+.section-name-text {
+  font-size: 11px;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.section-stats-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sec-stat-pill {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.section-sync-toggle-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #151922;
+  padding: 2px 4px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+}
+
+.sync-lbl {
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--text-dim);
+  letter-spacing: 0.5px;
+  margin-right: 2px;
+}
+
+.btn-sync-mode {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-dim);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-sync-mode:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.btn-sync-mode.active {
+  background: var(--ducati-red);
+  color: #ffffff;
+  border-color: var(--ducati-red);
+  box-shadow: 0 0 8px rgba(225, 6, 0, 0.4);
+}
+
+.section-table-container {
+  overflow-x: auto;
+  max-height: 120px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: #090a0f;
+}
+
+.section-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10px;
+  text-align: left;
+}
+
+.section-table th {
+  background: #11141c;
+  color: var(--text-dim);
+  font-weight: 700;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.section-table td {
+  padding: 3px 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  white-space: nowrap;
+}
+
+.section-table tr {
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.section-table tr:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.section-table tr.best-section-row {
+  background: rgba(213, 0, 249, 0.08);
+}
+
+.section-table tr.lap-row-disabled {
+  opacity: 0.35;
+}
+
+.lap-color-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
 </style>
 </head>
 <body class="dark-theme">
@@ -2181,6 +2638,10 @@ kbd {
         <span>🎬 Export Video Overlay</span>
       </button>
 
+      <button id="btn-toggle-layout" class="btn btn-secondary" title="Toggle 3-Column Side-by-Side Comparison Layout (L)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="7" height="18" rx="1"/><rect x="19" y="3" width="2" height="18" rx="1"/></svg>
+        <span id="lbl-layout-toggle">3-Col Split</span>
+      </button>
       <button id="btn-toggle-unit" class="btn btn-secondary" title="Toggle Speed Unit (U)">
         <span id="lbl-unit-toggle">MPH</span>
       </button>
@@ -2210,6 +2671,8 @@ kbd {
         <div class="map-controls">
           <!-- Gate Editing Tools -->
           <div class="gate-edit-tools">
+            <button id="btn-select-section" class="btn-tool" title="Click & Drag along GPS track path to select and stack any corner/section">✂️ Select Corner</button>
+            <button id="btn-clear-section" class="btn-tool-sm btn-clear-section" style="display: none;" title="Clear corner selection">✕ Clear</button>
             <button id="btn-gate-sf" class="btn-tool" title="Click on track to set Start/Finish line">🏁 Set S/F</button>
             <button id="btn-gate-split" class="btn-tool" title="Click on track to add Sector Split (S1, S2, S3)">⏱️ + Split</button>
             <button id="btn-save-track-gates" class="btn-tool" title="Save current track and gate locations to Track Library">💾 Save Track</button>
@@ -2299,7 +2762,7 @@ kbd {
           <div class="gradient-bar"></div>
           <span id="legend-max">114 mph</span>
         </div>
-        <span class="legend-hint">🔴 Apex Min Speed & 🟢 Top Speed Markers | Click to seek timeline</span>
+        <span class="legend-hint">🔴 Apex Min Speed & 🟢 Top Speed Markers | Drag along track to stack corner data</span>
       </div>
     </section>
 
@@ -2314,7 +2777,7 @@ kbd {
         <!-- Toggleable Channel Filter Buttons -->
         <div class="chart-legend-row" id="chart-channel-toggles">
           <button class="channel-toggle-btn active" data-channel="speedA" style="--c: #00e5ff;">
-            <span class="ch-dot"></span>Speed (Lap A)
+            <span class="ch-dot"></span>Speed
           </button>
           <button class="channel-toggle-btn active" data-channel="speedB" id="leg-compare-spd" style="--c: #ffd600; display: none;">
             <span class="ch-dot"></span>Speed (Lap B)
@@ -2337,6 +2800,46 @@ kbd {
           <button id="btn-reset-zoom" class="btn-xs">Reset Zoom</button>
         </div>
       </div>
+
+      <!-- Section Analysis Drawer (Appears when user selects a corner/section) -->
+      <div id="section-analysis-drawer" class="section-analysis-drawer" style="display: none;">
+        <div class="section-drawer-header">
+          <div class="section-title-wrap">
+            <span class="section-badge-tag">🏁 SECTION STACK</span>
+            <span class="section-name-text">Track Corner Comparison (All Laps)</span>
+          </div>
+          <div class="section-stats-summary">
+            <div class="sec-stat-pill">Length: <strong id="section-badge-length" class="text-cyan">-- m</strong></div>
+            <div class="sec-stat-pill">Best: <strong id="section-badge-best-time" class="text-purple">--.--s</strong> (<span id="section-badge-best-lap">Lap --</span>)</div>
+            <div class="sec-stat-pill">Avg Apex Min: <strong id="section-badge-apex-avg" class="text-yellow">-- mph</strong></div>
+          </div>
+          <div class="section-sync-toggle-group">
+            <span class="sync-lbl">ALIGN:</span>
+            <button id="btn-sync-time" class="btn-sync-mode active" title="Align waveforms by relative elapsed time from corner entry (Ghost Race)">⏱️ Time</button>
+            <button id="btn-sync-dist" class="btn-sync-mode" title="Align waveforms by track distance from corner entry (Throttle pickup, apex & shift points)">📍 Distance</button>
+          </div>
+        </div>
+
+        <div class="section-table-container">
+          <table class="section-table">
+            <thead>
+              <tr>
+                <th>Lap</th>
+                <th>Time (s)</th>
+                <th>Delta</th>
+                <th>Entry Spd</th>
+                <th>Apex Min</th>
+                <th>Exit Spd</th>
+                <th>Max Lean</th>
+              </tr>
+            </thead>
+            <tbody id="section-table-body">
+              <!-- Dynamically populated stacked lap rows -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <div class="charts-scroll-area">
         <div class="canvas-wrapper">
           <canvas id="telemetry-canvas"></canvas>
@@ -2859,8 +3362,11 @@ kbd {
         <div class="shortcut-row"><kbd>Shift</kbd> + <kbd>←</kbd> / <kbd>→</kbd> <span>Jump 5.0s</span></div>
         <div class="shortcut-row"><kbd>Home</kbd> / <kbd>End</kbd> <span>Start / End of Session/Lap</span></div>
         <div class="shortcut-row"><kbd>C</kbd> <span>Toggle Lap Comparison Mode</span></div>
+        <div class="shortcut-row"><kbd>L</kbd> <span>Toggle 3-Column Split Comparison Layout</span></div>
+        <div class="shortcut-row"><kbd>S</kbd> <span>Toggle Corner Sync Mode (Time vs Distance)</span></div>
         <div class="shortcut-row"><kbd>U</kbd> <span>Toggle Speed Unit (MPH / KM/H)</span></div>
         <div class="shortcut-row"><kbd>F</kbd> <span>Fit Map Track to Screen</span></div>
+        <div class="shortcut-row"><kbd>Esc</kbd> <span>Clear Section Selection / Cancel Gate Edit</span></div>
       </div>
     </div>
   </div>
@@ -3039,7 +3545,29 @@ const state = {
     dtc: true,
     gear: true
   },
-  zoomRange: [0, 1]
+  zoomRange: [0, 1],
+  sectionSelection: {
+    active: false,
+    isSelecting: false,
+    startIdx: null,
+    endIdx: null,
+    startPoint: null, // { lat, lon, dist, orig_index }
+    endPoint: null,   // { lat, lon, dist, orig_index }
+    lapsData: [],     // Array of lap slices with calculated metrics
+    activeLapsFilter: new Set(),
+    syncMode: 'time', // 'time' or 'dist'
+    hoverSectionDist: null,
+    hoverRelTime: null,
+    palette: [
+      '#ffd600', '#00e5ff', '#ff0055', '#00e676', '#ff9100',
+      '#d500f9', '#2979ff', '#ff1744', '#76ff03', '#f50057',
+      '#00b0ff', '#ffea00', '#651fff', '#1de9b6', '#ff3d00'
+    ]
+  },
+  sectionHighlightLayer: null,
+  sectionHandlesLayer: null,
+  sectionGhostsLayer: null,
+  threeColLayout: false
 };
 
 // DOM Elements Cache
@@ -3058,6 +3586,8 @@ const dom = {
   valDeltaSpeed: document.getElementById('val-delta-speed'),
   valDeltaTps: document.getElementById('val-delta-tps'),
   lapTableBody: document.getElementById('lap-table-body'),
+  btnToggleLayout: document.getElementById('btn-toggle-layout'),
+  lblLayoutToggle: document.getElementById('lbl-layout-toggle'),
   btnToggleUnit: document.getElementById('btn-toggle-unit'),
   lblUnitToggle: document.getElementById('lbl-unit-toggle'),
   btnOpenSettings: document.getElementById('btn-open-settings'),
@@ -3141,6 +3671,21 @@ const dom = {
   legendMin: document.getElementById('legend-min'),
   legendMax: document.getElementById('legend-max'),
   leds: Array.from({ length: 10 }, (_, i) => document.getElementById(`led-${i + 1}`)),
+
+  // Section Drag Comparison Elements
+  btnSelectSection: document.getElementById('btn-select-section'),
+  btnClearSection: document.getElementById('btn-clear-section'),
+  sectionAnalysisDrawer: document.getElementById('section-analysis-drawer'),
+  sectionBadgeLength: document.getElementById('section-badge-length'),
+  sectionBadgeBestTime: document.getElementById('section-badge-best-time'),
+  sectionBadgeBestLap: document.getElementById('section-badge-best-lap'),
+  sectionBadgeApexAvg: document.getElementById('section-badge-apex-avg'),
+  btnSyncTime: document.getElementById('btn-sync-time'),
+  btnSyncDist: document.getElementById('btn-sync-dist'),
+  sectionTableBody: document.getElementById('section-table-body'),
+  sectionTableCard: document.getElementById('section-table-card'),
+  btnToggleSectionDrawer: document.getElementById('btn-toggle-section-drawer'),
+  sectionLegendRow: document.getElementById('section-legend-row'),
 
   // MotoGP Elements
   btnToggleMotoGP: document.getElementById('btn-toggle-motogp'),
@@ -3381,6 +3926,35 @@ function formatLapTime(sec) {
   const m = Math.floor(sec / 60);
   const s = sec % 60;
   return `${m.toString().padStart(2, '0')}:${s.toFixed(2).padStart(5, '0')}`;
+}
+
+function updateWorkspaceLayout(forceState = null) {
+  const grid = document.querySelector('.workspace-grid');
+  if (!grid) return;
+
+  const isComparing = forceState !== null
+    ? forceState
+    : (state.threeColLayout || state.isCompareMode || (state.sectionSelection && state.sectionSelection.active));
+
+  grid.classList.toggle('compare-layout-active', isComparing);
+  if (dom.btnToggleLayout) dom.btnToggleLayout.classList.toggle('active', isComparing);
+  if (dom.lblLayoutToggle) dom.lblLayoutToggle.textContent = isComparing ? '2-Col Layout' : '3-Col Split';
+
+  setTimeout(() => {
+    if (typeof resizeCanvas === 'function') resizeCanvas();
+    if (typeof renderCharts === 'function') renderCharts();
+    if (state.map) {
+      state.map.invalidateSize();
+      if (state.trackPolylineGroup && state.trackPolylineGroup.getLayers().length > 0) {
+        state.map.fitBounds(state.trackPolylineGroup.getBounds(), { padding: [25, 25] });
+      }
+    }
+  }, 120);
+}
+
+function toggleWorkspaceLayout() {
+  state.threeColLayout = !state.threeColLayout;
+  updateWorkspaceLayout(state.threeColLayout);
 }
 
 
@@ -4880,7 +5454,7 @@ function calculateOverlayFrameState(tRelLap, tSplit1, tSplit2, s1Dur, s2Dur, s3D
 
 /* --- Module: js/map.js --- */
 /**
- * map.js - GPS Track Map, Heatmap Overlays, and Speed Extrema Engine
+ * map.js - GPS Track Map, Heatmap Overlays, Speed Extrema, and Corner Comparison Engine
  * Ducati DDA Telemetry & GPS Visualizer
  */
 
@@ -4900,6 +5474,9 @@ function initMap() {
   state.trackPolylineGroup = L.featureGroup().addTo(state.map);
   state.gatesLayerGroup = L.featureGroup().addTo(state.map);
   state.extremaLayerGroup = L.featureGroup().addTo(state.map);
+  state.sectionHighlightLayer = L.featureGroup().addTo(state.map);
+  state.sectionHandlesLayer = L.featureGroup().addTo(state.map);
+  state.sectionGhostsLayer = L.featureGroup().addTo(state.map);
 
   const bikeIcon = L.divIcon({
     className: 'bike-marker-icon',
@@ -4932,11 +5509,19 @@ function initMap() {
       handleGateMapClick(e.latlng);
     }
   });
+
+  initSectionDragInteractions();
 }
 
 function renderMapTrack(shouldFitBounds = false) {
   if (!state.activeRecords || state.activeRecords.length === 0) return;
   state.trackPolylineGroup.clearLayers();
+
+  // If in section comparison mode, section highlights handle map rendering
+  if (state.sectionSelection && state.sectionSelection.active) {
+    renderSectionHighlight();
+    return;
+  }
 
   const gpsPoints = state.activeRecords.filter(r => r.gps_lat !== null && r.gps_lon !== null);
   if (gpsPoints.length === 0) return;
@@ -4971,8 +5556,11 @@ function renderMapTrack(shouldFitBounds = false) {
 
     const targetIdx = p1.local_index !== undefined ? p1.local_index : i;
     poly.on('click', () => {
-      if (typeof seekToIndex === 'function') seekToIndex(targetIdx);
+      if (!state.sectionSelection.isSelecting && !state.sectionSelection.isDragging) {
+        if (typeof seekToIndex === 'function') seekToIndex(targetIdx);
+      }
     });
+
     state.trackPolylineGroup.addLayer(poly);
   }
 
@@ -5025,109 +5613,95 @@ function getHeatmapColor(ratio) {
 function renderSpeedExtremaMarkers() {
   state.extremaLayerGroup.clearLayers();
   if (!state.showSpeedExtrema || !state.activeRecords || state.activeRecords.length < 30) return;
+  if (state.sectionSelection && state.sectionSelection.active) return; // Hide global extrema in corner comparison mode
 
   const recs = state.activeRecords;
   const n = recs.length;
   const extrema = [];
-  const windowHalf = 15;
+  const win = 18;
 
-  for (let i = windowHalf; i < n - windowHalf; i++) {
-    const r = recs[i];
-    if (r.gps_lat === null || r.gps_lon === null) continue;
-
-    const spd = r.speed_kmh || 0;
+  for (let i = win; i < n - win; i += 4) {
+    const spd = recs[i].speed_kmh || 0;
     if (spd < 15.0) continue;
 
     let isMin = true;
     let isMax = true;
-
-    for (let k = i - windowHalf; k <= i + windowHalf; k++) {
+    for (let k = i - win; k <= i + win; k++) {
       if (k === i) continue;
       const otherSpd = recs[k].speed_kmh || 0;
       if (otherSpd <= spd) isMin = false;
       if (otherSpd >= spd) isMax = false;
     }
 
-    if (isMin && spd < 150.0) {
-      const diff1 = (recs[i - windowHalf].speed_kmh || 0) - spd;
-      const diff2 = (recs[i + windowHalf].speed_kmh || 0) - spd;
-      if (diff1 >= 5.0 && diff2 >= 5.0) {
-        extrema.push({ type: 'min', record: r, index: i, speed_kmh: spd });
-      }
-    } else if (isMax && spd > 50.0) {
-      const diff1 = spd - (recs[i - windowHalf].speed_kmh || 0);
-      const diff2 = spd - (recs[i + windowHalf].speed_kmh || 0);
-      if (diff1 >= 5.0 && diff2 >= 5.0) {
-        extrema.push({ type: 'max', record: r, index: i, speed_kmh: spd });
-      }
+    if (isMin && spd < 140.0) {
+      extrema.push({ type: 'min', index: i, record: recs[i], speed: spd });
+    } else if (isMax && spd > 90.0) {
+      extrema.push({ type: 'max', index: i, record: recs[i], speed: spd });
     }
   }
 
   const filtered = [];
-  extrema.forEach(item => {
-    const tooClose = filtered.some(f => haversineDistanceM(f.record.gps_lat, f.record.gps_lon, item.record.gps_lat, item.record.gps_lon) < 35.0);
-    if (!tooClose) filtered.push(item);
-  });
+  for (const cand of extrema) {
+    const tooClose = filtered.some(f => {
+      const d = haversineDistanceM(f.record.gps_lat, f.record.gps_lon, cand.record.gps_lat, cand.record.gps_lon);
+      return d < 45.0;
+    });
+    if (!tooClose && cand.record.gps_lat !== null && cand.record.gps_lon !== null) {
+      filtered.push(cand);
+    }
+  }
 
-  filtered.forEach(item => {
-    const isMin = item.type === 'min';
-    const displaySpd = state.unitMph ? (item.speed_kmh * 0.621371).toFixed(0) : item.speed_kmh.toFixed(0);
+  filtered.forEach(ext => {
+    const spdDisplay = state.unitMph ? `${(ext.speed * 0.621371).toFixed(0)}` : `${ext.speed.toFixed(0)}`;
     const unitLabel = state.unitMph ? 'mph' : 'km/h';
-    const badgeText = isMin ? `▼ ${displaySpd}` : `▲ ${displaySpd}`;
-    const badgeClass = isMin ? 'speed-extrema-min' : 'speed-extrema-max';
+    const isMin = ext.type === 'min';
 
-    const icon = L.divIcon({
-      className: 'bike-marker-icon',
-      html: `<div class="speed-extrema-pill ${badgeClass}" title="${isMin ? 'Apex Min Speed' : 'Straight Top Speed'}: ${displaySpd} ${unitLabel}">
-               <span>${badgeText}</span>
-             </div>`,
-      iconSize: [46, 18],
-      iconAnchor: [23, 9]
+    const pillIcon = L.divIcon({
+      className: 'speed-extrema-icon',
+      html: `
+        <div class="speed-extrema-pill ${isMin ? 'speed-extrema-min' : 'speed-extrema-max'}">
+          <span>${isMin ? '🔻' : '🔺'} ${spdDisplay}</span><small>${unitLabel}</small>
+        </div>
+      `,
+      iconSize: [60, 20],
+      iconAnchor: [30, 10]
     });
 
-    const marker = L.marker([item.record.gps_lat, item.record.gps_lon], { icon, zIndexOffset: 700 });
+    const marker = L.marker([ext.record.gps_lat, ext.record.gps_lon], { icon: pillIcon });
     marker.on('click', () => {
-      if (typeof seekToIndex === 'function') {
-        seekToIndex(item.record.local_index !== undefined ? item.record.local_index : item.index);
-      }
+      if (typeof seekToIndex === 'function') seekToIndex(ext.index);
     });
     state.extremaLayerGroup.addLayer(marker);
   });
 }
 
 function findClosestTrackPoint(lat, lon) {
-  let closestIdx = -1;
-  let minDist = 999999;
+  if (!state.records || state.records.length === 0) return null;
+  let minD = Infinity;
+  let best = null;
+
   for (let i = 0; i < state.records.length; i++) {
     const r = state.records[i];
-    if (r.gps_lat !== null && r.gps_lon !== null) {
-      const d = haversineDistanceM(lat, lon, r.gps_lat, r.gps_lon);
-      if (d < minDist) {
-        minDist = d;
-        closestIdx = i;
-      }
+    if (r.gps_lat === null || r.gps_lon === null) continue;
+    const d = haversineDistanceM(lat, lon, r.gps_lat, r.gps_lon);
+    if (d < minD) {
+      minD = d;
+      best = {
+        lat: r.gps_lat,
+        lon: r.gps_lon,
+        distance_m: r.distance_m || 0,
+        time_s: r.time_s || 0,
+        speed_kmh: r.speed_kmh || 0,
+        orig_index: r.orig_index !== undefined ? r.orig_index : i,
+        distToClick: d
+      };
     }
   }
-
-  if (closestIdx === -1 || minDist > 150) return null;
-
-  const pPrev = state.records[Math.max(0, closestIdx - 2)];
-  const pNext = state.records[Math.min(state.records.length - 1, closestIdx + 2)];
-
-  let tangentBearing = 0;
-  if (pPrev && pNext && pPrev.gps_lat !== null && pNext.gps_lat !== null) {
-    tangentBearing = calculateBearing(pPrev.gps_lat, pPrev.gps_lon, pNext.gps_lat, pNext.gps_lon);
-  }
-
-  return {
-    record: state.records[closestIdx],
-    index: closestIdx,
-    distanceM: minDist,
-    tangentBearing
-  };
+  return best;
 }
 
 function updateGhostMarker(interpDistA, interpTimeA, rA) {
+  if (!state.isCompareMode || !state.ghostMarker) return;
   const lapB = state.laps.find(l => l.lap_number === state.compareLapB);
   if (!lapB) return;
   const recsB = state.records.slice(lapB.start_index, lapB.end_index);
@@ -5179,25 +5753,628 @@ function updateGhostMarker(interpDistA, interpTimeA, rA) {
     }
 
     // Time Delta (Δt)
-    const elapsedA = interpTimeA - state.activeRecords[0].time_s;
-    const elapsedB = ((b0.time_s || 0) + ((b1.time_s || 0) - (b0.time_s || 0)) * fracB) - recsB[0].time_s;
-    const deltaT = elapsedB - elapsedA;
-    dom.valDeltaTime.textContent = `${deltaT >= 0 ? '+' : ''}${deltaT.toFixed(2)}s`;
-    dom.valDeltaTime.className = `val-mono ${deltaT >= 0 ? 'text-green' : 'text-red'}`;
+    if (dom.valDeltaTime) {
+      const elapsedA = interpTimeA - state.activeRecords[0].time_s;
+      const elapsedB = ((b0.time_s || 0) + ((b1.time_s || 0) - (b0.time_s || 0)) * fracB) - recsB[0].time_s;
+      const deltaT = elapsedB - elapsedA;
+      dom.valDeltaTime.textContent = `${deltaT >= 0 ? '+' : ''}${deltaT.toFixed(2)}s`;
+      dom.valDeltaTime.className = `val-mono ${deltaT >= 0 ? 'text-green' : 'text-red'}`;
+    }
 
     // Speed Delta (Δv)
-    const interpSpdB = (b0.speed_kmh || 0) + ((b1.speed_kmh || 0) - (b0.speed_kmh || 0)) * fracB;
-    const spdA = state.unitMph ? ((rA.speed_kmh || 0) * 0.621371) : (rA.speed_kmh || 0);
-    const spdB = state.unitMph ? (interpSpdB * 0.621371) : interpSpdB;
-    const deltaSpd = spdA - spdB;
-    dom.valDeltaSpeed.textContent = `${deltaSpd >= 0 ? '+' : ''}${deltaSpd.toFixed(1)} ${state.unitMph ? 'mph' : 'km/h'}`;
-    dom.valDeltaSpeed.className = `val-mono ${deltaSpd >= 0 ? 'text-green' : 'text-red'}`;
+    if (dom.valDeltaSpeed) {
+      const interpSpdB = (b0.speed_kmh || 0) + ((b1.speed_kmh || 0) - (b0.speed_kmh || 0)) * fracB;
+      const spdA = state.unitMph ? ((rA.speed_kmh || 0) * 0.621371) : (rA.speed_kmh || 0);
+      const spdB = state.unitMph ? (interpSpdB * 0.621371) : interpSpdB;
+      const deltaSpd = spdA - spdB;
+      dom.valDeltaSpeed.textContent = `${deltaSpd >= 0 ? '+' : ''}${deltaSpd.toFixed(1)} ${state.unitMph ? 'mph' : 'km/h'}`;
+      dom.valDeltaSpeed.className = `val-mono ${deltaSpd >= 0 ? 'text-green' : 'text-red'}`;
+    }
 
     // TPS Delta (ΔTPS)
-    const interpTpsB = (b0.tps_pct || 0) + ((b1.tps_pct || 0) - (b0.tps_pct || 0)) * fracB;
-    const deltaTps = (rA.tps_pct || 0) - interpTpsB;
-    dom.valDeltaTps.textContent = `${deltaTps >= 0 ? '+' : ''}${deltaTps.toFixed(0)}%`;
-    dom.valDeltaTps.className = `val-mono ${deltaTps >= 0 ? 'text-green' : 'text-orange'}`;
+    if (dom.valDeltaTps) {
+      const interpTpsB = (b0.tps_pct || 0) + ((b1.tps_pct || 0) - (b0.tps_pct || 0)) * fracB;
+      const deltaTps = (rA.tps_pct || 0) - interpTpsB;
+      dom.valDeltaTps.textContent = `${deltaTps >= 0 ? '+' : ''}${deltaTps.toFixed(0)}%`;
+      dom.valDeltaTps.className = `val-mono ${deltaTps >= 0 ? 'text-green' : 'text-orange'}`;
+    }
+  }
+}
+
+// =========================================================
+// Track Section Drag Selection & Multi-Lap Stacking Engine
+// =========================================================
+
+function initSectionDragInteractions() {
+  if (!state.map) return;
+
+  state.map.on('mousedown', (e) => {
+    if (state.gateEditMode) return;
+    if (e.originalEvent.shiftKey || state.sectionSelection.isSelecting) {
+      const closest = findClosestTrackPoint(e.latlng.lat, e.latlng.lng);
+      if (closest && closest.distToClick < 60.0) {
+        state.sectionSelection.isDragging = true;
+        state.sectionSelection.startPoint = closest;
+        state.sectionSelection.endPoint = closest;
+        state.map.dragging.disable();
+        renderLiveDragSelection();
+      }
+    }
+  });
+
+  state.map.on('mousemove', (e) => {
+    if (state.sectionSelection.isDragging && state.sectionSelection.startPoint) {
+      const closest = findClosestTrackPoint(e.latlng.lat, e.latlng.lng);
+      if (closest) {
+        state.sectionSelection.endPoint = closest;
+        renderLiveDragSelection();
+      }
+    }
+  });
+
+  state.map.on('mouseup', () => {
+    if (state.sectionSelection.isDragging) {
+      state.sectionSelection.isDragging = false;
+      state.map.dragging.enable();
+      finalizeSectionSelection();
+    }
+  });
+}
+
+function toggleSectionSelectMode() {
+  state.sectionSelection.isSelecting = !state.sectionSelection.isSelecting;
+  if (dom.btnSelectSection) {
+    dom.btnSelectSection.classList.toggle('active', state.sectionSelection.isSelecting);
+  }
+  const container = document.getElementById('map-container');
+  if (container) {
+    container.style.cursor = state.sectionSelection.isSelecting ? 'crosshair' : '';
+  }
+  if (state.sectionSelection.isSelecting) {
+    if (dom.gateToastMsg) dom.gateToastMsg.textContent = 'Click and drag along track path to select a corner or section...';
+    if (dom.gateInstructionToast) dom.gateInstructionToast.style.display = 'flex';
+  } else {
+    if (dom.gateInstructionToast && !state.gateEditMode) dom.gateInstructionToast.style.display = 'none';
+  }
+}
+
+function renderLiveDragSelection() {
+  if (!state.sectionSelection.startPoint || !state.sectionSelection.endPoint) return;
+  state.sectionHighlightLayer.clearLayers();
+
+  const startP = state.sectionSelection.startPoint;
+  const endP = state.sectionSelection.endPoint;
+
+  const latLngs = getTrackLatLngsBetween(startP, endP);
+  if (latLngs.length < 2) return;
+
+  const haloPoly = L.polyline(latLngs, {
+    color: '#00e5ff',
+    weight: 10,
+    opacity: 0.45,
+    lineCap: 'round',
+    lineJoin: 'round'
+  });
+  const corePoly = L.polyline(latLngs, {
+    color: '#ffffff',
+    weight: 4,
+    opacity: 0.95,
+    lineCap: 'round',
+    lineJoin: 'round'
+  });
+
+  state.sectionHighlightLayer.addLayer(haloPoly);
+  state.sectionHighlightLayer.addLayer(corePoly);
+}
+
+function finalizeSectionSelection() {
+  if (!state.sectionSelection.startPoint || !state.sectionSelection.endPoint) return;
+  const startP = state.sectionSelection.startPoint;
+  const endP = state.sectionSelection.endPoint;
+
+  const directDist = haversineDistanceM(startP.lat, startP.lon, endP.lat, endP.lon);
+  if (directDist < 10.0) {
+    clearSectionSelection();
+    return;
+  }
+
+  state.sectionSelection.active = true;
+  state.sectionSelection.isSelecting = false;
+  if (dom.btnSelectSection) dom.btnSelectSection.classList.remove('active');
+  if (dom.btnClearSection) dom.btnClearSection.style.display = 'inline-flex';
+  if (dom.gateInstructionToast && !state.gateEditMode) dom.gateInstructionToast.style.display = 'none';
+
+  const container = document.getElementById('map-container');
+  if (container) container.style.cursor = '';
+
+  extractMultiLapSection();
+  if (typeof updateWorkspaceLayout === 'function') updateWorkspaceLayout();
+}
+
+function getTrackLatLngsBetween(startP, endP) {
+  if (!state.records || state.records.length === 0) return [];
+  const idxA = Math.min(startP.orig_index, endP.orig_index);
+  const idxB = Math.max(startP.orig_index, endP.orig_index);
+
+  const pts = [];
+  for (let i = idxA; i <= idxB; i++) {
+    const r = state.records[i];
+    if (r.gps_lat !== null && r.gps_lon !== null) {
+      pts.push([r.gps_lat, r.gps_lon]);
+    }
+  }
+  return pts;
+}
+
+function renderSectionHighlight() {
+  if (!state.sectionSelection.startPoint || !state.sectionSelection.endPoint) return;
+  state.sectionHighlightLayer.clearLayers();
+  state.sectionHandlesLayer.clearLayers();
+
+  const startP = state.sectionSelection.startPoint;
+  const endP = state.sectionSelection.endPoint;
+
+  // 1. Hide full-circuit track or show subtle background trace
+  if (state.trackPolylineGroup) {
+    state.trackPolylineGroup.clearLayers();
+    if (state.activeRecords && state.activeRecords.length > 1) {
+      const allPts = state.activeRecords.filter(r => r.gps_lat !== null && r.gps_lon !== null).map(r => [r.gps_lat, r.gps_lon]);
+      if (allPts.length > 1) {
+        const bgRef = L.polyline(allPts, {
+          color: '#ffffff',
+          weight: 2,
+          opacity: 0.12,
+          dashArray: '4, 6'
+        });
+        state.trackPolylineGroup.addLayer(bgRef);
+      }
+    }
+  }
+
+  // 2. Render each lap's GPS path through this corner with 60% opacity & create ghost marker
+  state.sectionGhostsLayer.clearLayers();
+  const sData = state.sectionSelection.lapsData || [];
+  const activeLaps = sData.filter(l => state.sectionSelection.activeLapsFilter.has(l.lapNumber));
+
+  if (activeLaps.length > 0) {
+    activeLaps.forEach(lap => {
+      const pts = lap.records
+        .filter(r => r.gps_lat !== null && r.gps_lon !== null)
+        .map(r => [r.gps_lat, r.gps_lon]);
+
+      if (pts.length > 1) {
+        // Trace line
+        const poly = L.polyline(pts, {
+          color: lap.color,
+          weight: lap.isSectionBest ? 5 : 4,
+          opacity: 0.60,
+          lineCap: 'round',
+          lineJoin: 'round'
+        });
+
+        const minSpdStr = state.unitMph ? `${(lap.minSpeed * 0.621371).toFixed(1)} mph` : `${lap.minSpeed.toFixed(1)} km/h`;
+        poly.bindTooltip(`<strong>${lap.lapName}</strong>: ${lap.duration_s.toFixed(2)}s | Min: ${minSpdStr} | Lean: ${lap.maxLean.toFixed(0)}°`, {
+          sticky: true
+        });
+
+        lap.polylineLayer = poly;
+        state.sectionHighlightLayer.addLayer(poly);
+
+        // Ghost marker for synchronized scrubbing
+        const startRec = lap.records[0];
+        const ghostIcon = L.divIcon({
+          className: 'section-ghost-icon',
+          html: `
+            <div class="section-ghost-marker" style="background: ${lap.color};">
+              <span class="ghost-lap-lbl">${lap.lapNumber}</span>
+              <svg class="ghost-arrow-svg" viewBox="0 0 24 24" width="13" height="13">
+                <path d="M12 2 L20 20 L12 16 L4 20 Z" fill="#ffffff" stroke="#000000" stroke-width="1.2"/>
+              </svg>
+            </div>
+          `,
+          iconSize: [24, 24],
+          iconAnchor: [12, 12]
+        });
+
+        const marker = L.marker([startRec.gps_lat, startRec.gps_lon], {
+          icon: ghostIcon,
+          zIndexOffset: lap.isSectionBest ? 1000 : 900
+        });
+
+        lap.marker = marker;
+        state.sectionGhostsLayer.addLayer(marker);
+      }
+    });
+  } else {
+    // Fallback: draw single selection slice if no multi-laps loaded
+    const latLngs = getTrackLatLngsBetween(startP, endP);
+    if (latLngs.length >= 2) {
+      const ribbon = L.polyline(latLngs, {
+        color: '#00e5ff',
+        weight: 5,
+        opacity: 0.60,
+        lineCap: 'round',
+        lineJoin: 'round'
+      });
+      state.sectionHighlightLayer.addLayer(ribbon);
+    }
+  }
+
+  // 3. Draggable Start Flag Handle (🚩 Entry)
+  const startIcon = L.divIcon({
+    className: 'section-handle-icon',
+    html: `<div class="section-handle-pill section-handle-start">🚩 Entry</div>`,
+    iconSize: [70, 24],
+    iconAnchor: [35, 12]
+  });
+  const startMarker = L.marker([startP.lat, startP.lon], { icon: startIcon, draggable: true });
+  startMarker.on('dragend', (e) => {
+    const closest = findClosestTrackPoint(e.target.getLatLng().lat, e.target.getLatLng().lng);
+    if (closest) {
+      state.sectionSelection.startPoint = closest;
+      extractMultiLapSection();
+    }
+  });
+  state.sectionHandlesLayer.addLayer(startMarker);
+
+  // 4. Draggable End Flag Handle (🏁 Exit)
+  const endIcon = L.divIcon({
+    className: 'section-handle-icon',
+    html: `<div class="section-handle-pill section-handle-end">🏁 Exit</div>`,
+    iconSize: [66, 24],
+    iconAnchor: [33, 12]
+  });
+  const endMarker = L.marker([endP.lat, endP.lon], { icon: endIcon, draggable: true });
+  endMarker.on('dragend', (e) => {
+    const closest = findClosestTrackPoint(e.target.getLatLng().lat, e.target.getLatLng().lng);
+    if (closest) {
+      state.sectionSelection.endPoint = closest;
+      extractMultiLapSection();
+    }
+  });
+  state.sectionHandlesLayer.addLayer(endMarker);
+
+  // 5. Auto-focus and zoom to the selected corner
+  if (state.map && state.sectionHighlightLayer.getLayers().length > 0) {
+    try {
+      state.map.fitBounds(state.sectionHighlightLayer.getBounds(), { padding: [40, 40], maxZoom: 18 });
+    } catch (_) {}
+  }
+}
+
+function updateSectionGhostsAtTime(relTime_s) {
+  if (!state.sectionSelection || !state.sectionSelection.active || !state.sectionSelection.lapsData) return;
+
+  const sData = state.sectionSelection.lapsData;
+  const activeLaps = sData.filter(l => state.sectionSelection.activeLapsFilter.has(l.lapNumber));
+
+  activeLaps.forEach(lap => {
+    if (!lap.marker) return;
+    const recs = lap.records;
+    if (!recs || recs.length === 0) return;
+
+    const t0 = recs[0].time_s || 0;
+    const targetT = t0 + Math.max(0, relTime_s);
+
+    let r0 = recs[0];
+    let r1 = recs[recs.length - 1];
+
+    if (targetT <= (recs[0].time_s || 0)) {
+      r0 = recs[0];
+      r1 = recs.length > 1 ? recs[1] : recs[0];
+    } else if (targetT >= (recs[recs.length - 1].time_s || 0)) {
+      r0 = recs[recs.length - 1];
+      r1 = recs[recs.length - 1];
+    } else {
+      for (let i = 0; i < recs.length - 1; i++) {
+        if ((recs[i].time_s || 0) <= targetT && targetT <= (recs[i + 1].time_s || 0)) {
+          r0 = recs[i];
+          r1 = recs[i + 1];
+          break;
+        }
+      }
+    }
+
+    const tSpan = Math.max(0.001, (r1.time_s || 0) - (r0.time_s || 0));
+    const alpha = Math.max(0, Math.min(1, (targetT - (r0.time_s || 0)) / tSpan));
+
+    if (r0.gps_lat !== null && r1.gps_lat !== null) {
+      const gLat = r0.gps_lat + (r1.gps_lat - r0.gps_lat) * alpha;
+      const gLon = r0.gps_lon + (r1.gps_lon - r0.gps_lon) * alpha;
+      lap.marker.setLatLng([gLat, gLon]);
+
+      const brg = calculateBearing(r0.gps_lat, r0.gps_lon, r1.gps_lat, r1.gps_lon);
+      const mEl = lap.marker.getElement();
+      if (mEl) {
+        const svgArrow = mEl.querySelector('.ghost-arrow-svg');
+        if (svgArrow) svgArrow.style.transform = `rotate(${brg}deg)`;
+      }
+    }
+  });
+}
+
+function updateSectionGhostsAtDistance(relDist_m) {
+  if (!state.sectionSelection || !state.sectionSelection.active || !state.sectionSelection.lapsData) return;
+
+  const sData = state.sectionSelection.lapsData;
+  const activeLaps = sData.filter(l => state.sectionSelection.activeLapsFilter.has(l.lapNumber));
+
+  activeLaps.forEach(lap => {
+    if (!lap.marker) return;
+    const recs = lap.records;
+    if (!recs || recs.length === 0) return;
+
+    const d0 = recs[0].distance_m || 0;
+    const targetD = d0 + Math.max(0, relDist_m);
+
+    let r0 = recs[0];
+    let r1 = recs[recs.length - 1];
+
+    if (targetD <= (recs[0].distance_m || 0)) {
+      r0 = recs[0];
+      r1 = recs.length > 1 ? recs[1] : recs[0];
+    } else if (targetD >= (recs[recs.length - 1].distance_m || 0)) {
+      r0 = recs[recs.length - 1];
+      r1 = recs[recs.length - 1];
+    } else {
+      for (let i = 0; i < recs.length - 1; i++) {
+        if ((recs[i].distance_m || 0) <= targetD && targetD <= (recs[i + 1].distance_m || 0)) {
+          r0 = recs[i];
+          r1 = recs[i + 1];
+          break;
+        }
+      }
+    }
+
+    const dSpan = Math.max(0.001, (r1.distance_m || 0) - (r0.distance_m || 0));
+    const alpha = Math.max(0, Math.min(1, (targetD - (r0.distance_m || 0)) / dSpan));
+
+    if (r0.gps_lat !== null && r1.gps_lat !== null) {
+      const gLat = r0.gps_lat + (r1.gps_lat - r0.gps_lat) * alpha;
+      const gLon = r0.gps_lon + (r1.gps_lon - r0.gps_lon) * alpha;
+      lap.marker.setLatLng([gLat, gLon]);
+
+      const brg = calculateBearing(r0.gps_lat, r0.gps_lon, r1.gps_lat, r1.gps_lon);
+      const mEl = lap.marker.getElement();
+      if (mEl) {
+        const svgArrow = mEl.querySelector('.ghost-arrow-svg');
+        if (svgArrow) svgArrow.style.transform = `rotate(${brg}deg)`;
+      }
+    }
+  });
+}
+
+function clearSectionSelection() {
+  state.sectionSelection.active = false;
+  state.sectionSelection.isDragging = false;
+  state.sectionSelection.isSelecting = false;
+  state.sectionSelection.startPoint = null;
+  state.sectionSelection.endPoint = null;
+  state.sectionSelection.lapsData = [];
+  state.sectionSelection.activeLapsFilter.clear();
+
+  state.sectionHighlightLayer.clearLayers();
+  state.sectionHandlesLayer.clearLayers();
+  if (state.sectionGhostsLayer) state.sectionGhostsLayer.clearLayers();
+
+  if (dom.btnSelectSection) dom.btnSelectSection.classList.remove('active');
+  if (dom.btnClearSection) dom.btnClearSection.style.display = 'none';
+  if (dom.sectionAnalysisDrawer) dom.sectionAnalysisDrawer.style.display = 'none';
+
+  // Restore full circuit track on map
+  renderMapTrack(true);
+
+  if (typeof updateWorkspaceLayout === 'function') updateWorkspaceLayout();
+  if (typeof resizeCanvas === 'function') resizeCanvas();
+  if (typeof renderCharts === 'function') renderCharts();
+}
+
+function extractMultiLapSection() {
+  if (!state.sectionSelection.startPoint || !state.sectionSelection.endPoint) return;
+  const startP = state.sectionSelection.startPoint;
+  const endP = state.sectionSelection.endPoint;
+
+  const lapsToSearch = (state.laps && state.laps.length > 0)
+    ? state.laps.filter(l => l.duration_s > 10.0)
+    : [{ lap_number: 1, name: 'Full Session', start_index: 0, end_index: state.records.length - 1, is_best: true }];
+
+  const sectionLaps = [];
+
+  lapsToSearch.forEach((lap, idx) => {
+    const lapRecs = state.records.slice(lap.start_index, lap.end_index + 1);
+    if (lapRecs.length < 5) return;
+
+    let bestStartIdx = -1;
+    let minStartDist = Infinity;
+    let bestEndIdx = -1;
+    let minEndDist = Infinity;
+
+    for (let i = 0; i < lapRecs.length; i++) {
+      const r = lapRecs[i];
+      if (r.gps_lat === null || r.gps_lon === null) continue;
+
+      const dS = haversineDistanceM(r.gps_lat, r.gps_lon, startP.lat, startP.lon);
+      if (dS < minStartDist) {
+        minStartDist = dS;
+        bestStartIdx = i;
+      }
+
+      const dE = haversineDistanceM(r.gps_lat, r.gps_lon, endP.lat, endP.lon);
+      if (dE < minEndDist) {
+        minEndDist = dE;
+        bestEndIdx = i;
+      }
+    }
+
+    if (minStartDist < 90 && minEndDist < 90 && bestStartIdx !== -1 && bestEndIdx !== -1) {
+      let sliceStart = bestStartIdx;
+      let sliceEnd = bestEndIdx;
+
+      if (sliceStart > sliceEnd) {
+        const temp = sliceStart;
+        sliceStart = sliceEnd;
+        sliceEnd = temp;
+      }
+
+      const slice = lapRecs.slice(sliceStart, sliceEnd + 1);
+      if (slice.length >= 3) {
+        const dur = (slice[slice.length - 1].time_s || 0) - (slice[0].time_s || 0);
+        const dist = (slice[slice.length - 1].distance_m || 0) - (slice[0].distance_m || 0);
+
+        let minSpd = Infinity;
+        let maxSpd = -Infinity;
+        let maxLean = 0;
+        let apexIdx = 0;
+        let throttlePickupDist = null;
+
+        for (let j = 0; j < slice.length; j++) {
+          const spd = slice[j].speed_kmh || 0;
+          if (spd < minSpd) {
+            minSpd = spd;
+            apexIdx = j;
+          }
+          if (spd > maxSpd) maxSpd = spd;
+
+          const lean = Math.abs(slice[j].lean_angle_deg || 0);
+          if (lean > maxLean) maxLean = lean;
+
+          if (throttlePickupDist === null && (slice[j].tps_pct || 0) >= 20.0 && j > 0) {
+            throttlePickupDist = (slice[j].distance_m || 0) - (slice[0].distance_m || 0);
+          }
+        }
+
+        const entrySpd = slice[0].speed_kmh || 0;
+        const exitSpd = slice[slice.length - 1].speed_kmh || 0;
+
+        sectionLaps.push({
+          lapNumber: lap.lap_number,
+          lapName: lap.name,
+          color: state.sectionSelection.palette[idx % state.sectionSelection.palette.length],
+          records: slice,
+          duration_s: dur,
+          distance_m: dist,
+          entrySpeed: entrySpd,
+          exitSpeed: exitSpd,
+          minSpeed: minSpd,
+          maxSpeed: maxSpd,
+          maxLean: maxLean,
+          apexDistance: (slice[apexIdx].distance_m || 0) - (slice[0].distance_m || 0),
+          throttlePickupDist: throttlePickupDist,
+          isBestLap: lap.is_best || false
+        });
+      }
+    }
+  });
+
+  // Keep in natural chronological Lap Number order (1, 2, 3...)
+  sectionLaps.sort((a, b) => a.lapNumber - b.lapNumber);
+
+  // Identify the fastest lap through the section
+  let bestSection = null;
+  let minDur = Infinity;
+  sectionLaps.forEach(l => {
+    if (l.duration_s < minDur) {
+      minDur = l.duration_s;
+      bestSection = l;
+    }
+  });
+  if (bestSection) {
+    bestSection.isSectionBest = true;
+  }
+
+  state.sectionSelection.lapsData = sectionLaps;
+  state.sectionSelection.activeLapsFilter = new Set(sectionLaps.map(l => l.lapNumber));
+
+  renderSectionHighlight();
+  updateSectionUI();
+  if (typeof resizeCanvas === 'function') resizeCanvas();
+  if (typeof renderCharts === 'function') renderCharts();
+}
+
+function updateSectionUI() {
+  const sData = state.sectionSelection.lapsData;
+  if (!sData || sData.length === 0) return;
+
+  if (dom.sectionAnalysisDrawer) {
+    dom.sectionAnalysisDrawer.style.display = 'flex';
+  }
+
+  const bestSection = sData.find(l => l.isSectionBest) || sData[0];
+  const avgApex = sData.reduce((acc, l) => acc + l.minSpeed, 0) / sData.length;
+  const avgLen = sData.reduce((acc, l) => acc + l.distance_m, 0) / sData.length;
+
+  if (dom.sectionBadgeLength) {
+    dom.sectionBadgeLength.textContent = `${avgLen.toFixed(0)} m`;
+  }
+  if (dom.sectionBadgeBestTime) {
+    dom.sectionBadgeBestTime.textContent = `${bestSection.duration_s.toFixed(2)}s`;
+  }
+  if (dom.sectionBadgeBestLap) {
+    dom.sectionBadgeBestLap.textContent = `${bestSection.lapName}`;
+  }
+  if (dom.sectionBadgeApexAvg) {
+    const spd = state.unitMph ? (avgApex * 0.621371) : avgApex;
+    dom.sectionBadgeApexAvg.textContent = `${spd.toFixed(1)} ${state.unitMph ? 'mph' : 'km/h'}`;
+  }
+
+  if (dom.sectionTableBody) {
+    dom.sectionTableBody.innerHTML = '';
+    sData.forEach((l) => {
+      const tr = document.createElement('tr');
+      tr.dataset.lap = l.lapNumber;
+      if (l.isSectionBest) tr.classList.add('best-section-row');
+
+      const deltaToBest = l.duration_s - bestSection.duration_s;
+      const deltaStr = l.isSectionBest ? '🏆 Best' : `+${deltaToBest.toFixed(2)}s`;
+      const deltaClass = l.isSectionBest ? 'text-purple' : (deltaToBest < 0.3 ? 'text-green' : 'text-orange');
+
+      const entrySpd = state.unitMph ? (l.entrySpeed * 0.621371).toFixed(1) : l.entrySpeed.toFixed(1);
+      const minSpd = state.unitMph ? (l.minSpeed * 0.621371).toFixed(1) : l.minSpeed.toFixed(1);
+      const exitSpd = state.unitMph ? (l.exitSpeed * 0.621371).toFixed(1) : l.exitSpeed.toFixed(1);
+
+      tr.innerHTML = `
+        <td>
+          <span class="lap-color-indicator" style="background: ${l.color};"></span>
+          <strong>${l.lapName}</strong>
+        </td>
+        <td><strong>${l.duration_s.toFixed(2)}s</strong></td>
+        <td class="${deltaClass}"><strong>${deltaStr}</strong></td>
+        <td>${entrySpd}</td>
+        <td><strong class="text-cyan">${minSpd}</strong></td>
+        <td>${exitSpd}</td>
+        <td>${l.maxLean.toFixed(1)}°</td>
+      `;
+
+      // Hover on table row highlights that lap's GPS path on map
+      tr.addEventListener('mouseenter', () => {
+        if (l.polylineLayer) {
+          l.polylineLayer.setStyle({ opacity: 1.0, weight: 7 });
+          l.polylineLayer.bringToFront();
+        }
+      });
+      tr.addEventListener('mouseleave', () => {
+        if (l.polylineLayer) {
+          l.polylineLayer.setStyle({ opacity: 0.60, weight: l.isSectionBest ? 5 : 4 });
+        }
+      });
+
+      tr.addEventListener('click', () => {
+        if (state.sectionSelection.activeLapsFilter.has(l.lapNumber)) {
+          if (state.sectionSelection.activeLapsFilter.size > 1) {
+            state.sectionSelection.activeLapsFilter.delete(l.lapNumber);
+            tr.classList.add('lap-row-disabled');
+            if (l.polylineLayer) state.sectionHighlightLayer.removeLayer(l.polylineLayer);
+          }
+        } else {
+          state.sectionSelection.activeLapsFilter.add(l.lapNumber);
+          tr.classList.remove('lap-row-disabled');
+          if (l.polylineLayer) state.sectionHighlightLayer.addLayer(l.polylineLayer);
+        }
+        if (typeof renderCharts === 'function') renderCharts();
+      });
+
+      dom.sectionTableBody.appendChild(tr);
+    });
   }
 }
 
@@ -5750,7 +6927,7 @@ function recalculateLapsAndSectors() {
 
 /* --- Module: js/charts.js --- */
 /**
- * charts.js - Multi-Channel Telemetry Canvas Charts & Scrubber
+ * charts.js - Multi-Channel Waveforms, Stacked Section Analysis, and Shift Lights Engine
  * Ducati DDA Telemetry & GPS Visualizer
  */
 
@@ -5759,39 +6936,57 @@ let canvasWidth = 0;
 let canvasHeight = 0;
 
 function initCanvas() {
-  const canvas = dom.telemetryCanvas;
-  if (!canvas) return;
-  canvasCtx = canvas.getContext('2d');
+  const c = dom.telemetryCanvas;
+  if (!c) return;
+  canvasCtx = c.getContext('2d');
   resizeCanvas();
-  window.addEventListener('resize', resizeCanvas);
+  window.addEventListener('resize', () => {
+    resizeCanvas();
+    renderCharts();
+  });
 }
 
 function resizeCanvas() {
-  if (!dom.telemetryCanvas) return;
-  const wrapper = dom.telemetryCanvas.parentElement;
-  canvasWidth = wrapper.clientWidth;
-  canvasHeight = wrapper.clientHeight;
-
+  const c = dom.telemetryCanvas;
+  if (!c) return;
+  const rect = c.parentElement ? c.parentElement.getBoundingClientRect() : { width: 800, height: 180 };
   const dpr = window.devicePixelRatio || 1;
-  dom.telemetryCanvas.width = canvasWidth * dpr;
-  dom.telemetryCanvas.height = canvasHeight * dpr;
-  if (canvasCtx) canvasCtx.scale(dpr, dpr);
 
-  renderCharts();
+  canvasWidth = Math.max(200, Math.floor(rect.width));
+  canvasHeight = Math.max(120, Math.floor(rect.height));
+
+  c.width = canvasWidth * dpr;
+  c.height = canvasHeight * dpr;
+  c.style.width = `${canvasWidth}px`;
+  c.style.height = `${canvasHeight}px`;
+
+  if (canvasCtx) {
+    canvasCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
 }
 
 function renderCharts() {
-  if (!canvasCtx || !state.activeRecords || state.activeRecords.length === 0) return;
+  if (!canvasCtx || canvasWidth === 0 || canvasHeight === 0) return;
   const ctx = canvasCtx;
   const w = canvasWidth;
   const h = canvasHeight;
 
   ctx.clearRect(0, 0, w, h);
 
+  // 1. Stacked Multi-Lap Section Comparison Mode
+  if (state.sectionSelection && state.sectionSelection.active && state.sectionSelection.lapsData && state.sectionSelection.lapsData.length > 0) {
+    renderStackedSectionCharts(ctx, w, h);
+    return;
+  }
+
+  // 2. Dual-Lap Compare Mode
   if (state.isCompareMode) {
     renderCompareCharts(ctx, w, h);
     return;
   }
+
+  // 3. Standard Single Lap / Full Session Telemetry
+  if (!state.activeRecords || state.activeRecords.length === 0) return;
 
   const startIdx = Math.floor(state.zoomRange[0] * state.activeRecords.length);
   const endIdx = Math.max(startIdx + 10, Math.floor(state.zoomRange[1] * state.activeRecords.length));
@@ -5931,6 +7126,208 @@ function renderCharts() {
   }
 
   updateScrubberLinePosition();
+}
+
+function renderStackedSectionCharts(ctx, w, h) {
+  const sData = state.sectionSelection.lapsData;
+  if (!sData || sData.length === 0) return;
+
+  const activeLaps = sData.filter(l => state.sectionSelection.activeLapsFilter.has(l.lapNumber));
+  if (activeLaps.length === 0) return;
+
+  const isTimeSync = state.sectionSelection.syncMode !== 'dist';
+  const maxDur = Math.max(...activeLaps.map(l => l.duration_s), 0.5);
+  const maxDist = Math.max(...activeLaps.map(l => l.distance_m), 10.0);
+
+  const laneHeight = h / 4;
+  const pad = 4;
+
+  const rawMaxSpd = Math.max(...activeLaps.map(l => l.maxSpeed), 100);
+  const maxSpd = (rawMaxSpd * 1.08) * (state.unitMph ? 0.621371 : 1.0);
+
+  // Lane Dividers
+  ctx.strokeStyle = '#222634';
+  ctx.lineWidth = 1;
+  for (let i = 1; i <= 3; i++) {
+    const y = i * laneHeight;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y);
+    ctx.stroke();
+  }
+
+  // Lane Headers / Labels
+  ctx.font = '800 8.5px "Outfit", sans-serif';
+  ctx.fillStyle = '#62697d';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  if (isTimeSync) {
+    ctx.fillText(`STACKED SPEED (${state.unitMph ? 'MPH' : 'KM/H'}) — ALIGNED BY TIME (0.0s to ${maxDur.toFixed(1)}s)`, 8, 3);
+    ctx.fillText('STACKED THROTTLE (TPS %)', 8, laneHeight + 3);
+    ctx.fillText('STACKED LEAN ANGLE (DEG)', 8, laneHeight * 2 + 3);
+    ctx.fillText('STACKED GEAR & DTC', 8, laneHeight * 3 + 3);
+  } else {
+    ctx.fillText(`STACKED SPEED (${state.unitMph ? 'MPH' : 'KM/H'}) — ALIGNED BY DISTANCE (0m to ${maxDist.toFixed(0)}m)`, 8, 3);
+    ctx.fillText('STACKED THROTTLE (TPS %) [20% PICKUP MARKED]', 8, laneHeight + 3);
+    ctx.fillText('STACKED LEAN ANGLE (DEG)', 8, laneHeight * 2 + 3);
+    ctx.fillText('STACKED GEAR & DTC', 8, laneHeight * 3 + 3);
+  }
+
+  // --- Lane 1: Stacked Speed Overlays ---
+  if (state.channels.speedA || state.channels.speedB) {
+    activeLaps.forEach(lap => {
+      const recs = lap.records;
+      if (recs.length < 2) return;
+      const t0 = recs[0].time_s || 0;
+      const d0 = recs[0].distance_m || 0;
+
+      ctx.strokeStyle = lap.color;
+      ctx.lineWidth = lap.isSectionBest ? 2.6 : 1.5;
+      if (lap.isSectionBest) {
+        ctx.shadowColor = lap.color;
+        ctx.shadowBlur = 6;
+      } else {
+        ctx.shadowBlur = 0;
+      }
+
+      ctx.beginPath();
+      for (let i = 0; i < recs.length; i++) {
+        const r = recs[i];
+        const x = isTimeSync
+          ? (((r.time_s || 0) - t0) / maxDur) * w
+          : (((r.distance_m || 0) - d0) / maxDist) * w;
+        const spd = (r.speed_kmh || 0) * (state.unitMph ? 0.621371 : 1.0);
+        const y = laneHeight - pad - (spd / maxSpd) * (laneHeight - pad * 2);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Draw Apex Min Speed Marker Dot
+      const apexRec = recs.reduce((minR, curR) => (curR.speed_kmh < minR.speed_kmh ? curR : minR), recs[0]);
+      const apexX = isTimeSync
+        ? (((apexRec.time_s || 0) - t0) / maxDur) * w
+        : (((apexRec.distance_m || 0) - d0) / maxDist) * w;
+      const apexSpd = (apexRec.speed_kmh || 0) * (state.unitMph ? 0.621371 : 1.0);
+      const apexY = laneHeight - pad - (apexSpd / maxSpd) * (laneHeight - pad * 2);
+
+      ctx.fillStyle = lap.color;
+      ctx.beginPath();
+      ctx.arc(apexX, apexY, lap.isSectionBest ? 3.5 : 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
+  // --- Lane 2: Stacked Throttle (TPS %) Overlays ---
+  const yL2 = laneHeight;
+  if (state.channels.tps) {
+    activeLaps.forEach(lap => {
+      const recs = lap.records;
+      if (recs.length < 2) return;
+      const t0 = recs[0].time_s || 0;
+      const d0 = recs[0].distance_m || 0;
+
+      ctx.strokeStyle = lap.color;
+      ctx.lineWidth = lap.isSectionBest ? 2.2 : 1.4;
+      ctx.beginPath();
+      for (let i = 0; i < recs.length; i++) {
+        const r = recs[i];
+        const x = isTimeSync
+          ? (((r.time_s || 0) - t0) / maxDur) * w
+          : (((r.distance_m || 0) - d0) / maxDist) * w;
+        const tps = r.tps_pct || 0;
+        const y = yL2 + laneHeight - pad - (tps / 100.0) * (laneHeight - pad * 2);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      // In Distance mode, mark throttle pickup point (>= 20% TPS)
+      if (!isTimeSync && lap.throttlePickupDist !== null) {
+        const pickupX = (lap.throttlePickupDist / maxDist) * w;
+        const pickupY = yL2 + laneHeight - pad - (20.0 / 100.0) * (laneHeight - pad * 2);
+        ctx.fillStyle = lap.color;
+        ctx.beginPath();
+        ctx.arc(pickupX, pickupY, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    });
+  }
+
+  // --- Lane 3: Stacked Lean Angle Overlays ---
+  const yL3 = laneHeight * 2;
+  const yCenterL3 = yL3 + laneHeight / 2;
+
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, yCenterL3);
+  ctx.lineTo(w, yCenterL3);
+  ctx.stroke();
+
+  if (state.channels.lean) {
+    activeLaps.forEach(lap => {
+      const recs = lap.records;
+      if (recs.length < 2) return;
+      const t0 = recs[0].time_s || 0;
+      const d0 = recs[0].distance_m || 0;
+
+      ctx.strokeStyle = lap.color;
+      ctx.lineWidth = lap.isSectionBest ? 2.2 : 1.4;
+      ctx.beginPath();
+      for (let i = 0; i < recs.length; i++) {
+        const r = recs[i];
+        const x = isTimeSync
+          ? (((r.time_s || 0) - t0) / maxDur) * w
+          : (((r.distance_m || 0) - d0) / maxDist) * w;
+        const lean = r.lean_angle_deg || 0;
+        const y = yCenterL3 - (lean / 50.0) * (laneHeight / 2 - pad);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    });
+  }
+
+  // --- Lane 4: Stacked Gear / DTC Overlays ---
+  const yL4 = laneHeight * 3;
+  if (state.channels.gear) {
+    activeLaps.forEach(lap => {
+      const recs = lap.records;
+      if (recs.length < 2) return;
+      const t0 = recs[0].time_s || 0;
+      const d0 = recs[0].distance_m || 0;
+
+      ctx.strokeStyle = lap.color;
+      ctx.lineWidth = lap.isSectionBest ? 2.0 : 1.2;
+      ctx.beginPath();
+      for (let i = 0; i < recs.length; i++) {
+        const r = recs[i];
+        const x = isTimeSync
+          ? (((r.time_s || 0) - t0) / maxDur) * w
+          : (((r.distance_m || 0) - d0) / maxDist) * w;
+        const gear = r.gear || 0;
+        const y = yL4 + laneHeight - pad - (gear / 6.0) * (laneHeight - pad * 2);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    });
+  }
+
+  // Scrubber Line in Section Comparison
+  if (isTimeSync && state.sectionSelection.hoverRelTime !== null && dom.chartScrubberLine) {
+    const x = (state.sectionSelection.hoverRelTime / maxDur) * w;
+    dom.chartScrubberLine.style.display = 'block';
+    dom.chartScrubberLine.style.left = `${x}px`;
+  } else if (!isTimeSync && state.sectionSelection.hoverSectionDist !== null && dom.chartScrubberLine) {
+    const x = (state.sectionSelection.hoverSectionDist / maxDist) * w;
+    dom.chartScrubberLine.style.display = 'block';
+    dom.chartScrubberLine.style.left = `${x}px`;
+  } else {
+    updateScrubberLinePosition();
+  }
 }
 
 function renderCompareCharts(ctx, w, h) {
@@ -6117,6 +7514,119 @@ function updateScrubberLinePosition() {
 
 function showChartTooltip(idx, mouseX, mouseY) {
   if (!dom.chartTooltip) return;
+
+  // 1. Stacked Multi-Lap Section Tooltip (Time or Distance Synchronized)
+  if (state.sectionSelection && state.sectionSelection.active && state.sectionSelection.lapsData && state.sectionSelection.lapsData.length > 0) {
+    const sData = state.sectionSelection.lapsData;
+    const activeLaps = sData.filter(l => state.sectionSelection.activeLapsFilter.has(l.lapNumber));
+    if (activeLaps.length === 0) return;
+
+    const isTimeSync = state.sectionSelection.syncMode !== 'dist';
+    const maxDur = Math.max(...activeLaps.map(l => l.duration_s), 0.5);
+    const maxDist = Math.max(...activeLaps.map(l => l.distance_m), 10.0);
+    const cursorRatio = Math.max(0, Math.min(1, mouseX / canvasWidth));
+
+    if (dom.chartScrubberLine) {
+      dom.chartScrubberLine.style.display = 'block';
+      dom.chartScrubberLine.style.left = `${mouseX}px`;
+    }
+
+    if (isTimeSync) {
+      const relTime_s = cursorRatio * maxDur;
+      state.sectionSelection.hoverRelTime = relTime_s;
+      state.sectionSelection.hoverSectionDist = null;
+
+      // Move ghost markers synchronously on map
+      if (typeof updateSectionGhostsAtTime === 'function') {
+        updateSectionGhostsAtTime(relTime_s);
+      }
+
+      const rowsHtml = activeLaps.slice(0, 8).map(lap => {
+        const recs = lap.records;
+        const t0 = recs[0].time_s || 0;
+        const targetT = t0 + relTime_s;
+
+        let closestRec = recs[0];
+        let minDiff = Infinity;
+        for (const r of recs) {
+          const diff = Math.abs((r.time_s || 0) - targetT);
+          if (diff < minDiff) {
+            minDiff = diff;
+            closestRec = r;
+          }
+        }
+        const spd = state.unitMph ? ((closestRec.speed_kmh || 0) * 0.621371) : (closestRec.speed_kmh || 0);
+        const lean = Math.abs(closestRec.lean_angle_deg || 0);
+        const tps = closestRec.tps_pct || 0;
+        const gear = closestRec.gear || 'N';
+        const isFinished = relTime_s >= lap.duration_s;
+
+        return `
+          <div style="display:flex; justify-content:space-between; gap:10px; margin-top:2px; font-size:9px; ${isFinished ? 'opacity:0.6;' : ''}">
+            <span><span style="color:${lap.color}">■</span> <strong>${lap.lapName}</strong>${isFinished ? ' (Exit)' : ''}:</span>
+            <span><strong style="color:#00e5ff">${spd.toFixed(1)} ${state.unitMph ? 'mph' : 'km/h'}</strong> | ${tps.toFixed(0)}% TPS | G:${gear} | ${lean.toFixed(0)}°</span>
+          </div>
+        `;
+      }).join('');
+
+      dom.chartTooltip.innerHTML = `
+        <div style="font-weight:800; border-bottom:1px solid #333; padding-bottom:2px; margin-bottom:3px; color:#ffd600;">
+          ⏱️ Corner Elapsed: ${relTime_s.toFixed(2)}s / ${maxDur.toFixed(2)}s
+        </div>
+        ${rowsHtml}
+      `;
+    } else {
+      const relDist_m = cursorRatio * maxDist;
+      state.sectionSelection.hoverSectionDist = relDist_m;
+      state.sectionSelection.hoverRelTime = null;
+
+      // Move ghost markers synchronously on map
+      if (typeof updateSectionGhostsAtDistance === 'function') {
+        updateSectionGhostsAtDistance(relDist_m);
+      }
+
+      const rowsHtml = activeLaps.slice(0, 8).map(lap => {
+        const recs = lap.records;
+        const d0 = recs[0].distance_m || 0;
+        const targetD = d0 + relDist_m;
+
+        let closestRec = recs[0];
+        let minDiff = Infinity;
+        for (const r of recs) {
+          const diff = Math.abs((r.distance_m || 0) - targetD);
+          if (diff < minDiff) {
+            minDiff = diff;
+            closestRec = r;
+          }
+        }
+        const spd = state.unitMph ? ((closestRec.speed_kmh || 0) * 0.621371) : (closestRec.speed_kmh || 0);
+        const lean = Math.abs(closestRec.lean_angle_deg || 0);
+        const tps = closestRec.tps_pct || 0;
+        const gear = closestRec.gear || 'N';
+        const isFinished = relDist_m >= lap.distance_m;
+
+        return `
+          <div style="display:flex; justify-content:space-between; gap:10px; margin-top:2px; font-size:9px; ${isFinished ? 'opacity:0.6;' : ''}">
+            <span><span style="color:${lap.color}">■</span> <strong>${lap.lapName}</strong>${isFinished ? ' (Exit)' : ''}:</span>
+            <span><strong style="color:#00e5ff">${spd.toFixed(1)} ${state.unitMph ? 'mph' : 'km/h'}</strong> | ${tps.toFixed(0)}% TPS | G:${gear} | ${lean.toFixed(0)}°</span>
+          </div>
+        `;
+      }).join('');
+
+      dom.chartTooltip.innerHTML = `
+        <div style="font-weight:800; border-bottom:1px solid #333; padding-bottom:2px; margin-bottom:3px; color:#00e5ff;">
+          📍 Corner Distance: ${relDist_m.toFixed(0)}m / ${maxDist.toFixed(0)}m
+        </div>
+        ${rowsHtml}
+      `;
+    }
+
+    dom.chartTooltip.style.display = 'block';
+    dom.chartTooltip.style.left = `${Math.min(canvasWidth - 255, Math.max(10, mouseX + 15))}px`;
+    return;
+  }
+
+  // 2. Standard Single Lap Tooltip
   const r = state.activeRecords[idx];
   if (!r) return;
 
@@ -6430,6 +7940,13 @@ function updateUI() {
     updateGhostMarker(interpDist, interpTime, r0);
   }
 
+  // 13. Multi-Lap Ghost Markers Update in Section Comparison Mode
+  if (state.sectionSelection && state.sectionSelection.active && typeof updateSectionGhostsAtTime === 'function') {
+    if (state.sectionSelection.hoverRelTime !== null) {
+      updateSectionGhostsAtTime(state.sectionSelection.hoverRelTime);
+    }
+  }
+
   if (typeof updateScrubberLinePosition === 'function') {
     updateScrubberLinePosition();
   }
@@ -6537,6 +8054,8 @@ function toggleCompareMode() {
     if (dom.lblCompareBtn) dom.lblCompareBtn.textContent = 'Compare Laps';
     selectLap(state.selectedLapNum, false);
   }
+
+  if (typeof updateWorkspaceLayout === 'function') updateWorkspaceLayout();
 }
 
 
@@ -7144,6 +8663,46 @@ function bindEvents() {
   if (dom.btnHelpShortcuts) dom.btnHelpShortcuts.addEventListener('click', () => dom.modalShortcuts.style.display = 'flex');
   if (dom.btnCloseModal) dom.btnCloseModal.addEventListener('click', () => dom.modalShortcuts.style.display = 'none');
 
+  // Section Drag Selection & Comparison
+  if (dom.btnSelectSection) {
+    dom.btnSelectSection.addEventListener('click', () => {
+      if (typeof toggleSectionSelectMode === 'function') toggleSectionSelectMode();
+    });
+  }
+  if (dom.btnClearSection) {
+    dom.btnClearSection.addEventListener('click', () => {
+      if (typeof clearSectionSelection === 'function') clearSectionSelection();
+    });
+  }
+  const btnClearDrawer = document.getElementById('btn-clear-section-drawer');
+  if (btnClearDrawer) {
+    btnClearDrawer.addEventListener('click', () => {
+      if (typeof clearSectionSelection === 'function') clearSectionSelection();
+    });
+  }
+
+  // Sync Mode Toggles (Time vs Distance)
+  function setSyncMode(mode) {
+    state.sectionSelection.syncMode = mode;
+    if (dom.btnSyncTime) dom.btnSyncTime.classList.toggle('active', mode === 'time');
+    if (dom.btnSyncDist) dom.btnSyncDist.classList.toggle('active', mode === 'dist');
+    if (typeof renderCharts === 'function') renderCharts();
+  }
+
+  if (dom.btnSyncTime) {
+    dom.btnSyncTime.addEventListener('click', () => setSyncMode('time'));
+  }
+  if (dom.btnSyncDist) {
+    dom.btnSyncDist.addEventListener('click', () => setSyncMode('dist'));
+  }
+
+  // Layout Toggle
+  if (dom.btnToggleLayout) {
+    dom.btnToggleLayout.addEventListener('click', () => {
+      if (typeof toggleWorkspaceLayout === 'function') toggleWorkspaceLayout();
+    });
+  }
+
   // Keyboard Shortcuts
   window.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
@@ -7165,10 +8724,23 @@ function bindEvents() {
       seekToIndex(state.activeRecords.length - 1);
     } else if (e.code === 'KeyC') {
       toggleCompareMode();
+    } else if (e.code === 'KeyL') {
+      if (typeof toggleWorkspaceLayout === 'function') toggleWorkspaceLayout();
+    } else if (e.code === 'KeyS') {
+      if (state.sectionSelection.active) {
+        setSyncMode(state.sectionSelection.syncMode === 'time' ? 'dist' : 'time');
+      }
     } else if (e.code === 'KeyU') {
       if (dom.btnToggleUnit) dom.btnToggleUnit.click();
     } else if (e.code === 'KeyF') {
       if (dom.btnFitBounds) dom.btnFitBounds.click();
+    } else if (e.code === 'Escape') {
+      if (state.sectionSelection.active || state.sectionSelection.isSelecting) {
+        if (typeof clearSectionSelection === 'function') clearSectionSelection();
+      }
+      if (state.gateEditMode && typeof cancelGatePlacement === 'function') {
+        cancelGatePlacement();
+      }
     }
   });
 }

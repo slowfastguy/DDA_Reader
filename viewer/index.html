@@ -77,6 +77,10 @@
         <span>🎬 Export Video Overlay</span>
       </button>
 
+      <button id="btn-toggle-layout" class="btn btn-secondary" title="Toggle 3-Column Side-by-Side Comparison Layout (L)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="7" height="18" rx="1"/><rect x="19" y="3" width="2" height="18" rx="1"/></svg>
+        <span id="lbl-layout-toggle">3-Col Split</span>
+      </button>
       <button id="btn-toggle-unit" class="btn btn-secondary" title="Toggle Speed Unit (U)">
         <span id="lbl-unit-toggle">MPH</span>
       </button>
@@ -106,6 +110,8 @@
         <div class="map-controls">
           <!-- Gate Editing Tools -->
           <div class="gate-edit-tools">
+            <button id="btn-select-section" class="btn-tool" title="Click & Drag along GPS track path to select and stack any corner/section">✂️ Select Corner</button>
+            <button id="btn-clear-section" class="btn-tool-sm btn-clear-section" style="display: none;" title="Clear corner selection">✕ Clear</button>
             <button id="btn-gate-sf" class="btn-tool" title="Click on track to set Start/Finish line">🏁 Set S/F</button>
             <button id="btn-gate-split" class="btn-tool" title="Click on track to add Sector Split (S1, S2, S3)">⏱️ + Split</button>
             <button id="btn-save-track-gates" class="btn-tool" title="Save current track and gate locations to Track Library">💾 Save Track</button>
@@ -195,7 +201,7 @@
           <div class="gradient-bar"></div>
           <span id="legend-max">114 mph</span>
         </div>
-        <span class="legend-hint">🔴 Apex Min Speed & 🟢 Top Speed Markers | Click to seek timeline</span>
+        <span class="legend-hint">🔴 Apex Min Speed & 🟢 Top Speed Markers | Drag along track to stack corner data</span>
       </div>
     </section>
 
@@ -210,7 +216,7 @@
         <!-- Toggleable Channel Filter Buttons -->
         <div class="chart-legend-row" id="chart-channel-toggles">
           <button class="channel-toggle-btn active" data-channel="speedA" style="--c: #00e5ff;">
-            <span class="ch-dot"></span>Speed (Lap A)
+            <span class="ch-dot"></span>Speed
           </button>
           <button class="channel-toggle-btn active" data-channel="speedB" id="leg-compare-spd" style="--c: #ffd600; display: none;">
             <span class="ch-dot"></span>Speed (Lap B)
@@ -233,6 +239,46 @@
           <button id="btn-reset-zoom" class="btn-xs">Reset Zoom</button>
         </div>
       </div>
+
+      <!-- Section Analysis Drawer (Appears when user selects a corner/section) -->
+      <div id="section-analysis-drawer" class="section-analysis-drawer" style="display: none;">
+        <div class="section-drawer-header">
+          <div class="section-title-wrap">
+            <span class="section-badge-tag">🏁 SECTION STACK</span>
+            <span class="section-name-text">Track Corner Comparison (All Laps)</span>
+          </div>
+          <div class="section-stats-summary">
+            <div class="sec-stat-pill">Length: <strong id="section-badge-length" class="text-cyan">-- m</strong></div>
+            <div class="sec-stat-pill">Best: <strong id="section-badge-best-time" class="text-purple">--.--s</strong> (<span id="section-badge-best-lap">Lap --</span>)</div>
+            <div class="sec-stat-pill">Avg Apex Min: <strong id="section-badge-apex-avg" class="text-yellow">-- mph</strong></div>
+          </div>
+          <div class="section-sync-toggle-group">
+            <span class="sync-lbl">ALIGN:</span>
+            <button id="btn-sync-time" class="btn-sync-mode active" title="Align waveforms by relative elapsed time from corner entry (Ghost Race)">⏱️ Time</button>
+            <button id="btn-sync-dist" class="btn-sync-mode" title="Align waveforms by track distance from corner entry (Throttle pickup, apex & shift points)">📍 Distance</button>
+          </div>
+        </div>
+
+        <div class="section-table-container">
+          <table class="section-table">
+            <thead>
+              <tr>
+                <th>Lap</th>
+                <th>Time (s)</th>
+                <th>Delta</th>
+                <th>Entry Spd</th>
+                <th>Apex Min</th>
+                <th>Exit Spd</th>
+                <th>Max Lean</th>
+              </tr>
+            </thead>
+            <tbody id="section-table-body">
+              <!-- Dynamically populated stacked lap rows -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <div class="charts-scroll-area">
         <div class="canvas-wrapper">
           <canvas id="telemetry-canvas"></canvas>
@@ -755,8 +801,11 @@
         <div class="shortcut-row"><kbd>Shift</kbd> + <kbd>←</kbd> / <kbd>→</kbd> <span>Jump 5.0s</span></div>
         <div class="shortcut-row"><kbd>Home</kbd> / <kbd>End</kbd> <span>Start / End of Session/Lap</span></div>
         <div class="shortcut-row"><kbd>C</kbd> <span>Toggle Lap Comparison Mode</span></div>
+        <div class="shortcut-row"><kbd>L</kbd> <span>Toggle 3-Column Split Comparison Layout</span></div>
+        <div class="shortcut-row"><kbd>S</kbd> <span>Toggle Corner Sync Mode (Time vs Distance)</span></div>
         <div class="shortcut-row"><kbd>U</kbd> <span>Toggle Speed Unit (MPH / KM/H)</span></div>
         <div class="shortcut-row"><kbd>F</kbd> <span>Fit Map Track to Screen</span></div>
+        <div class="shortcut-row"><kbd>Esc</kbd> <span>Clear Section Selection / Cancel Gate Edit</span></div>
       </div>
     </div>
   </div>

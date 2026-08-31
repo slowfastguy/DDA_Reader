@@ -1,5 +1,5 @@
 /**
- * map.js - GPS Track Map, Heatmap Overlays, and Speed Extrema Engine
+ * map.js - GPS Track Map, Heatmap Overlays, Speed Extrema, and Corner Comparison Engine
  * Ducati DDA Telemetry & GPS Visualizer
  */
 
@@ -19,6 +19,9 @@ function initMap() {
   state.trackPolylineGroup = L.featureGroup().addTo(state.map);
   state.gatesLayerGroup = L.featureGroup().addTo(state.map);
   state.extremaLayerGroup = L.featureGroup().addTo(state.map);
+  state.sectionHighlightLayer = L.featureGroup().addTo(state.map);
+  state.sectionHandlesLayer = L.featureGroup().addTo(state.map);
+  state.sectionGhostsLayer = L.featureGroup().addTo(state.map);
 
   const bikeIcon = L.divIcon({
     className: 'bike-marker-icon',
@@ -51,11 +54,19 @@ function initMap() {
       handleGateMapClick(e.latlng);
     }
   });
+
+  initSectionDragInteractions();
 }
 
 function renderMapTrack(shouldFitBounds = false) {
   if (!state.activeRecords || state.activeRecords.length === 0) return;
   state.trackPolylineGroup.clearLayers();
+
+  // If in section comparison mode, section highlights handle map rendering
+  if (state.sectionSelection && state.sectionSelection.active) {
+    renderSectionHighlight();
+    return;
+  }
 
   const gpsPoints = state.activeRecords.filter(r => r.gps_lat !== null && r.gps_lon !== null);
   if (gpsPoints.length === 0) return;
@@ -90,8 +101,11 @@ function renderMapTrack(shouldFitBounds = false) {
 
     const targetIdx = p1.local_index !== undefined ? p1.local_index : i;
     poly.on('click', () => {
-      if (typeof seekToIndex === 'function') seekToIndex(targetIdx);
+      if (!state.sectionSelection.isSelecting && !state.sectionSelection.isDragging) {
+        if (typeof seekToIndex === 'function') seekToIndex(targetIdx);
+      }
     });
+
     state.trackPolylineGroup.addLayer(poly);
   }
 
@@ -144,109 +158,95 @@ function getHeatmapColor(ratio) {
 function renderSpeedExtremaMarkers() {
   state.extremaLayerGroup.clearLayers();
   if (!state.showSpeedExtrema || !state.activeRecords || state.activeRecords.length < 30) return;
+  if (state.sectionSelection && state.sectionSelection.active) return; // Hide global extrema in corner comparison mode
 
   const recs = state.activeRecords;
   const n = recs.length;
   const extrema = [];
-  const windowHalf = 15;
+  const win = 18;
 
-  for (let i = windowHalf; i < n - windowHalf; i++) {
-    const r = recs[i];
-    if (r.gps_lat === null || r.gps_lon === null) continue;
-
-    const spd = r.speed_kmh || 0;
+  for (let i = win; i < n - win; i += 4) {
+    const spd = recs[i].speed_kmh || 0;
     if (spd < 15.0) continue;
 
     let isMin = true;
     let isMax = true;
-
-    for (let k = i - windowHalf; k <= i + windowHalf; k++) {
+    for (let k = i - win; k <= i + win; k++) {
       if (k === i) continue;
       const otherSpd = recs[k].speed_kmh || 0;
       if (otherSpd <= spd) isMin = false;
       if (otherSpd >= spd) isMax = false;
     }
 
-    if (isMin && spd < 150.0) {
-      const diff1 = (recs[i - windowHalf].speed_kmh || 0) - spd;
-      const diff2 = (recs[i + windowHalf].speed_kmh || 0) - spd;
-      if (diff1 >= 5.0 && diff2 >= 5.0) {
-        extrema.push({ type: 'min', record: r, index: i, speed_kmh: spd });
-      }
-    } else if (isMax && spd > 50.0) {
-      const diff1 = spd - (recs[i - windowHalf].speed_kmh || 0);
-      const diff2 = spd - (recs[i + windowHalf].speed_kmh || 0);
-      if (diff1 >= 5.0 && diff2 >= 5.0) {
-        extrema.push({ type: 'max', record: r, index: i, speed_kmh: spd });
-      }
+    if (isMin && spd < 140.0) {
+      extrema.push({ type: 'min', index: i, record: recs[i], speed: spd });
+    } else if (isMax && spd > 90.0) {
+      extrema.push({ type: 'max', index: i, record: recs[i], speed: spd });
     }
   }
 
   const filtered = [];
-  extrema.forEach(item => {
-    const tooClose = filtered.some(f => haversineDistanceM(f.record.gps_lat, f.record.gps_lon, item.record.gps_lat, item.record.gps_lon) < 35.0);
-    if (!tooClose) filtered.push(item);
-  });
+  for (const cand of extrema) {
+    const tooClose = filtered.some(f => {
+      const d = haversineDistanceM(f.record.gps_lat, f.record.gps_lon, cand.record.gps_lat, cand.record.gps_lon);
+      return d < 45.0;
+    });
+    if (!tooClose && cand.record.gps_lat !== null && cand.record.gps_lon !== null) {
+      filtered.push(cand);
+    }
+  }
 
-  filtered.forEach(item => {
-    const isMin = item.type === 'min';
-    const displaySpd = state.unitMph ? (item.speed_kmh * 0.621371).toFixed(0) : item.speed_kmh.toFixed(0);
+  filtered.forEach(ext => {
+    const spdDisplay = state.unitMph ? `${(ext.speed * 0.621371).toFixed(0)}` : `${ext.speed.toFixed(0)}`;
     const unitLabel = state.unitMph ? 'mph' : 'km/h';
-    const badgeText = isMin ? `▼ ${displaySpd}` : `▲ ${displaySpd}`;
-    const badgeClass = isMin ? 'speed-extrema-min' : 'speed-extrema-max';
+    const isMin = ext.type === 'min';
 
-    const icon = L.divIcon({
-      className: 'bike-marker-icon',
-      html: `<div class="speed-extrema-pill ${badgeClass}" title="${isMin ? 'Apex Min Speed' : 'Straight Top Speed'}: ${displaySpd} ${unitLabel}">
-               <span>${badgeText}</span>
-             </div>`,
-      iconSize: [46, 18],
-      iconAnchor: [23, 9]
+    const pillIcon = L.divIcon({
+      className: 'speed-extrema-icon',
+      html: `
+        <div class="speed-extrema-pill ${isMin ? 'speed-extrema-min' : 'speed-extrema-max'}">
+          <span>${isMin ? '🔻' : '🔺'} ${spdDisplay}</span><small>${unitLabel}</small>
+        </div>
+      `,
+      iconSize: [60, 20],
+      iconAnchor: [30, 10]
     });
 
-    const marker = L.marker([item.record.gps_lat, item.record.gps_lon], { icon, zIndexOffset: 700 });
+    const marker = L.marker([ext.record.gps_lat, ext.record.gps_lon], { icon: pillIcon });
     marker.on('click', () => {
-      if (typeof seekToIndex === 'function') {
-        seekToIndex(item.record.local_index !== undefined ? item.record.local_index : item.index);
-      }
+      if (typeof seekToIndex === 'function') seekToIndex(ext.index);
     });
     state.extremaLayerGroup.addLayer(marker);
   });
 }
 
 function findClosestTrackPoint(lat, lon) {
-  let closestIdx = -1;
-  let minDist = 999999;
+  if (!state.records || state.records.length === 0) return null;
+  let minD = Infinity;
+  let best = null;
+
   for (let i = 0; i < state.records.length; i++) {
     const r = state.records[i];
-    if (r.gps_lat !== null && r.gps_lon !== null) {
-      const d = haversineDistanceM(lat, lon, r.gps_lat, r.gps_lon);
-      if (d < minDist) {
-        minDist = d;
-        closestIdx = i;
-      }
+    if (r.gps_lat === null || r.gps_lon === null) continue;
+    const d = haversineDistanceM(lat, lon, r.gps_lat, r.gps_lon);
+    if (d < minD) {
+      minD = d;
+      best = {
+        lat: r.gps_lat,
+        lon: r.gps_lon,
+        distance_m: r.distance_m || 0,
+        time_s: r.time_s || 0,
+        speed_kmh: r.speed_kmh || 0,
+        orig_index: r.orig_index !== undefined ? r.orig_index : i,
+        distToClick: d
+      };
     }
   }
-
-  if (closestIdx === -1 || minDist > 150) return null;
-
-  const pPrev = state.records[Math.max(0, closestIdx - 2)];
-  const pNext = state.records[Math.min(state.records.length - 1, closestIdx + 2)];
-
-  let tangentBearing = 0;
-  if (pPrev && pNext && pPrev.gps_lat !== null && pNext.gps_lat !== null) {
-    tangentBearing = calculateBearing(pPrev.gps_lat, pPrev.gps_lon, pNext.gps_lat, pNext.gps_lon);
-  }
-
-  return {
-    record: state.records[closestIdx],
-    index: closestIdx,
-    distanceM: minDist,
-    tangentBearing
-  };
+  return best;
 }
 
 function updateGhostMarker(interpDistA, interpTimeA, rA) {
+  if (!state.isCompareMode || !state.ghostMarker) return;
   const lapB = state.laps.find(l => l.lap_number === state.compareLapB);
   if (!lapB) return;
   const recsB = state.records.slice(lapB.start_index, lapB.end_index);
@@ -298,24 +298,627 @@ function updateGhostMarker(interpDistA, interpTimeA, rA) {
     }
 
     // Time Delta (Δt)
-    const elapsedA = interpTimeA - state.activeRecords[0].time_s;
-    const elapsedB = ((b0.time_s || 0) + ((b1.time_s || 0) - (b0.time_s || 0)) * fracB) - recsB[0].time_s;
-    const deltaT = elapsedB - elapsedA;
-    dom.valDeltaTime.textContent = `${deltaT >= 0 ? '+' : ''}${deltaT.toFixed(2)}s`;
-    dom.valDeltaTime.className = `val-mono ${deltaT >= 0 ? 'text-green' : 'text-red'}`;
+    if (dom.valDeltaTime) {
+      const elapsedA = interpTimeA - state.activeRecords[0].time_s;
+      const elapsedB = ((b0.time_s || 0) + ((b1.time_s || 0) - (b0.time_s || 0)) * fracB) - recsB[0].time_s;
+      const deltaT = elapsedB - elapsedA;
+      dom.valDeltaTime.textContent = `${deltaT >= 0 ? '+' : ''}${deltaT.toFixed(2)}s`;
+      dom.valDeltaTime.className = `val-mono ${deltaT >= 0 ? 'text-green' : 'text-red'}`;
+    }
 
     // Speed Delta (Δv)
-    const interpSpdB = (b0.speed_kmh || 0) + ((b1.speed_kmh || 0) - (b0.speed_kmh || 0)) * fracB;
-    const spdA = state.unitMph ? ((rA.speed_kmh || 0) * 0.621371) : (rA.speed_kmh || 0);
-    const spdB = state.unitMph ? (interpSpdB * 0.621371) : interpSpdB;
-    const deltaSpd = spdA - spdB;
-    dom.valDeltaSpeed.textContent = `${deltaSpd >= 0 ? '+' : ''}${deltaSpd.toFixed(1)} ${state.unitMph ? 'mph' : 'km/h'}`;
-    dom.valDeltaSpeed.className = `val-mono ${deltaSpd >= 0 ? 'text-green' : 'text-red'}`;
+    if (dom.valDeltaSpeed) {
+      const interpSpdB = (b0.speed_kmh || 0) + ((b1.speed_kmh || 0) - (b0.speed_kmh || 0)) * fracB;
+      const spdA = state.unitMph ? ((rA.speed_kmh || 0) * 0.621371) : (rA.speed_kmh || 0);
+      const spdB = state.unitMph ? (interpSpdB * 0.621371) : interpSpdB;
+      const deltaSpd = spdA - spdB;
+      dom.valDeltaSpeed.textContent = `${deltaSpd >= 0 ? '+' : ''}${deltaSpd.toFixed(1)} ${state.unitMph ? 'mph' : 'km/h'}`;
+      dom.valDeltaSpeed.className = `val-mono ${deltaSpd >= 0 ? 'text-green' : 'text-red'}`;
+    }
 
     // TPS Delta (ΔTPS)
-    const interpTpsB = (b0.tps_pct || 0) + ((b1.tps_pct || 0) - (b0.tps_pct || 0)) * fracB;
-    const deltaTps = (rA.tps_pct || 0) - interpTpsB;
-    dom.valDeltaTps.textContent = `${deltaTps >= 0 ? '+' : ''}${deltaTps.toFixed(0)}%`;
-    dom.valDeltaTps.className = `val-mono ${deltaTps >= 0 ? 'text-green' : 'text-orange'}`;
+    if (dom.valDeltaTps) {
+      const interpTpsB = (b0.tps_pct || 0) + ((b1.tps_pct || 0) - (b0.tps_pct || 0)) * fracB;
+      const deltaTps = (rA.tps_pct || 0) - interpTpsB;
+      dom.valDeltaTps.textContent = `${deltaTps >= 0 ? '+' : ''}${deltaTps.toFixed(0)}%`;
+      dom.valDeltaTps.className = `val-mono ${deltaTps >= 0 ? 'text-green' : 'text-orange'}`;
+    }
+  }
+}
+
+// =========================================================
+// Track Section Drag Selection & Multi-Lap Stacking Engine
+// =========================================================
+
+function initSectionDragInteractions() {
+  if (!state.map) return;
+
+  state.map.on('mousedown', (e) => {
+    if (state.gateEditMode) return;
+    if (e.originalEvent.shiftKey || state.sectionSelection.isSelecting) {
+      const closest = findClosestTrackPoint(e.latlng.lat, e.latlng.lng);
+      if (closest && closest.distToClick < 60.0) {
+        state.sectionSelection.isDragging = true;
+        state.sectionSelection.startPoint = closest;
+        state.sectionSelection.endPoint = closest;
+        state.map.dragging.disable();
+        renderLiveDragSelection();
+      }
+    }
+  });
+
+  state.map.on('mousemove', (e) => {
+    if (state.sectionSelection.isDragging && state.sectionSelection.startPoint) {
+      const closest = findClosestTrackPoint(e.latlng.lat, e.latlng.lng);
+      if (closest) {
+        state.sectionSelection.endPoint = closest;
+        renderLiveDragSelection();
+      }
+    }
+  });
+
+  state.map.on('mouseup', () => {
+    if (state.sectionSelection.isDragging) {
+      state.sectionSelection.isDragging = false;
+      state.map.dragging.enable();
+      finalizeSectionSelection();
+    }
+  });
+}
+
+function toggleSectionSelectMode() {
+  state.sectionSelection.isSelecting = !state.sectionSelection.isSelecting;
+  if (dom.btnSelectSection) {
+    dom.btnSelectSection.classList.toggle('active', state.sectionSelection.isSelecting);
+  }
+  const container = document.getElementById('map-container');
+  if (container) {
+    container.style.cursor = state.sectionSelection.isSelecting ? 'crosshair' : '';
+  }
+  if (state.sectionSelection.isSelecting) {
+    if (dom.gateToastMsg) dom.gateToastMsg.textContent = 'Click and drag along track path to select a corner or section...';
+    if (dom.gateInstructionToast) dom.gateInstructionToast.style.display = 'flex';
+  } else {
+    if (dom.gateInstructionToast && !state.gateEditMode) dom.gateInstructionToast.style.display = 'none';
+  }
+}
+
+function renderLiveDragSelection() {
+  if (!state.sectionSelection.startPoint || !state.sectionSelection.endPoint) return;
+  state.sectionHighlightLayer.clearLayers();
+
+  const startP = state.sectionSelection.startPoint;
+  const endP = state.sectionSelection.endPoint;
+
+  const latLngs = getTrackLatLngsBetween(startP, endP);
+  if (latLngs.length < 2) return;
+
+  const haloPoly = L.polyline(latLngs, {
+    color: '#00e5ff',
+    weight: 10,
+    opacity: 0.45,
+    lineCap: 'round',
+    lineJoin: 'round'
+  });
+  const corePoly = L.polyline(latLngs, {
+    color: '#ffffff',
+    weight: 4,
+    opacity: 0.95,
+    lineCap: 'round',
+    lineJoin: 'round'
+  });
+
+  state.sectionHighlightLayer.addLayer(haloPoly);
+  state.sectionHighlightLayer.addLayer(corePoly);
+}
+
+function finalizeSectionSelection() {
+  if (!state.sectionSelection.startPoint || !state.sectionSelection.endPoint) return;
+  const startP = state.sectionSelection.startPoint;
+  const endP = state.sectionSelection.endPoint;
+
+  const directDist = haversineDistanceM(startP.lat, startP.lon, endP.lat, endP.lon);
+  if (directDist < 10.0) {
+    clearSectionSelection();
+    return;
+  }
+
+  state.sectionSelection.active = true;
+  state.sectionSelection.isSelecting = false;
+  if (dom.btnSelectSection) dom.btnSelectSection.classList.remove('active');
+  if (dom.btnClearSection) dom.btnClearSection.style.display = 'inline-flex';
+  if (dom.gateInstructionToast && !state.gateEditMode) dom.gateInstructionToast.style.display = 'none';
+
+  const container = document.getElementById('map-container');
+  if (container) container.style.cursor = '';
+
+  extractMultiLapSection();
+  if (typeof updateWorkspaceLayout === 'function') updateWorkspaceLayout();
+}
+
+function getTrackLatLngsBetween(startP, endP) {
+  if (!state.records || state.records.length === 0) return [];
+  const idxA = Math.min(startP.orig_index, endP.orig_index);
+  const idxB = Math.max(startP.orig_index, endP.orig_index);
+
+  const pts = [];
+  for (let i = idxA; i <= idxB; i++) {
+    const r = state.records[i];
+    if (r.gps_lat !== null && r.gps_lon !== null) {
+      pts.push([r.gps_lat, r.gps_lon]);
+    }
+  }
+  return pts;
+}
+
+function renderSectionHighlight() {
+  if (!state.sectionSelection.startPoint || !state.sectionSelection.endPoint) return;
+  state.sectionHighlightLayer.clearLayers();
+  state.sectionHandlesLayer.clearLayers();
+
+  const startP = state.sectionSelection.startPoint;
+  const endP = state.sectionSelection.endPoint;
+
+  // 1. Hide full-circuit track or show subtle background trace
+  if (state.trackPolylineGroup) {
+    state.trackPolylineGroup.clearLayers();
+    if (state.activeRecords && state.activeRecords.length > 1) {
+      const allPts = state.activeRecords.filter(r => r.gps_lat !== null && r.gps_lon !== null).map(r => [r.gps_lat, r.gps_lon]);
+      if (allPts.length > 1) {
+        const bgRef = L.polyline(allPts, {
+          color: '#ffffff',
+          weight: 2,
+          opacity: 0.12,
+          dashArray: '4, 6'
+        });
+        state.trackPolylineGroup.addLayer(bgRef);
+      }
+    }
+  }
+
+  // 2. Render each lap's GPS path through this corner with 60% opacity & create ghost marker
+  state.sectionGhostsLayer.clearLayers();
+  const sData = state.sectionSelection.lapsData || [];
+  const activeLaps = sData.filter(l => state.sectionSelection.activeLapsFilter.has(l.lapNumber));
+
+  if (activeLaps.length > 0) {
+    activeLaps.forEach(lap => {
+      const pts = lap.records
+        .filter(r => r.gps_lat !== null && r.gps_lon !== null)
+        .map(r => [r.gps_lat, r.gps_lon]);
+
+      if (pts.length > 1) {
+        // Trace line
+        const poly = L.polyline(pts, {
+          color: lap.color,
+          weight: lap.isSectionBest ? 5 : 4,
+          opacity: 0.60,
+          lineCap: 'round',
+          lineJoin: 'round'
+        });
+
+        const minSpdStr = state.unitMph ? `${(lap.minSpeed * 0.621371).toFixed(1)} mph` : `${lap.minSpeed.toFixed(1)} km/h`;
+        poly.bindTooltip(`<strong>${lap.lapName}</strong>: ${lap.duration_s.toFixed(2)}s | Min: ${minSpdStr} | Lean: ${lap.maxLean.toFixed(0)}°`, {
+          sticky: true
+        });
+
+        lap.polylineLayer = poly;
+        state.sectionHighlightLayer.addLayer(poly);
+
+        // Ghost marker for synchronized scrubbing
+        const startRec = lap.records[0];
+        const ghostIcon = L.divIcon({
+          className: 'section-ghost-icon',
+          html: `
+            <div class="section-ghost-marker" style="background: ${lap.color};">
+              <span class="ghost-lap-lbl">${lap.lapNumber}</span>
+              <svg class="ghost-arrow-svg" viewBox="0 0 24 24" width="13" height="13">
+                <path d="M12 2 L20 20 L12 16 L4 20 Z" fill="#ffffff" stroke="#000000" stroke-width="1.2"/>
+              </svg>
+            </div>
+          `,
+          iconSize: [24, 24],
+          iconAnchor: [12, 12]
+        });
+
+        const marker = L.marker([startRec.gps_lat, startRec.gps_lon], {
+          icon: ghostIcon,
+          zIndexOffset: lap.isSectionBest ? 1000 : 900
+        });
+
+        lap.marker = marker;
+        state.sectionGhostsLayer.addLayer(marker);
+      }
+    });
+  } else {
+    // Fallback: draw single selection slice if no multi-laps loaded
+    const latLngs = getTrackLatLngsBetween(startP, endP);
+    if (latLngs.length >= 2) {
+      const ribbon = L.polyline(latLngs, {
+        color: '#00e5ff',
+        weight: 5,
+        opacity: 0.60,
+        lineCap: 'round',
+        lineJoin: 'round'
+      });
+      state.sectionHighlightLayer.addLayer(ribbon);
+    }
+  }
+
+  // 3. Draggable Start Flag Handle (🚩 Entry)
+  const startIcon = L.divIcon({
+    className: 'section-handle-icon',
+    html: `<div class="section-handle-pill section-handle-start">🚩 Entry</div>`,
+    iconSize: [70, 24],
+    iconAnchor: [35, 12]
+  });
+  const startMarker = L.marker([startP.lat, startP.lon], { icon: startIcon, draggable: true });
+  startMarker.on('dragend', (e) => {
+    const closest = findClosestTrackPoint(e.target.getLatLng().lat, e.target.getLatLng().lng);
+    if (closest) {
+      state.sectionSelection.startPoint = closest;
+      extractMultiLapSection();
+    }
+  });
+  state.sectionHandlesLayer.addLayer(startMarker);
+
+  // 4. Draggable End Flag Handle (🏁 Exit)
+  const endIcon = L.divIcon({
+    className: 'section-handle-icon',
+    html: `<div class="section-handle-pill section-handle-end">🏁 Exit</div>`,
+    iconSize: [66, 24],
+    iconAnchor: [33, 12]
+  });
+  const endMarker = L.marker([endP.lat, endP.lon], { icon: endIcon, draggable: true });
+  endMarker.on('dragend', (e) => {
+    const closest = findClosestTrackPoint(e.target.getLatLng().lat, e.target.getLatLng().lng);
+    if (closest) {
+      state.sectionSelection.endPoint = closest;
+      extractMultiLapSection();
+    }
+  });
+  state.sectionHandlesLayer.addLayer(endMarker);
+
+  // 5. Auto-focus and zoom to the selected corner
+  if (state.map && state.sectionHighlightLayer.getLayers().length > 0) {
+    try {
+      state.map.fitBounds(state.sectionHighlightLayer.getBounds(), { padding: [40, 40], maxZoom: 18 });
+    } catch (_) {}
+  }
+}
+
+function updateSectionGhostsAtTime(relTime_s) {
+  if (!state.sectionSelection || !state.sectionSelection.active || !state.sectionSelection.lapsData) return;
+
+  const sData = state.sectionSelection.lapsData;
+  const activeLaps = sData.filter(l => state.sectionSelection.activeLapsFilter.has(l.lapNumber));
+
+  activeLaps.forEach(lap => {
+    if (!lap.marker) return;
+    const recs = lap.records;
+    if (!recs || recs.length === 0) return;
+
+    const t0 = recs[0].time_s || 0;
+    const targetT = t0 + Math.max(0, relTime_s);
+
+    let r0 = recs[0];
+    let r1 = recs[recs.length - 1];
+
+    if (targetT <= (recs[0].time_s || 0)) {
+      r0 = recs[0];
+      r1 = recs.length > 1 ? recs[1] : recs[0];
+    } else if (targetT >= (recs[recs.length - 1].time_s || 0)) {
+      r0 = recs[recs.length - 1];
+      r1 = recs[recs.length - 1];
+    } else {
+      for (let i = 0; i < recs.length - 1; i++) {
+        if ((recs[i].time_s || 0) <= targetT && targetT <= (recs[i + 1].time_s || 0)) {
+          r0 = recs[i];
+          r1 = recs[i + 1];
+          break;
+        }
+      }
+    }
+
+    const tSpan = Math.max(0.001, (r1.time_s || 0) - (r0.time_s || 0));
+    const alpha = Math.max(0, Math.min(1, (targetT - (r0.time_s || 0)) / tSpan));
+
+    if (r0.gps_lat !== null && r1.gps_lat !== null) {
+      const gLat = r0.gps_lat + (r1.gps_lat - r0.gps_lat) * alpha;
+      const gLon = r0.gps_lon + (r1.gps_lon - r0.gps_lon) * alpha;
+      lap.marker.setLatLng([gLat, gLon]);
+
+      const brg = calculateBearing(r0.gps_lat, r0.gps_lon, r1.gps_lat, r1.gps_lon);
+      const mEl = lap.marker.getElement();
+      if (mEl) {
+        const svgArrow = mEl.querySelector('.ghost-arrow-svg');
+        if (svgArrow) svgArrow.style.transform = `rotate(${brg}deg)`;
+      }
+    }
+  });
+}
+
+function updateSectionGhostsAtDistance(relDist_m) {
+  if (!state.sectionSelection || !state.sectionSelection.active || !state.sectionSelection.lapsData) return;
+
+  const sData = state.sectionSelection.lapsData;
+  const activeLaps = sData.filter(l => state.sectionSelection.activeLapsFilter.has(l.lapNumber));
+
+  activeLaps.forEach(lap => {
+    if (!lap.marker) return;
+    const recs = lap.records;
+    if (!recs || recs.length === 0) return;
+
+    const d0 = recs[0].distance_m || 0;
+    const targetD = d0 + Math.max(0, relDist_m);
+
+    let r0 = recs[0];
+    let r1 = recs[recs.length - 1];
+
+    if (targetD <= (recs[0].distance_m || 0)) {
+      r0 = recs[0];
+      r1 = recs.length > 1 ? recs[1] : recs[0];
+    } else if (targetD >= (recs[recs.length - 1].distance_m || 0)) {
+      r0 = recs[recs.length - 1];
+      r1 = recs[recs.length - 1];
+    } else {
+      for (let i = 0; i < recs.length - 1; i++) {
+        if ((recs[i].distance_m || 0) <= targetD && targetD <= (recs[i + 1].distance_m || 0)) {
+          r0 = recs[i];
+          r1 = recs[i + 1];
+          break;
+        }
+      }
+    }
+
+    const dSpan = Math.max(0.001, (r1.distance_m || 0) - (r0.distance_m || 0));
+    const alpha = Math.max(0, Math.min(1, (targetD - (r0.distance_m || 0)) / dSpan));
+
+    if (r0.gps_lat !== null && r1.gps_lat !== null) {
+      const gLat = r0.gps_lat + (r1.gps_lat - r0.gps_lat) * alpha;
+      const gLon = r0.gps_lon + (r1.gps_lon - r0.gps_lon) * alpha;
+      lap.marker.setLatLng([gLat, gLon]);
+
+      const brg = calculateBearing(r0.gps_lat, r0.gps_lon, r1.gps_lat, r1.gps_lon);
+      const mEl = lap.marker.getElement();
+      if (mEl) {
+        const svgArrow = mEl.querySelector('.ghost-arrow-svg');
+        if (svgArrow) svgArrow.style.transform = `rotate(${brg}deg)`;
+      }
+    }
+  });
+}
+
+function clearSectionSelection() {
+  state.sectionSelection.active = false;
+  state.sectionSelection.isDragging = false;
+  state.sectionSelection.isSelecting = false;
+  state.sectionSelection.startPoint = null;
+  state.sectionSelection.endPoint = null;
+  state.sectionSelection.lapsData = [];
+  state.sectionSelection.activeLapsFilter.clear();
+
+  state.sectionHighlightLayer.clearLayers();
+  state.sectionHandlesLayer.clearLayers();
+  if (state.sectionGhostsLayer) state.sectionGhostsLayer.clearLayers();
+
+  if (dom.btnSelectSection) dom.btnSelectSection.classList.remove('active');
+  if (dom.btnClearSection) dom.btnClearSection.style.display = 'none';
+  if (dom.sectionAnalysisDrawer) dom.sectionAnalysisDrawer.style.display = 'none';
+
+  // Restore full circuit track on map
+  renderMapTrack(true);
+
+  if (typeof updateWorkspaceLayout === 'function') updateWorkspaceLayout();
+  if (typeof resizeCanvas === 'function') resizeCanvas();
+  if (typeof renderCharts === 'function') renderCharts();
+}
+
+function extractMultiLapSection() {
+  if (!state.sectionSelection.startPoint || !state.sectionSelection.endPoint) return;
+  const startP = state.sectionSelection.startPoint;
+  const endP = state.sectionSelection.endPoint;
+
+  const lapsToSearch = (state.laps && state.laps.length > 0)
+    ? state.laps.filter(l => l.duration_s > 10.0)
+    : [{ lap_number: 1, name: 'Full Session', start_index: 0, end_index: state.records.length - 1, is_best: true }];
+
+  const sectionLaps = [];
+
+  lapsToSearch.forEach((lap, idx) => {
+    const lapRecs = state.records.slice(lap.start_index, lap.end_index + 1);
+    if (lapRecs.length < 5) return;
+
+    let bestStartIdx = -1;
+    let minStartDist = Infinity;
+    let bestEndIdx = -1;
+    let minEndDist = Infinity;
+
+    for (let i = 0; i < lapRecs.length; i++) {
+      const r = lapRecs[i];
+      if (r.gps_lat === null || r.gps_lon === null) continue;
+
+      const dS = haversineDistanceM(r.gps_lat, r.gps_lon, startP.lat, startP.lon);
+      if (dS < minStartDist) {
+        minStartDist = dS;
+        bestStartIdx = i;
+      }
+
+      const dE = haversineDistanceM(r.gps_lat, r.gps_lon, endP.lat, endP.lon);
+      if (dE < minEndDist) {
+        minEndDist = dE;
+        bestEndIdx = i;
+      }
+    }
+
+    if (minStartDist < 90 && minEndDist < 90 && bestStartIdx !== -1 && bestEndIdx !== -1) {
+      let sliceStart = bestStartIdx;
+      let sliceEnd = bestEndIdx;
+
+      if (sliceStart > sliceEnd) {
+        const temp = sliceStart;
+        sliceStart = sliceEnd;
+        sliceEnd = temp;
+      }
+
+      const slice = lapRecs.slice(sliceStart, sliceEnd + 1);
+      if (slice.length >= 3) {
+        const dur = (slice[slice.length - 1].time_s || 0) - (slice[0].time_s || 0);
+        const dist = (slice[slice.length - 1].distance_m || 0) - (slice[0].distance_m || 0);
+
+        let minSpd = Infinity;
+        let maxSpd = -Infinity;
+        let maxLean = 0;
+        let apexIdx = 0;
+        let throttlePickupDist = null;
+
+        for (let j = 0; j < slice.length; j++) {
+          const spd = slice[j].speed_kmh || 0;
+          if (spd < minSpd) {
+            minSpd = spd;
+            apexIdx = j;
+          }
+          if (spd > maxSpd) maxSpd = spd;
+
+          const lean = Math.abs(slice[j].lean_angle_deg || 0);
+          if (lean > maxLean) maxLean = lean;
+
+          if (throttlePickupDist === null && (slice[j].tps_pct || 0) >= 20.0 && j > 0) {
+            throttlePickupDist = (slice[j].distance_m || 0) - (slice[0].distance_m || 0);
+          }
+        }
+
+        const entrySpd = slice[0].speed_kmh || 0;
+        const exitSpd = slice[slice.length - 1].speed_kmh || 0;
+
+        sectionLaps.push({
+          lapNumber: lap.lap_number,
+          lapName: lap.name,
+          color: state.sectionSelection.palette[idx % state.sectionSelection.palette.length],
+          records: slice,
+          duration_s: dur,
+          distance_m: dist,
+          entrySpeed: entrySpd,
+          exitSpeed: exitSpd,
+          minSpeed: minSpd,
+          maxSpeed: maxSpd,
+          maxLean: maxLean,
+          apexDistance: (slice[apexIdx].distance_m || 0) - (slice[0].distance_m || 0),
+          throttlePickupDist: throttlePickupDist,
+          isBestLap: lap.is_best || false
+        });
+      }
+    }
+  });
+
+  // Keep in natural chronological Lap Number order (1, 2, 3...)
+  sectionLaps.sort((a, b) => a.lapNumber - b.lapNumber);
+
+  // Identify the fastest lap through the section
+  let bestSection = null;
+  let minDur = Infinity;
+  sectionLaps.forEach(l => {
+    if (l.duration_s < minDur) {
+      minDur = l.duration_s;
+      bestSection = l;
+    }
+  });
+  if (bestSection) {
+    bestSection.isSectionBest = true;
+  }
+
+  state.sectionSelection.lapsData = sectionLaps;
+  state.sectionSelection.activeLapsFilter = new Set(sectionLaps.map(l => l.lapNumber));
+
+  renderSectionHighlight();
+  updateSectionUI();
+  if (typeof resizeCanvas === 'function') resizeCanvas();
+  if (typeof renderCharts === 'function') renderCharts();
+}
+
+function updateSectionUI() {
+  const sData = state.sectionSelection.lapsData;
+  if (!sData || sData.length === 0) return;
+
+  if (dom.sectionAnalysisDrawer) {
+    dom.sectionAnalysisDrawer.style.display = 'flex';
+  }
+
+  const bestSection = sData.find(l => l.isSectionBest) || sData[0];
+  const avgApex = sData.reduce((acc, l) => acc + l.minSpeed, 0) / sData.length;
+  const avgLen = sData.reduce((acc, l) => acc + l.distance_m, 0) / sData.length;
+
+  if (dom.sectionBadgeLength) {
+    dom.sectionBadgeLength.textContent = `${avgLen.toFixed(0)} m`;
+  }
+  if (dom.sectionBadgeBestTime) {
+    dom.sectionBadgeBestTime.textContent = `${bestSection.duration_s.toFixed(2)}s`;
+  }
+  if (dom.sectionBadgeBestLap) {
+    dom.sectionBadgeBestLap.textContent = `${bestSection.lapName}`;
+  }
+  if (dom.sectionBadgeApexAvg) {
+    const spd = state.unitMph ? (avgApex * 0.621371) : avgApex;
+    dom.sectionBadgeApexAvg.textContent = `${spd.toFixed(1)} ${state.unitMph ? 'mph' : 'km/h'}`;
+  }
+
+  if (dom.sectionTableBody) {
+    dom.sectionTableBody.innerHTML = '';
+    sData.forEach((l) => {
+      const tr = document.createElement('tr');
+      tr.dataset.lap = l.lapNumber;
+      if (l.isSectionBest) tr.classList.add('best-section-row');
+
+      const deltaToBest = l.duration_s - bestSection.duration_s;
+      const deltaStr = l.isSectionBest ? '🏆 Best' : `+${deltaToBest.toFixed(2)}s`;
+      const deltaClass = l.isSectionBest ? 'text-purple' : (deltaToBest < 0.3 ? 'text-green' : 'text-orange');
+
+      const entrySpd = state.unitMph ? (l.entrySpeed * 0.621371).toFixed(1) : l.entrySpeed.toFixed(1);
+      const minSpd = state.unitMph ? (l.minSpeed * 0.621371).toFixed(1) : l.minSpeed.toFixed(1);
+      const exitSpd = state.unitMph ? (l.exitSpeed * 0.621371).toFixed(1) : l.exitSpeed.toFixed(1);
+
+      tr.innerHTML = `
+        <td>
+          <span class="lap-color-indicator" style="background: ${l.color};"></span>
+          <strong>${l.lapName}</strong>
+        </td>
+        <td><strong>${l.duration_s.toFixed(2)}s</strong></td>
+        <td class="${deltaClass}"><strong>${deltaStr}</strong></td>
+        <td>${entrySpd}</td>
+        <td><strong class="text-cyan">${minSpd}</strong></td>
+        <td>${exitSpd}</td>
+        <td>${l.maxLean.toFixed(1)}°</td>
+      `;
+
+      // Hover on table row highlights that lap's GPS path on map
+      tr.addEventListener('mouseenter', () => {
+        if (l.polylineLayer) {
+          l.polylineLayer.setStyle({ opacity: 1.0, weight: 7 });
+          l.polylineLayer.bringToFront();
+        }
+      });
+      tr.addEventListener('mouseleave', () => {
+        if (l.polylineLayer) {
+          l.polylineLayer.setStyle({ opacity: 0.60, weight: l.isSectionBest ? 5 : 4 });
+        }
+      });
+
+      tr.addEventListener('click', () => {
+        if (state.sectionSelection.activeLapsFilter.has(l.lapNumber)) {
+          if (state.sectionSelection.activeLapsFilter.size > 1) {
+            state.sectionSelection.activeLapsFilter.delete(l.lapNumber);
+            tr.classList.add('lap-row-disabled');
+            if (l.polylineLayer) state.sectionHighlightLayer.removeLayer(l.polylineLayer);
+          }
+        } else {
+          state.sectionSelection.activeLapsFilter.add(l.lapNumber);
+          tr.classList.remove('lap-row-disabled');
+          if (l.polylineLayer) state.sectionHighlightLayer.addLayer(l.polylineLayer);
+        }
+        if (typeof renderCharts === 'function') renderCharts();
+      });
+
+      dom.sectionTableBody.appendChild(tr);
+    });
   }
 }

@@ -279,6 +279,13 @@ function updateUI() {
     updateGhostMarker(interpDist, interpTime, r0);
   }
 
+  // 13. Multi-Lap Ghost Markers Update in Section Comparison Mode
+  if (state.sectionSelection && state.sectionSelection.active && typeof updateSectionGhostsAtTime === 'function') {
+    if (state.sectionSelection.hoverRelTime !== null) {
+      updateSectionGhostsAtTime(state.sectionSelection.hoverRelTime);
+    }
+  }
+
   if (typeof updateScrubberLinePosition === 'function') {
     updateScrubberLinePosition();
   }
@@ -386,4 +393,6 @@ function toggleCompareMode() {
     if (dom.lblCompareBtn) dom.lblCompareBtn.textContent = 'Compare Laps';
     selectLap(state.selectedLapNum, false);
   }
+
+  if (typeof updateWorkspaceLayout === 'function') updateWorkspaceLayout();
 }

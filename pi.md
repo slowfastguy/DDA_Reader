@@ -84,6 +84,19 @@ To completely eliminate chroma key fringing, edge bleeding, and green/blue halos
 
 ---
 
+### 5. Track Section Drag Selection & Multi-Lap Stacked Telemetry Comparison Engine
+
+- **Interactive Drag-to-Select**: Riders can click and drag anywhere along the GPS track path on the map (or click `✂️ Select Corner`) to isolate any corner, chicane, or straight.
+- **Draggable Boundary Handles**: Displays draggable `🚩 Entry` and `🏁 Exit` flag markers on the track for effortless boundary fine-tuning.
+- **Multi-Lap Segment Normalization**: Automatically projects and extracts the exact telemetry segment from every lap in the session, normalizing them across section distance ($0\text{m} \to D_{\text{section}}\text{m}$).
+- **Stacked Multi-Lap Waveforms**:
+  - Overlays all laps' speed curves, throttle traces, lean angles, and gear profiles on top of each other.
+  - Color-codes each lap with the fastest section run highlighted in glowing purple/gold.
+  - Automatically identifies apex minimum speed dip points and throttle application distance.
+- **Corner Performance Leaderboard Table**: Ranks every lap through that section with Section Time ($\Delta t$), Entry Speed, Apex Min Speed, Exit Speed, and Peak Lean Angle.
+
+---
+
 ## 📁 Codebase Directory Structure
 
 ```
