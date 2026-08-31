@@ -2,13 +2,15 @@
 """
 Ducati DDA (Ducati Data Analyzer) GUI & Multi-Format Exporter
 Full visual interface for decoding .dda files, inspecting telemetry channels,
-and exporting to standard CSV, GPX 1.1, Google Earth 3D KML, RaceChrono v3 CSV, and RaceChrono Native .rcz.
+and exporting to Standalone Interactive HTML Visualizer, JSON, RaceChrono v3 CSV, RaceChrono Native .rcz,
+Standard CSV, GPX 1.1, and Google Earth 3D KML.
 Includes customizable batch directory conversion with selective output format checkboxes.
 """
 
 import os
 import sys
 import argparse
+import webbrowser
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from dda_core import DDAParser
@@ -50,6 +52,9 @@ class DDAConverterApp(tk.Tk):
         self.style.configure("Accent.TButton", background=self.header_bg, foreground="#ffffff", font=("Segoe UI", 9, "bold"), borderwidth=0)
         self.style.map("Accent.TButton", background=[("active", self.accent_color), ("pressed", "#8e0000")])
 
+        self.style.configure("Viewer.TButton", background="#00695c", foreground="#ffffff", font=("Segoe UI", 9, "bold"), borderwidth=0)
+        self.style.map("Viewer.TButton", background=[("active", "#004d40"), ("pressed", "#00251a")])
+
         self.style.configure("Action.TButton", font=("Segoe UI", 9, "bold"))
         self.style.configure("Treeview.Heading", font=("Segoe UI", 9, "bold"), background="#e0e0e0")
         self.style.configure("Treeview", rowheight=24, font=("Segoe UI", 9))
@@ -61,8 +66,25 @@ class DDAConverterApp(tk.Tk):
         
         lbl_title = tk.Label(hdr_frame, text="DUCATI DATA ANALYZER (.DDA) CONVERTER", font=("Segoe UI", 14, "bold"), bg="#d32f2f", fg="#ffffff")
         lbl_title.pack(side=tk.LEFT)
-        lbl_sub = tk.Label(hdr_frame, text="GPS & Chassis Dynamics Decoder", font=("Segoe UI", 10, "italic"), bg="#d32f2f", fg="#ffcdd2")
+        lbl_sub = tk.Label(hdr_frame, text="GPS & Chassis Dynamics Visualizer", font=("Segoe UI", 10, "italic"), bg="#d32f2f", fg="#ffcdd2")
         lbl_sub.pack(side=tk.LEFT, padx=15)
+
+        # Header Action Button: Launch Interactive Viewer
+        btn_launch_top = tk.Button(
+            hdr_frame,
+            text="🚀 Open Interactive Viewer",
+            font=("Segoe UI", 10, "bold"),
+            bg="#11131a",
+            fg="#00e5ff",
+            activebackground="#000000",
+            activeforeground="#ffffff",
+            relief=tk.FLAT,
+            padx=12,
+            pady=4,
+            cursor="hand2",
+            command=self._launch_viewer
+        )
+        btn_launch_top.pack(side=tk.RIGHT)
 
         # Main Container Frame
         container = ttk.Frame(self, padding=15)
@@ -136,26 +158,31 @@ class DDAConverterApp(tk.Tk):
         tab_export = ttk.Frame(tab_control, padding=15)
         tab_control.add(tab_export, text=" Export Hub ")
 
-        lbl_exp_info = ttk.Label(tab_export, text="Export Decoded Session into Telemetry, GPS, and RaceChrono Formats:", font=("Segoe UI", 11, "bold"))
+        lbl_exp_info = ttk.Label(tab_export, text="Export Decoded Session into Visualizers, Telemetry, and GPS Formats:", font=("Segoe UI", 11, "bold"))
         lbl_exp_info.pack(anchor="w", pady=(0, 10))
 
         btn_grid = ttk.Frame(tab_export)
         btn_grid.pack(fill=tk.X, pady=5)
 
+        # Row 0: Visualizers & Dashboards
+        btn_html = tk.Button(btn_grid, text="🌐 Export Standalone HTML Visualizer\n(Self-Contained Interactive Dashboard)", font=("Segoe UI", 10, "bold"), bg="#b2dfdb", relief=tk.GROOVE, padx=15, pady=10, command=lambda: self._export("html"))
+        btn_html.grid(row=0, column=0, padx=5, pady=5, sticky="nsew")
+
         btn_rc_csv = tk.Button(btn_grid, text="🏁 Export RaceChrono CSV (v3)\n(Direct RaceChrono Pro Import)", font=("Segoe UI", 10, "bold"), bg="#ffecb3", relief=tk.GROOVE, padx=15, pady=10, command=lambda: self._export("racechrono_csv"))
-        btn_rc_csv.grid(row=0, column=0, padx=5, pady=5, sticky="nsew")
+        btn_rc_csv.grid(row=0, column=1, padx=5, pady=5, sticky="nsew")
 
         btn_rcz = tk.Button(btn_grid, text="📦 Export RaceChrono Native (.rcz)\n(Direct App Import Archive)", font=("Segoe UI", 10, "bold"), bg="#c8e6c9", relief=tk.GROOVE, padx=15, pady=10, command=lambda: self._export("racechrono_rcz"))
-        btn_rcz.grid(row=0, column=1, padx=5, pady=5, sticky="nsew")
+        btn_rcz.grid(row=0, column=2, padx=5, pady=5, sticky="nsew")
+
+        # Row 1: Telemetry Data Formats
+        btn_json = tk.Button(btn_grid, text="📊 Export Telemetry JSON\n(For Web Apps & Custom Code)", font=("Segoe UI", 10, "bold"), bg="#e1bee7", relief=tk.GROOVE, padx=15, pady=10, command=lambda: self._export("json"))
+        btn_json.grid(row=1, column=0, padx=5, pady=5, sticky="nsew")
 
         btn_csv = tk.Button(btn_grid, text="📄 Export Standard CSV\n(Full Telemetry & Dynamics)", font=("Segoe UI", 10, "bold"), bg="#e0e0e0", relief=tk.GROOVE, padx=15, pady=10, command=lambda: self._export("csv"))
-        btn_csv.grid(row=0, column=2, padx=5, pady=5, sticky="nsew")
+        btn_csv.grid(row=1, column=1, padx=5, pady=5, sticky="nsew")
 
         btn_gpx = tk.Button(btn_grid, text="🗺️ Export GPX (1.1)\n(GPS Track & Telemetry Ext)", font=("Segoe UI", 10, "bold"), bg="#e0e0e0", relief=tk.GROOVE, padx=15, pady=10, command=lambda: self._export("gpx"))
-        btn_gpx.grid(row=1, column=0, padx=5, pady=5, sticky="nsew")
-
-        btn_kml = tk.Button(btn_grid, text="🌐 Export KML\n(3D Google Earth Track)", font=("Segoe UI", 10, "bold"), bg="#e0e0e0", relief=tk.GROOVE, padx=15, pady=10, command=lambda: self._export("kml"))
-        btn_kml.grid(row=1, column=1, padx=5, pady=5, sticky="nsew")
+        btn_gpx.grid(row=1, column=2, padx=5, pady=5, sticky="nsew")
 
         btn_grid.grid_columnconfigure(0, weight=1)
         btn_grid.grid_columnconfigure(1, weight=1)
@@ -168,8 +195,10 @@ class DDAConverterApp(tk.Tk):
         ttk.Label(batch_frame, text="Choose which file formats to generate for each .dda file in the target folder:", font=("Segoe UI", 9, "bold")).pack(anchor="w", pady=(0, 8))
 
         # Checkbox format options
+        self.batch_opt_html = tk.BooleanVar(value=True)
         self.batch_opt_rc_csv = tk.BooleanVar(value=True)
         self.batch_opt_rcz = tk.BooleanVar(value=True)
+        self.batch_opt_json = tk.BooleanVar(value=False)
         self.batch_opt_csv = tk.BooleanVar(value=True)
         self.batch_opt_gpx = tk.BooleanVar(value=False)
         self.batch_opt_kml = tk.BooleanVar(value=False)
@@ -177,20 +206,23 @@ class DDAConverterApp(tk.Tk):
         chk_box_frame = ttk.Frame(batch_frame)
         chk_box_frame.pack(fill=tk.X, pady=3)
 
+        cb0 = ttk.Checkbutton(chk_box_frame, text="🌐 Standalone HTML Visualizer (*_viewer.html)", variable=self.batch_opt_html)
+        cb0.grid(row=0, column=0, sticky="w", padx=8, pady=4)
+
         cb1 = ttk.Checkbutton(chk_box_frame, text="🏁 RaceChrono v3 CSV (*_racechrono_v3.csv)", variable=self.batch_opt_rc_csv)
-        cb1.grid(row=0, column=0, sticky="w", padx=8, pady=4)
+        cb1.grid(row=0, column=1, sticky="w", padx=8, pady=4)
 
         cb2 = ttk.Checkbutton(chk_box_frame, text="📦 RaceChrono Native Archive (*.rcz)", variable=self.batch_opt_rcz)
-        cb2.grid(row=0, column=1, sticky="w", padx=8, pady=4)
+        cb2.grid(row=0, column=2, sticky="w", padx=8, pady=4)
 
         cb3 = ttk.Checkbutton(chk_box_frame, text="📄 Standard CSV (*.csv)", variable=self.batch_opt_csv)
-        cb3.grid(row=0, column=2, sticky="w", padx=8, pady=4)
+        cb3.grid(row=1, column=0, sticky="w", padx=8, pady=4)
 
-        cb4 = ttk.Checkbutton(chk_box_frame, text="🗺️ GPX Track 1.1 (*.gpx)", variable=self.batch_opt_gpx)
-        cb4.grid(row=1, column=0, sticky="w", padx=8, pady=4)
+        cb4 = ttk.Checkbutton(chk_box_frame, text="📊 Telemetry JSON (*.json)", variable=self.batch_opt_json)
+        cb4.grid(row=1, column=1, sticky="w", padx=8, pady=4)
 
-        cb5 = ttk.Checkbutton(chk_box_frame, text="🌐 Google Earth KML (*.kml)", variable=self.batch_opt_kml)
-        cb5.grid(row=1, column=1, sticky="w", padx=8, pady=4)
+        cb5 = ttk.Checkbutton(chk_box_frame, text="🗺️ GPX Track 1.1 (*.gpx)", variable=self.batch_opt_gpx)
+        cb5.grid(row=1, column=2, sticky="w", padx=8, pady=4)
 
         # Batch Actions Toolbar
         batch_act_frame = ttk.Frame(batch_frame)
@@ -202,7 +234,7 @@ class DDAConverterApp(tk.Tk):
         btn_sel_all = ttk.Button(batch_act_frame, text="Select All", command=self._batch_select_all)
         btn_sel_all.pack(side=tk.LEFT, padx=3)
 
-        btn_sel_rc = ttk.Button(batch_act_frame, text="RaceChrono Only", command=self._batch_select_racechrono_only)
+        btn_sel_rc = ttk.Button(batch_act_frame, text="RaceChrono & HTML Only", command=self._batch_select_racechrono_only)
         btn_sel_rc.pack(side=tk.LEFT, padx=3)
 
         btn_clear_all = ttk.Button(batch_act_frame, text="Clear All", command=self._batch_clear_all)
@@ -225,22 +257,28 @@ class DDAConverterApp(tk.Tk):
             self._parse_file()
 
     def _batch_select_all(self):
+        self.batch_opt_html.set(True)
         self.batch_opt_rc_csv.set(True)
         self.batch_opt_rcz.set(True)
+        self.batch_opt_json.set(True)
         self.batch_opt_csv.set(True)
         self.batch_opt_gpx.set(True)
         self.batch_opt_kml.set(True)
 
     def _batch_select_racechrono_only(self):
+        self.batch_opt_html.set(True)
         self.batch_opt_rc_csv.set(True)
         self.batch_opt_rcz.set(True)
+        self.batch_opt_json.set(False)
         self.batch_opt_csv.set(False)
         self.batch_opt_gpx.set(False)
         self.batch_opt_kml.set(False)
 
     def _batch_clear_all(self):
+        self.batch_opt_html.set(False)
         self.batch_opt_rc_csv.set(False)
         self.batch_opt_rcz.set(False)
+        self.batch_opt_json.set(False)
         self.batch_opt_csv.set(False)
         self.batch_opt_gpx.set(False)
         self.batch_opt_kml.set(False)
@@ -333,6 +371,28 @@ class DDAConverterApp(tk.Tk):
             self._log(f"[-] Error loading file: {e}")
             messagebox.showerror("Parsing Error", f"Failed to decode DDA file:\n{e}")
 
+    def _launch_viewer(self):
+        """Generates standalone interactive HTML visualizer and opens it in default web browser."""
+        if not self.parser or not self.parser.records:
+            messagebox.showwarning("No Data", "Please load and decode a valid .dda file first.")
+            return
+
+        base = os.path.splitext(self.current_filepath)[0]
+        out_html = base + "_viewer.html"
+        out_json = base + ".json"
+
+        try:
+            # Export JSON and Standalone HTML
+            self.parser.export_json(out_json)
+            self.parser.export_html(out_html)
+            self._log(f"[+] Generated Interactive Visualizer: {out_html}")
+            
+            # Open directly in browser
+            webbrowser.open("file://" + os.path.abspath(out_html))
+        except Exception as e:
+            self._log(f"[-] Error launching viewer: {e}")
+            messagebox.showerror("Viewer Error", f"Failed to launch visualizer:\n{e}")
+
     def records_sample(self, records, max_rows=1500):
         """Evenly downsamples records for smooth UI rendering."""
         if len(records) <= max_rows:
@@ -347,6 +407,8 @@ class DDAConverterApp(tk.Tk):
 
         base_name = os.path.splitext(os.path.basename(self.current_filepath))[0]
         ext_map = {
+            "html": "_viewer.html",
+            "json": ".json",
             "csv": ".csv",
             "gpx": ".gpx",
             "kml": ".kml",
@@ -364,7 +426,11 @@ class DDAConverterApp(tk.Tk):
             return
 
         try:
-            if fmt == "csv":
+            if fmt == "html":
+                self.parser.export_html(out_f)
+            elif fmt == "json":
+                self.parser.export_json(out_f)
+            elif fmt == "csv":
                 self.parser.export_csv(out_f)
             elif fmt == "gpx":
                 self.parser.export_gpx(out_f)
@@ -383,13 +449,15 @@ class DDAConverterApp(tk.Tk):
 
     def _batch_convert(self):
         # Check active formats
+        do_html = self.batch_opt_html.get()
         do_rc_csv = self.batch_opt_rc_csv.get()
         do_rcz = self.batch_opt_rcz.get()
+        do_json = self.batch_opt_json.get()
         do_csv = self.batch_opt_csv.get()
         do_gpx = self.batch_opt_gpx.get()
         do_kml = self.batch_opt_kml.get()
 
-        if not (do_rc_csv or do_rcz or do_csv or do_gpx or do_kml):
+        if not (do_html or do_rc_csv or do_rcz or do_json or do_csv or do_gpx or do_kml):
             messagebox.showwarning("No Formats Selected", "Please select at least one output format checkbox before batch converting.")
             return
 
@@ -404,8 +472,10 @@ class DDAConverterApp(tk.Tk):
 
         success_count = 0
         formats_desc = []
+        if do_html: formats_desc.append("HTML Viewer")
         if do_rc_csv: formats_desc.append("RaceChrono v3 CSV")
         if do_rcz: formats_desc.append("RaceChrono RCZ")
+        if do_json: formats_desc.append("JSON")
         if do_csv: formats_desc.append("Standard CSV")
         if do_gpx: formats_desc.append("GPX")
         if do_kml: formats_desc.append("KML")
@@ -419,10 +489,14 @@ class DDAConverterApp(tk.Tk):
                 p.parse()
                 base = os.path.splitext(f)[0]
                 
+                if do_html:
+                    p.export_html(base + "_viewer.html")
                 if do_rc_csv:
                     p.export_racechrono_csv(base + "_racechrono_v3.csv")
                 if do_rcz:
                     p.export_racechrono_rcz(base + ".rcz")
+                if do_json:
+                    p.export_json(base + ".json")
                 if do_csv:
                     p.export_csv(base + ".csv")
                 if do_gpx:
@@ -440,19 +514,17 @@ class DDAConverterApp(tk.Tk):
 
 
 def cli_main():
-    arg_parser = argparse.ArgumentParser(description="Ducati DDA Telemetry Decoder & Exporter")
+    arg_parser = argparse.ArgumentParser(description="Ducati DDA Telemetry Decoder, Exporter & Visualizer")
     arg_parser.add_argument("file", nargs="?", help="Path to .dda file")
+    arg_parser.add_argument("--viewer", action="store_true", help="Launch interactive browser visualizer")
+    arg_parser.add_argument("--html", action="store_true", help="Export standalone HTML visualizer")
+    arg_parser.add_argument("--json", action="store_true", help="Export JSON telemetry bundle")
     arg_parser.add_argument("--csv", action="store_true", help="Export standard CSV")
     arg_parser.add_argument("--racechrono", action="store_true", help="Export RaceChrono v3 CSV")
     arg_parser.add_argument("--rcz", action="store_true", help="Export RaceChrono native .rcz archive")
     arg_parser.add_argument("--gpx", action="store_true", help="Export GPX 1.1")
     arg_parser.add_argument("--kml", action="store_true", help="Export Google Earth 3D KML")
-    arg_parser.add_argument("--out-csv", help="Explicit output path for CSV export")
-    arg_parser.add_argument("--out-racechrono", help="Explicit output path for RaceChrono v3 CSV export")
-    arg_parser.add_argument("--out-rcz", help="Explicit output path for RaceChrono RCZ export")
-    arg_parser.add_argument("--out-gpx", help="Explicit output path for GPX export")
-    arg_parser.add_argument("--out-kml", help="Explicit output path for KML export")
-    arg_parser.add_argument("--formats", help="Comma-separated format list for batch conversion (e.g. 'racechrono,rcz,csv' or 'all')")
+    arg_parser.add_argument("--formats", help="Comma-separated format list for batch conversion (e.g. 'html,racechrono,rcz,csv' or 'all')")
     arg_parser.add_argument("--batch", help="Batch convert all .dda files in directory")
 
     args = arg_parser.parse_args()
@@ -473,24 +545,27 @@ def cli_main():
         if args.formats:
             fmt_tokens = [t.strip().lower() for t in args.formats.split(",")]
             if "all" in fmt_tokens:
-                req_formats = {"racechrono", "rcz", "csv", "gpx", "kml"}
+                req_formats = {"html", "racechrono", "rcz", "json", "csv", "gpx", "kml"}
             else:
                 for t in fmt_tokens:
-                    if t in ("racechrono", "rc", "rc_csv", "racechrono_csv"): req_formats.add("racechrono")
+                    if t in ("html", "viewer"): req_formats.add("html")
+                    elif t in ("racechrono", "rc", "rc_csv", "racechrono_csv"): req_formats.add("racechrono")
                     elif t in ("rcz", "racechrono_rcz"): req_formats.add("rcz")
+                    elif t in ("json",): req_formats.add("json")
                     elif t in ("csv", "std_csv"): req_formats.add("csv")
                     elif t in ("gpx",): req_formats.add("gpx")
                     elif t in ("kml",): req_formats.add("kml")
         
+        if args.html: req_formats.add("html")
         if args.racechrono: req_formats.add("racechrono")
         if args.rcz: req_formats.add("rcz")
+        if args.json: req_formats.add("json")
         if args.csv: req_formats.add("csv")
         if args.gpx: req_formats.add("gpx")
         if args.kml: req_formats.add("kml")
 
-        # Default formats if none explicitly specified
         if not req_formats:
-            req_formats = {"racechrono", "rcz", "csv"}
+            req_formats = {"html", "racechrono", "rcz", "csv"}
 
         print(f"Found {len(files)} .dda files in {folder}.")
         print(f"Selected Output Formats: {', '.join(sorted(req_formats))}")
@@ -501,10 +576,14 @@ def cli_main():
                 p = DDAParser(f)
                 p.parse()
                 base = os.path.splitext(f)[0]
+                if "html" in req_formats:
+                    p.export_html(base + "_viewer.html")
                 if "racechrono" in req_formats:
                     p.export_racechrono_csv(base + "_racechrono_v3.csv")
                 if "rcz" in req_formats:
                     p.export_racechrono_rcz(base + ".rcz")
+                if "json" in req_formats:
+                    p.export_json(base + ".json")
                 if "csv" in req_formats:
                     p.export_csv(base + ".csv")
                 if "gpx" in req_formats:
@@ -532,41 +611,19 @@ def cli_main():
         print(f"    GPS Fixes: {p.stats.get('gps_fixes', 0):,}")
 
         base = os.path.splitext(args.file)[0]
-        has_specific_out = (args.out_csv or args.out_racechrono or args.out_rcz or args.out_gpx or args.out_kml)
-        has_flag = (args.csv or args.racechrono or args.rcz or args.gpx or args.kml)
+        p.export_json(base + ".json")
+        p.export_html(base + "_viewer.html")
+        p.export_racechrono_csv(base + "_racechrono_v3.csv")
+        p.export_racechrono_rcz(base + ".rcz")
+        p.export_csv(base + ".csv")
+        p.export_gpx(base + ".gpx")
+        p.export_kml(base + ".kml")
+        print(f"  [+] Generated interactive viewer: {base}_viewer.html")
+        print(f"  [+] Generated export suite (.json, _racechrono_v3.csv, .rcz, .csv, .gpx, .kml)")
 
-        if args.out_csv or (args.csv and not has_specific_out):
-            out_p = args.out_csv or (base + ".csv")
-            p.export_csv(out_p)
-            print(f"  [+] Saved CSV: {out_p}")
-
-        if args.out_racechrono or (args.racechrono and not has_specific_out):
-            out_p = args.out_racechrono or (base + "_racechrono_v3.csv")
-            p.export_racechrono_csv(out_p)
-            print(f"  [+] Saved RaceChrono v3 CSV: {out_p}")
-
-        if args.out_rcz or (args.rcz and not has_specific_out):
-            out_p = args.out_rcz or (base + ".rcz")
-            p.export_racechrono_rcz(out_p)
-            print(f"  [+] Saved RaceChrono Native RCZ: {out_p}")
-
-        if args.out_gpx or (args.gpx and not has_specific_out):
-            out_p = args.out_gpx or (base + ".gpx")
-            p.export_gpx(out_p)
-            print(f"  [+] Saved GPX: {out_p}")
-
-        if args.out_kml or (args.kml and not has_specific_out):
-            out_p = args.out_kml or (base + ".kml")
-            p.export_kml(out_p)
-            print(f"  [+] Saved KML: {out_p}")
-
-        if not (has_specific_out or has_flag):
-            p.export_racechrono_csv(base + "_racechrono_v3.csv")
-            p.export_racechrono_rcz(base + ".rcz")
-            p.export_csv(base + ".csv")
-            p.export_gpx(base + ".gpx")
-            p.export_kml(base + ".kml")
-            print(f"  [+] Generated default export suite (_racechrono_v3.csv, .rcz, .csv, .gpx, .kml)")
+        if args.viewer:
+            print("  [*] Launching interactive telemetry viewer in browser...")
+            webbrowser.open("file://" + os.path.abspath(base + "_viewer.html"))
         return
 
     # Otherwise launch GUI

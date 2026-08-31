@@ -1,0 +1,137 @@
+{
+  "version": "1.0",
+  "preferences": {
+    "unitMph": true,
+    "currentLayer": "dark",
+    "heatmapMode": "speed",
+    "smoothingLevel": "med",
+    "showSpeedExtrema": true,
+    "followBike": true,
+    "playbackSpeed": 1.0,
+    "motogp": {
+      "showCard": true,
+      "riderName": "M FISCHER",
+      "bikeName": "Panigale V4 R",
+      "riderNum": "14",
+      "tyreFront": "M",
+      "tyreRear": "S",
+      "badgeColor": "#6f2dbd",
+      "bgFormat": "transparent",
+      "fps": 60,
+      "scale": 1.5
+    },
+    "channels": {
+      "speedA": true,
+      "speedB": true,
+      "rpm": true,
+      "tps": true,
+      "lean": true,
+      "dtc": true,
+      "gear": true
+    }
+  },
+  "tracks": {
+    "sonoma_raceway": {
+      "id": "sonoma_raceway",
+      "name": "Sonoma Raceway",
+      "location": "Sonoma, CA",
+      "center_lat": 38.161580,
+      "center_lon": -122.454640,
+      "radius_m": 3500,
+      "gates": [
+        {
+          "id": "sf",
+          "name": "Start / Finish",
+          "type": "sf",
+          "lat": 38.161580,
+          "lon": -122.454640,
+          "bearing": 310.0
+        },
+        {
+          "id": "s1",
+          "name": "Sector 1 (Carousel)",
+          "type": "split",
+          "lat": 38.164320,
+          "lon": -122.458900,
+          "bearing": 265.0
+        },
+        {
+          "id": "s2",
+          "name": "Sector 2 (Esses)",
+          "type": "split",
+          "lat": 38.158210,
+          "lon": -122.457800,
+          "bearing": 180.0
+        }
+      ]
+    },
+    "laguna_seca": {
+      "id": "laguna_seca",
+      "name": "WeatherTech Raceway Laguna Seca",
+      "location": "Monterey, CA",
+      "center_lat": 36.584444,
+      "center_lon": -121.753611,
+      "radius_m": 3500,
+      "gates": [
+        {
+          "id": "sf",
+          "name": "Start / Finish",
+          "type": "sf",
+          "lat": 36.585500,
+          "lon": -121.754000,
+          "bearing": 240.0
+        },
+        {
+          "id": "s1",
+          "name": "Sector 1 (Andretti Hairpin)",
+          "type": "split",
+          "lat": 36.586200,
+          "lon": -121.758500,
+          "bearing": 135.0
+        },
+        {
+          "id": "s2",
+          "name": "Sector 2 (Corkscrew)",
+          "type": "split",
+          "lat": 36.582800,
+          "lon": -121.751200,
+          "bearing": 210.0
+        }
+      ]
+    },
+    "thunderhill_east": {
+      "id": "thunderhill_east",
+      "name": "Thunderhill Raceway Park (East 3-Mile)",
+      "location": "Willows, CA",
+      "center_lat": 39.539700,
+      "center_lon": -122.332500,
+      "radius_m": 4000,
+      "gates": [
+        {
+          "id": "sf",
+          "name": "Start / Finish",
+          "type": "sf",
+          "lat": 39.537200,
+          "lon": -122.331500,
+          "bearing": 355.0
+        },
+        {
+          "id": "s1",
+          "name": "Sector 1 (The Cyclone)",
+          "type": "split",
+          "lat": 39.544100,
+          "lon": -122.336200,
+          "bearing": 270.0
+        },
+        {
+          "id": "s2",
+          "name": "Sector 2 (Turn 9/10)",
+          "type": "split",
+          "lat": 39.538500,
+          "lon": -122.337800,
+          "bearing": 160.0
+        }
+      ]
+    }
+  }
+}

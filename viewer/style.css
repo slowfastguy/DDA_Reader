@@ -1,0 +1,2102 @@
+/* =========================================================
+   Ducati DDA Reader Pro - Dark Racing Theme & Dashboard Styles
+   Optimized for 1440p 16:9 Desktop & MacBook 16:10 Displays
+   ========================================================= */
+
+:root {
+  --bg-dark: #0b0d12;
+  --bg-panel: #141720;
+  --bg-card: #1b1f2b;
+  --bg-card-hover: #222838;
+  
+  --border-color: #262b3a;
+  --border-light: #383f54;
+  
+  --text-main: #f0f3fa;
+  --text-dim: #9aa2b6;
+  --text-muted: #62697d;
+  
+  --ducati-red: #e10600;
+  --ducati-red-glow: rgba(225, 6, 0, 0.4);
+  --accent-cyan: #00e5ff;
+  --accent-green: #00e676;
+  --accent-yellow: #ffd600;
+  --accent-orange: #ff8c00;
+  --accent-pink: #ff0055;
+  --accent-purple: #6f2dbd;
+  
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Outfit', var(--font-sans);
+  --font-mono: 'JetBrains Mono', monospace;
+  
+  --radius-sm: 5px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body.dark-theme {
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  overflow: hidden;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Typography Utilities */
+.text-red { color: var(--ducati-red); }
+.text-cyan { color: var(--accent-cyan); }
+.text-green { color: var(--accent-green); }
+.text-orange { color: var(--accent-orange); }
+.text-yellow { color: var(--accent-yellow); }
+.text-purple { color: var(--accent-purple); }
+.val-mono { font-family: var(--font-mono); font-weight: 700; }
+
+/* =========================================================
+   Header Banner (Clean & Streamlined)
+   ========================================================= */
+.app-header {
+  height: 50px;
+  background: #0f1218;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  z-index: 100;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.logo-badge {
+  display: flex;
+  align-items: center;
+  background: var(--ducati-red);
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-display);
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  box-shadow: 0 0 12px var(--ducati-red-glow);
+}
+
+.brand-ducati {
+  color: #ffffff;
+  margin-right: 5px;
+  font-size: 13px;
+}
+
+.brand-dda {
+  background: #ffffff;
+  color: #000000;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 10px;
+}
+
+.track-title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.1;
+}
+
+.session-submeta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 1px;
+}
+
+.badge {
+  font-size: 10.5px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+.badge-rider {
+  background: rgba(0, 229, 255, 0.12);
+  color: var(--accent-cyan);
+  font-weight: 600;
+}
+
+.badge-best-lap {
+  background: rgba(255, 214, 0, 0.15);
+  color: var(--accent-yellow);
+  font-weight: 700;
+  border: 1px solid rgba(255, 214, 0, 0.3);
+}
+
+.badge-opt-lap {
+  background: rgba(213, 0, 249, 0.15);
+  color: #d500f9;
+  font-weight: 700;
+  border: 1px solid rgba(213, 0, 249, 0.3);
+}
+
+.indicator-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-green);
+  box-shadow: 0 0 8px var(--accent-green);
+  margin-left: 4px;
+}
+
+.status-text {
+  font-size: 9.5px;
+  font-weight: 700;
+}
+
+/* Header Buttons & Compare Bar */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.compare-controls-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #0d1017;
+  border: 1px solid var(--accent-cyan);
+  padding: 3px 9px;
+  border-radius: var(--radius-md);
+}
+
+.compare-select-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+}
+.lbl-lap-a { color: var(--accent-cyan); }
+.lbl-lap-b { color: var(--accent-yellow); }
+
+.vs-badge {
+  font-size: 9.5px;
+  font-weight: 900;
+  color: var(--text-muted);
+}
+
+.delta-stat-pill {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--text-dim);
+  border-left: 1px solid var(--border-color);
+  padding-left: 8px;
+}
+
+.btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.btn-primary {
+  background: var(--ducati-red);
+  color: #ffffff;
+}
+.btn-primary:hover {
+  background: #ff1a14;
+  box-shadow: 0 0 10px var(--ducati-red-glow);
+}
+
+.btn-secondary {
+  background: var(--bg-card);
+  border-color: var(--border-color);
+  color: var(--text-main);
+}
+.btn-secondary:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-light);
+}
+
+.btn-compare {
+  background: #192335;
+  border-color: #3b4e6b;
+  color: var(--accent-cyan);
+}
+.btn-compare:hover, .btn-compare.active {
+  background: #00e5ff;
+  color: #000000;
+  font-weight: 700;
+  border-color: #00e5ff;
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.4);
+}
+
+.btn-motogp {
+  background: #201733;
+  border-color: #6f2dbd;
+  color: #e2b6ff;
+}
+.btn-motogp:hover, .btn-motogp.active {
+  background: #6f2dbd;
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(111, 45, 189, 0.5);
+}
+
+.btn-export-video {
+  background: linear-gradient(135deg, #1b263b 0%, #0d1b2a 100%);
+  border-color: #415a77;
+  color: #e0e1dd;
+}
+.btn-export-video:hover {
+  background: #e10600;
+  border-color: #e10600;
+  color: #ffffff;
+  box-shadow: 0 0 12px var(--ducati-red-glow);
+}
+
+.btn-sm {
+  padding: 4px 8px;
+  font-size: 10.5px;
+}
+
+.btn-lg {
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.btn-danger-sm {
+  background: rgba(255, 0, 85, 0.15);
+  border: 1px solid var(--accent-pink);
+  color: var(--accent-pink);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 10.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-danger-sm:hover {
+  background: var(--accent-pink);
+  color: #ffffff;
+}
+
+/* =========================================================
+   Main Workspace Grid Layout (1440p / 16:10 MacBook Optimized)
+   ========================================================= */
+.workspace-grid {
+  display: grid;
+  grid-template-columns: 1fr 430px;
+  grid-template-rows: 1fr 270px 50px;
+  flex: 1;
+  height: calc(100vh - 50px);
+  gap: 8px;
+  padding: 8px;
+  background: var(--bg-dark);
+  overflow: hidden;
+}
+
+/* Generic Panel Styling */
+.panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.panel-header {
+  height: 36px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+}
+
+.panel-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Controls */
+.control-select, .control-select-sm {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+}
+
+.control-input, .control-input-sm {
+  background: #11141c;
+  border: 1px solid var(--border-color);
+  color: #ffffff;
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  outline: none;
+}
+.control-input:focus, .control-input-sm:focus {
+  border-color: var(--accent-cyan);
+}
+
+.btn-icon {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-dim);
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-icon:hover, .btn-icon.active {
+  color: #ffffff;
+  border-color: var(--border-light);
+  background: var(--bg-card-hover);
+}
+.btn-icon.active {
+  color: var(--ducati-red);
+  border-color: var(--ducati-red);
+}
+
+/* Gate & Extrema Tools */
+.gate-edit-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 4px;
+  border-right: 1px solid var(--border-color);
+  padding-right: 6px;
+}
+
+.btn-tool, .btn-tool-sm {
+  background: #1e2230;
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-tool:hover, .btn-tool.active {
+  background: var(--ducati-red);
+  color: #ffffff;
+  border-color: var(--ducati-red);
+}
+
+.btn-tool-sm {
+  color: var(--text-dim);
+  font-weight: 500;
+}
+.btn-tool-sm:hover {
+  background: var(--bg-card-hover);
+  color: #ffffff;
+}
+
+/* =========================================================
+   Panel 1: Interactive Map (Left Top)
+   ========================================================= */
+.panel-map {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.map-controls {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.map-container {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  background: #090b10;
+  z-index: 1;
+}
+
+.map-legend {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  background: rgba(18, 20, 28, 0.90);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border-color);
+  padding: 5px 8px;
+  border-radius: var(--radius-md);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.legend-scale {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.gradient-bar {
+  width: 90px;
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #00e5ff 0%, #00e676 25%, #ffd600 50%, #ff9100 75%, #ff0055 100%);
+}
+
+.legend-hint {
+  font-size: 8px;
+  color: var(--text-muted);
+}
+
+/* =========================================================
+   Authentic MotoGP Broadcast Lap Timer Card Component
+   ========================================================= */
+.motogp-card {
+  position: absolute;
+  top: 48px;
+  left: 12px;
+  width: 280px;
+  height: 92px;
+  box-sizing: border-box;
+  background: rgba(0, 0, 0, 0.80);
+  backdrop-filter: blur(10px);
+  border: none;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
+  padding: 0;
+  z-index: 20;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  user-select: none;
+  cursor: grab;
+  overflow: hidden;
+}
+
+.motogp-header {
+  height: 26px;
+  background: #000000;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 0 0 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.motogp-rider-info {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  max-width: calc(100% - 38px);
+}
+
+.motogp-rider-name {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.8px;
+  color: #ffffff;
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.motogp-bike-name {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 400;
+  color: #c0c6d8;
+  margin-left: 6px;
+  white-space: nowrap;
+  opacity: 0.85;
+  text-transform: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1;
+}
+
+.motogp-rider-number {
+  height: 24px;
+  padding: 0 5px;
+  border-radius: 4px 0 0 4px;
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  color: #ffffff;
+  min-width: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  box-shadow: -2px 0 6px rgba(0, 0, 0, 0.35);
+  box-sizing: border-box;
+}
+
+.motogp-body {
+  height: 34px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 10px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.motogp-time-digits {
+  font-family: var(--font-mono);
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.motogp-delta-display {
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  font-weight: 800;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 5-Second Split Gate Crossing: Timer shrinks on left, Delta enlarges on right */
+.motogp-body.motogp-gate-highlight .motogp-time-digits {
+  font-size: 14px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.70) !important;
+  text-shadow: none !important;
+}
+
+.motogp-body.motogp-gate-highlight .motogp-delta-display {
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+}
+
+/* MotoGP Delta & Timer Colors */
+.motogp-text-red { color: #ff1744; text-shadow: 0 0 10px rgba(255, 23, 68, 0.5); }
+.motogp-text-orange { color: #ff8c00; text-shadow: 0 0 10px rgba(255, 140, 0, 0.4); }
+.motogp-text-grey { color: #8e94a5; }
+.motogp-text-white { color: #ffffff; }
+
+.motogp-footer {
+  height: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px 6px 10px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  position: relative;
+}
+
+.motogp-footer-delta {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 800;
+  color: #ffffff;
+  flex: 1;
+  text-align: center;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: -0.2px;
+}
+
+/* MotoGP Finished Lap Display (Image 3 layout) */
+.motogp-card.motogp-lap-finished .motogp-body {
+  justify-content: center;
+  align-items: center;
+  height: 38px;
+}
+
+.motogp-card.motogp-lap-finished .motogp-time-digits {
+  font-size: 30px;
+  font-weight: 900;
+  letter-spacing: -0.8px;
+  text-align: center;
+  width: 100%;
+  justify-content: center;
+}
+
+.motogp-card.motogp-lap-finished .motogp-delta-display {
+  display: none !important;
+}
+
+.motogp-card.motogp-lap-finished .motogp-sectors-track {
+  display: none !important;
+}
+
+.motogp-card.motogp-lap-finished .motogp-footer-delta {
+  display: flex !important;
+}
+
+/* MotoGP Fastest Lap Banner Overlay (Wipe in & Pan down) */
+.motogp-fastest-banner {
+  position: absolute;
+  top: 26px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #e10600;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  z-index: 10;
+  transition: clip-path 0.4s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.motogp-fastest-slider {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  height: 66px;
+  width: 100%;
+  transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.motogp-fastest-word {
+  height: 66px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: 1.5px;
+  line-height: 1;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.motogp-tyre-badge {
+  display: flex;
+  gap: 3px;
+}
+
+.motogp-pill-tyre {
+  min-width: 17px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-sans);
+  font-size: 7.5px;
+  font-weight: 900;
+  color: #ffffff;
+  background: #1e222d;
+  text-transform: uppercase;
+}
+
+/* Sector Segment Lines & Live Tic Indicator */
+.motogp-sectors-track {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  position: relative;
+  height: 8px;
+}
+
+.motogp-sec-segment {
+  flex: 1;
+  height: 4.5px;
+  border-radius: 2px;
+  background: #2a2e3c;
+  transition: background 0.15s ease;
+}
+
+.motogp-sec-pending { background: #2a2e3c; }
+.motogp-sec-red { background: #ff1744; box-shadow: 0 0 8px #ff1744; }
+.motogp-sec-orange { background: #ff8c00; box-shadow: 0 0 8px #ff8c00; }
+.motogp-sec-grey { background: #8e94a5; }
+
+.motogp-tic-indicator {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 3.5px;
+  background: #ffffff;
+  border-radius: 1.5px;
+  box-shadow: 0 0 8px #ffffff;
+  pointer-events: none;
+  transform: translateX(-50%);
+  transition: left 0.05s linear;
+}
+
+/* Speed Extrema Map Marker Styling */
+.speed-extrema-pill {
+  background: rgba(17, 19, 26, 0.94);
+  backdrop-filter: blur(6px);
+  border: 2px solid;
+  border-radius: 12px;
+  padding: 1px 6px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  transition: transform 0.15s ease;
+}
+.speed-extrema-pill:hover {
+  transform: scale(1.2);
+  z-index: 1000 !important;
+}
+
+.speed-extrema-min {
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+}
+.speed-extrema-max {
+  border-color: #ff0055;
+  color: #ff0055;
+}
+
+/* Custom Leaflet Motorcycle Chevron Markers */
+.bike-marker-icon {
+  background: transparent;
+  border: none;
+}
+
+.bike-marker-pulse {
+  width: 26px;
+  height: 26px;
+  background: rgba(225, 6, 0, 0.85);
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 16px var(--ducati-red), 0 0 24px var(--ducati-red);
+}
+
+.bike-marker-ghost {
+  width: 22px;
+  height: 22px;
+  background: rgba(255, 214, 0, 0.85);
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 14px var(--accent-yellow);
+}
+
+.bike-arrow-svg {
+  display: block;
+  transform-origin: center center;
+}
+
+/* Custom Gate Markers on Map */
+.gate-label-badge {
+  background: #11131a;
+  border: 2px solid #ffffff;
+  color: #ffffff;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.8);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.gate-badge-sf { border-color: #ff0033; color: #ff0033; background: #ffffff; }
+.gate-badge-s1 { border-color: var(--accent-cyan); color: var(--accent-cyan); }
+.gate-badge-s2 { border-color: var(--accent-yellow); color: var(--accent-yellow); }
+.gate-badge-s3 { border-color: var(--accent-orange); color: var(--accent-orange); }
+
+/* Gate Popup */
+.gate-popup-card {
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 190px;
+}
+.gate-popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 5px;
+}
+.gate-popup-title { font-size: 11px; font-weight: 800; color: #ffffff; }
+.gate-heading-text { font-family: var(--font-mono); font-size: 10px; color: var(--accent-cyan); }
+.gate-popup-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.btn-popup-action {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s;
+}
+.btn-popup-action:hover { background: var(--bg-card-hover); border-color: var(--border-light); }
+.btn-popup-danger {
+  background: rgba(255, 0, 85, 0.15);
+  border-color: var(--accent-pink);
+  color: var(--accent-pink);
+  grid-column: 1 / span 2;
+}
+.btn-popup-danger:hover { background: var(--accent-pink); color: #ffffff; }
+
+.gate-toast {
+  position: absolute;
+  top: 44px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(225, 6, 0, 0.92);
+  backdrop-filter: blur(8px);
+  color: #ffffff;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 4px 16px rgba(225, 6, 0, 0.5);
+  z-index: 1000;
+}
+
+/* =========================================================
+   Panel 2: Synchronized Charts with Toggleable Channels (Left Bottom)
+   ========================================================= */
+.panel-charts {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.chart-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+}
+
+.channel-toggle-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-dim);
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s;
+}
+
+.channel-toggle-btn .ch-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--c);
+  opacity: 0.35;
+  transition: opacity 0.15s;
+}
+
+.channel-toggle-btn.active {
+  color: #ffffff;
+  border-color: var(--border-light);
+  background: var(--bg-card-hover);
+}
+
+.channel-toggle-btn.active .ch-dot {
+  opacity: 1;
+  box-shadow: 0 0 6px var(--c);
+}
+
+.channel-toggle-btn.channel-off {
+  opacity: 0.4;
+  text-decoration: line-through;
+}
+
+.btn-xs {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-dim);
+  font-size: 9px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.btn-xs:hover { background: var(--bg-card-hover); color: #ffffff; }
+
+.charts-scroll-area {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  padding: 3px 8px 5px 8px;
+}
+
+.canvas-wrapper {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+#telemetry-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.chart-cursor-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1.5px;
+  background: #ffffff;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.9);
+  pointer-events: none;
+  display: none;
+  z-index: 10;
+}
+
+.chart-tooltip {
+  position: absolute;
+  top: 3px;
+  background: rgba(17, 19, 26, 0.94);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 4px 7px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: #ffffff;
+  pointer-events: none;
+  display: none;
+  z-index: 20;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  white-space: nowrap;
+}
+
+/* =========================================================
+   Panel 3: "DATA" Sidebar Panel (Right Column Full Height)
+   ========================================================= */
+.panel-data {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: flex;
+  flex-direction: column;
+}
+
+.data-panel-tag {
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--accent-cyan);
+  background: rgba(0, 229, 255, 0.1);
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.data-body-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-light) transparent;
+}
+.data-body-scroll::-webkit-scrollbar { width: 5px; }
+.data-body-scroll::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+
+.data-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+}
+
+.card-header-sm {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.card-title-text {
+  color: var(--text-dim);
+}
+
+.lap-card-badges {
+  display: flex;
+  gap: 5px;
+}
+
+/* Lap List Table Styling */
+.lap-table-container {
+  max-height: 145px;
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius-sm);
+  background: #12151e;
+}
+
+.lap-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10px;
+  text-align: left;
+}
+
+.lap-table th {
+  background: #171b26;
+  color: var(--text-muted);
+  font-weight: 800;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  font-size: 8.5px;
+}
+
+.lap-table td {
+  padding: 4px 6px;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.lap-table tr {
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.lap-table tr:hover {
+  background: var(--bg-card-hover);
+  color: #ffffff;
+}
+
+.lap-table tr.active-lap-row {
+  background: rgba(225, 6, 0, 0.2);
+  border-left: 3px solid var(--ducati-red);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.lap-table tr.best-lap-row {
+  color: var(--accent-yellow);
+}
+
+.lap-table tr.best-lap-row.active-lap-row {
+  background: rgba(255, 214, 0, 0.15);
+  border-left: 3px solid var(--accent-yellow);
+}
+
+/* Live Lap & Sector Timing Card */
+.timing-card {
+  border-color: rgba(0, 229, 255, 0.25);
+  background: linear-gradient(180deg, #181d28 0%, #131620 100%);
+}
+
+.timing-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.lap-timer-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.lap-timer-digits {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.lap-time-big {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: -0.5px;
+}
+
+.lap-time-target {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+.lap-badge-status {
+  background: rgba(0, 230, 118, 0.15);
+  border: 1px solid var(--accent-green);
+  color: var(--accent-green);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+/* Sector Splits Display */
+.sector-timing-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+
+.sector-badge {
+  background: #11141c;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 3px 5px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: all 0.15s ease;
+}
+
+.sector-badge.active-sector {
+  border-color: var(--accent-cyan);
+  background: rgba(0, 229, 255, 0.12);
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.3);
+}
+
+.sector-badge.is-best-sec .sec-val {
+  color: var(--accent-purple);
+  font-weight: 800;
+}
+
+.sec-lbl {
+  font-size: 7.5px;
+  font-weight: 800;
+  color: var(--text-muted);
+}
+.sec-val {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--accent-cyan);
+}
+
+/* Lean Angle Visualizer Card */
+.value-highlight {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--accent-cyan);
+}
+
+.lean-visualizer-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 80px;
+}
+
+.lean-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.lean-peak-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 8.5px;
+  color: var(--text-dim);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 3px;
+  margin-top: 2px;
+}
+
+/* Tachometer Bar & LEDs */
+.tach-container {
+  margin-bottom: 6px;
+}
+
+.tach-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 2px;
+}
+
+.lbl-dim {
+  font-size: 7.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.rpm-display {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 800;
+  color: #ffffff;
+}
+.rpm-display small { font-size: 8.5px; color: var(--text-dim); }
+
+.shift-lights {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 2px;
+  margin-bottom: 3px;
+}
+
+.led {
+  height: 3.5px;
+  border-radius: 2px;
+  background: #2a2e3d;
+  transition: all 0.08s;
+}
+
+.led.led-active-green { background: #00e676; box-shadow: 0 0 8px #00e676; }
+.led.led-active-yellow { background: #ffd600; box-shadow: 0 0 8px #ffd600; }
+.led.led-active-red { background: #ff0033; box-shadow: 0 0 10px #ff0033; }
+.led.led-active-blue { background: #00e5ff; box-shadow: 0 0 12px #00e5ff; }
+
+.tach-bar-bg {
+  width: 100%;
+  height: 7px;
+  background: #11141c;
+  border-radius: 3px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+.tach-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #00e676 0%, #ffd600 60%, #ff9100 80%, #e10600 100%);
+  border-radius: 2px;
+  transition: width 0.05s ease;
+}
+
+.tach-scale {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 7.5px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+/* Speed & Gear Big Displays */
+.speed-gear-row {
+  display: grid;
+  grid-template-columns: 1fr 75px 50px;
+  gap: 6px;
+  align-items: center;
+}
+
+.speed-box {
+  display: flex;
+  flex-direction: column;
+}
+
+.speed-number-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+}
+
+.speed-big {
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 900;
+  color: #ffffff;
+  line-height: 1;
+  letter-spacing: -1px;
+}
+
+.speed-unit {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--ducati-red);
+}
+
+.gear-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #151821;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+}
+
+.gear-big {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 900;
+  color: var(--accent-yellow);
+  line-height: 1;
+}
+
+.tps-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.tps-meter-wrap {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 2px;
+}
+
+.tps-meter-bg {
+  width: 9px;
+  height: 32px;
+  background: #11141c;
+  border: 1px solid var(--border-color);
+  border-radius: 2px;
+  position: relative;
+  display: flex;
+  flex-direction: column-reverse;
+  overflow: hidden;
+}
+
+.tps-meter-fill {
+  width: 100%;
+  background: linear-gradient(0deg, #00e676, #ffd600);
+  box-shadow: 0 0 8px rgba(0, 230, 118, 0.4);
+}
+
+.tps-numeric {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--accent-green);
+  min-width: 22px;
+}
+
+/* DTC Cards Grid */
+.dtc-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.dtc-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.dtc-lbl {
+  font-size: 7.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.dtc-pill {
+  background: #141720;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 1px 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-align: center;
+  transition: all 0.1s;
+}
+
+.dtc-pill.dtc-active {
+  background: rgba(255, 214, 0, 0.15);
+  border-color: var(--accent-yellow);
+  color: var(--accent-yellow);
+  box-shadow: 0 0 10px rgba(255, 214, 0, 0.3);
+}
+
+/* =========================================================
+   MotoGP Video Exporter Modal Styles
+   ========================================================= */
+.modal-video-card {
+  width: 760px !important;
+  max-width: 95vw !important;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.overlay-preview-container {
+  background: #090a0f;
+  background-image: radial-gradient(circle, #1a202c 1px, transparent 1px);
+  background-size: 16px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 20px 24px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 14px;
+  min-height: 120px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.motogp-preview-card {
+  position: static;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.8);
+}
+
+.video-config-grid {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 16px;
+  margin-bottom: 14px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.video-config-col {
+  background: #11141c;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.config-section-title {
+  font-size: 11px;
+  font-weight: 800;
+  color: #ffffff;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 5px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+.form-row label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+.form-row .control-input,
+.form-row .control-select {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.form-row-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.form-row-grid .form-row {
+  min-width: 0;
+}
+.form-row-grid .control-input-sm {
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.color-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.color-picker-input {
+  width: 34px;
+  height: 28px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  background: transparent;
+  padding: 1px;
+  box-sizing: border-box;
+}
+
+.palette-presets {
+  display: flex;
+  gap: 6px;
+}
+
+.color-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  transition: transform 0.1s;
+}
+.color-dot:hover {
+  transform: scale(1.25);
+  border-color: #ffffff;
+}
+
+.scale-fps-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.scale-fps-row .control-select-sm {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.video-render-action-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.render-progress-bar {
+  width: 100%;
+  height: 26px;
+  background: #11141c;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.render-progress-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background: linear-gradient(90deg, #ff0055 0%, var(--ducati-red) 100%);
+  transition: width 0.1s linear;
+  box-shadow: 0 0 10px rgba(225, 6, 0, 0.5);
+}
+
+.render-progress-text {
+  position: relative;
+  z-index: 2;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #ffffff;
+  width: 100%;
+  text-align: center;
+}
+
+.render-btn-row {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+}
+
+/* =========================================================
+   Settings & Track Gate Library Modal Styles
+   ========================================================= */
+.modal-settings-card {
+  width: 650px;
+  max-width: 95vw;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ffffff;
+}
+
+.settings-tabs-nav {
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid var(--border-color);
+  padding: 0 14px 8px 14px;
+}
+
+.settings-tab-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-dim);
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.settings-tab-btn:hover {
+  background: var(--bg-card-hover);
+  color: #ffffff;
+}
+
+.settings-tab-btn.active {
+  background: var(--ducati-red);
+  color: #ffffff;
+  border-color: var(--ducati-red);
+}
+
+.settings-modal-body {
+  padding: 14px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.settings-tab-content {
+  display: none;
+}
+.settings-tab-content.active {
+  display: block;
+}
+
+.tab-desc {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+
+/* Track Library Tab */
+.track-lib-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.tracks-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.track-item-card {
+  background: #11141c;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 0.15s;
+}
+.track-item-card:hover {
+  border-color: var(--border-light);
+}
+
+.track-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.track-item-title {
+  font-size: 12px;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.track-item-loc {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-left: 6px;
+}
+
+.gate-chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.gate-chip {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 9.5px;
+  font-family: var(--font-mono);
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.gate-chip-sf {
+  border-color: var(--ducati-red);
+  color: #ff4d4d;
+}
+
+.track-item-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  padding-top: 6px;
+}
+
+/* Preferences Tab */
+.pref-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.pref-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.pref-item label {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+/* Backup Tab */
+.backup-cards-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.backup-card {
+  background: #11141c;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.backup-card h4 {
+  font-size: 12px;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.backup-card p {
+  font-size: 10.5px;
+  color: var(--text-dim);
+  line-height: 1.4;
+  flex: 1;
+}
+
+.backup-card code {
+  background: var(--bg-card);
+  color: var(--accent-cyan);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+}
+
+.import-actions-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+/* =========================================================
+   Transport & Scrubbing Bar (Bottom Full Width)
+   ========================================================= */
+.transport-bar {
+  grid-column: 1 / span 2;
+  grid-row: 3;
+  background: #0f1218;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+}
+
+.transport-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-transport {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-transport:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-light);
+}
+
+.btn-play {
+  background: var(--ducati-red);
+  color: #ffffff;
+  border: none;
+  box-shadow: 0 0 12px var(--ducati-red-glow);
+}
+.btn-play:hover { background: #ff1a14; }
+
+.speed-selector {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-left: 3px;
+}
+
+.transport-center {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  max-width: 580px;
+  margin: 0 14px;
+}
+
+.time-readout {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #ffffff;
+  min-width: 55px;
+}
+
+.time-readout-dim {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  min-width: 50px;
+}
+
+.timeline-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 5px;
+  border-radius: 3px;
+  background: #252a3a;
+  outline: none;
+  cursor: pointer;
+}
+
+.timeline-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--ducati-red);
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 8px var(--ducati-red);
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+.timeline-slider::-webkit-slider-thumb:hover { transform: scale(1.25); }
+
+.transport-right {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+/* =========================================================
+   Modal & Drag/Drop Overlays
+   ========================================================= */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  width: 440px;
+  max-width: 95vw;
+  padding: 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+  box-sizing: border-box;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.btn-close {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.shortcut-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 11px;
+}
+
+kbd {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--accent-cyan);
+}
+
+.drop-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(13, 15, 20, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.drop-box {
+  border: 2px dashed var(--ducati-red);
+  border-radius: var(--radius-lg);
+  padding: 35px 55px;
+  text-align: center;
+  background: rgba(225, 6, 0, 0.04);
+}
+
+.drop-box h2 {
+  font-family: var(--font-display);
+  font-size: 17px;
+  margin: 8px 0 4px 0;
+}
+
+.drop-box p {
+  color: var(--text-dim);
+  font-size: 11.5px;
+}
