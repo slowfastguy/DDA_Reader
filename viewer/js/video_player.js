@@ -69,33 +69,49 @@ function initVideoPlayer() {
     });
   }
 
-  // View Mode Switcher
-  if (dom.btnVideoViewMap) {
-    dom.btnVideoViewMap.addEventListener('click', () => setVideoViewMode('map-only'));
-  }
-  if (dom.btnVideoViewSplit) {
-    dom.btnVideoViewSplit.addEventListener('click', () => setVideoViewMode('split'));
-  }
-  if (dom.btnVideoViewVideo) {
-    dom.btnVideoViewVideo.addEventListener('click', () => setVideoViewMode('video-only'));
-  }
-  if (dom.btnVideoViewPip) {
-    dom.btnVideoViewPip.addEventListener('click', () => setVideoViewMode('pip'));
-  }
+  // View Mode Switcher (Map header, Video header, and top dropdown menu)
+  document.querySelectorAll('[data-vmode]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const mode = btn.dataset.vmode;
+      if (mode) setVideoViewMode(mode);
+    });
+  });
+  if (dom.btnVideoViewMap) dom.btnVideoViewMap.addEventListener('click', () => setVideoViewMode('map-only'));
+  if (dom.btnVideoViewSplit) dom.btnVideoViewSplit.addEventListener('click', () => setVideoViewMode('split'));
+  if (dom.btnVideoViewVideo) dom.btnVideoViewVideo.addEventListener('click', () => setVideoViewMode('video-only'));
+  if (dom.btnVideoViewPip) dom.btnVideoViewPip.addEventListener('click', () => setVideoViewMode('pip'));
+
+  if (dom.btnMenuViewMap) dom.btnMenuViewMap.addEventListener('click', () => setVideoViewMode('map-only'));
+  if (dom.btnMenuViewSplit) dom.btnMenuViewSplit.addEventListener('click', () => setVideoViewMode('split'));
+  if (dom.btnMenuViewVideo) dom.btnMenuViewVideo.addEventListener('click', () => setVideoViewMode('video-only'));
+  if (dom.btnMenuViewPip) dom.btnMenuViewPip.addEventListener('click', () => setVideoViewMode('pip'));
 
   // Sync Calibration Drawer Toggle
+  function toggleVideoSyncDrawer(forceOpen) {
+    if (!dom.videoSyncDrawer) return;
+    const isCurrentlyOpen = dom.videoSyncDrawer.style.display !== 'none';
+    const nextState = forceOpen !== undefined ? forceOpen : !isCurrentlyOpen;
+    dom.videoSyncDrawer.style.display = nextState ? 'block' : 'none';
+    if (dom.btnOpenVideoSync) dom.btnOpenVideoSync.classList.toggle('active', nextState);
+  }
+
   if (dom.btnOpenVideoSync) {
-    dom.btnOpenVideoSync.addEventListener('click', () => {
-      if (dom.videoSyncDrawer) {
-        const isOpen = dom.videoSyncDrawer.style.display !== 'none';
-        dom.videoSyncDrawer.style.display = isOpen ? 'none' : 'block';
-      }
-    });
+    dom.btnOpenVideoSync.addEventListener('click', () => toggleVideoSyncDrawer());
+  }
+
+  if (dom.btnCloseSyncDrawer) {
+    dom.btnCloseSyncDrawer.addEventListener('click', () => toggleVideoSyncDrawer(false));
   }
 
   // 1-Click Sync at Start/Finish Gate
   if (dom.btnSyncSF) {
     dom.btnSyncSF.addEventListener('click', syncVideoToCurrentSf);
+  }
+
+  // Reset Sync Offset to 0s
+  if (dom.btnSyncReset) {
+    dom.btnSyncReset.addEventListener('click', () => setVideoOffset(0));
   }
 
   // Nudge Buttons
@@ -186,40 +202,59 @@ function loadVideoFile(file, isLapB = false) {
 
 function setVideoViewMode(mode) {
   state.video.viewMode = mode;
-  const grid = document.querySelector('.workspace-grid');
+  const grid = dom.mainWorkspace || document.querySelector('.workspace-grid');
   const panelVideo = dom.panelVideo;
+  const panelMap = dom.panelMap;
+  const resizerTop = dom.resizerTopSplit;
 
   if (!grid || !panelVideo) return;
 
-  // Update button active states
-  if (dom.btnVideoViewMap) dom.btnVideoViewMap.classList.toggle('active', mode === 'map-only');
-  if (dom.btnVideoViewSplit) dom.btnVideoViewSplit.classList.toggle('active', mode === 'split');
-  if (dom.btnVideoViewVideo) dom.btnVideoViewVideo.classList.toggle('active', mode === 'video-only');
-  if (dom.btnVideoViewPip) dom.btnVideoViewPip.classList.toggle('active', mode === 'pip');
+  // Update ALL view mode switcher buttons across Map header, Video header, and top menu
+  document.querySelectorAll('[data-vmode]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.vmode === mode);
+  });
+  if (dom.btnMenuViewMap) dom.btnMenuViewMap.classList.toggle('active', mode === 'map-only');
+  if (dom.btnMenuViewSplit) dom.btnMenuViewSplit.classList.toggle('active', mode === 'split');
+  if (dom.btnMenuViewVideo) dom.btnMenuViewVideo.classList.toggle('active', mode === 'video-only');
+  if (dom.btnMenuViewPip) dom.btnMenuViewPip.classList.toggle('active', mode === 'pip');
 
   grid.classList.remove('video-split-active', 'video-primary-active');
   panelVideo.classList.remove('video-pip-mode');
 
   if (mode === 'map-only') {
     panelVideo.style.display = 'none';
-    if (dom.mapContainer) dom.mapContainer.style.display = 'block';
+    if (panelMap) panelMap.style.display = 'flex';
+    if (resizerTop) resizerTop.style.display = 'none';
   } else if (mode === 'split') {
     panelVideo.style.display = 'flex';
+    if (panelMap) panelMap.style.display = 'flex';
+    if (resizerTop) resizerTop.style.display = 'flex';
     grid.classList.add('video-split-active');
   } else if (mode === 'video-only') {
     panelVideo.style.display = 'flex';
+    if (panelMap) panelMap.style.display = 'none';
+    if (resizerTop) resizerTop.style.display = 'none';
     grid.classList.add('video-primary-active');
   } else if (mode === 'pip') {
     panelVideo.style.display = 'flex';
+    if (panelMap) panelMap.style.display = 'flex';
+    if (resizerTop) resizerTop.style.display = 'none';
     panelVideo.classList.add('video-pip-mode');
   }
 
-  // Trigger map and chart resizes
+  // Trigger layout, map, and canvas resizes
   setTimeout(() => {
-    if (state.map) state.map.invalidateSize();
-    if (typeof resizeCanvas === 'function') resizeCanvas();
+    if (typeof triggerLayoutResize === 'function') {
+      triggerLayoutResize();
+    } else {
+      if (state.map) state.map.invalidateSize();
+      if (typeof resizeCanvas === 'function') resizeCanvas();
+    }
     resizeVideoOverlayCanvas();
-  }, 50);
+    if (typeof drawLiveVideoOverlay === 'function') {
+      drawLiveVideoOverlay();
+    }
+  }, 60);
 }
 
 function setVideoOffset(newOffset) {
@@ -338,19 +373,35 @@ function syncVideoPlayback(currentTimeS, isPlaying, playbackSpeed) {
 }
 
 function resizeVideoOverlayCanvas() {
-  if (!dom.videoPlayer || !dom.videoOverlayCanvas) return;
-  const rect = dom.videoPlayer.getBoundingClientRect();
-  dom.videoOverlayCanvas.width = rect.width * (window.devicePixelRatio || 1);
-  dom.videoOverlayCanvas.height = rect.height * (window.devicePixelRatio || 1);
+  const canvas = dom.videoOverlayCanvas;
+  if (!canvas) return;
+  const wrapper = dom.singleVideoWrapper || dom.videoViewportContainer || dom.panelVideo || document.getElementById('single-video-wrapper');
+  if (!wrapper) return;
+
+  const rect = wrapper.getBoundingClientRect();
+  if (rect.width > 0 && rect.height > 0) {
+    const dpr = window.devicePixelRatio || 1;
+    const newW = Math.round(rect.width * dpr);
+    const newH = Math.round(rect.height * dpr);
+    if (canvas.width !== newW || canvas.height !== newH) {
+      canvas.width = newW;
+      canvas.height = newH;
+    }
+  }
 }
 
 /**
  * Draws crisp, broadcast-grade telemetry HUD overlay directly onto the video canvas
  */
-function drawLiveVideoOverlay() {
-  if (!dom.videoOverlayCanvas || !state.activeRecords || state.activeRecords.length === 0) return;
-
+function drawLiveVideoOverlay(optRecord, optSpd, optRpm, optTps, optLean, optGLong, optGLat) {
   const canvas = dom.videoOverlayCanvas;
+  if (!canvas) return;
+
+  // Make sure canvas has valid width/height
+  if (canvas.width === 0 || canvas.height === 0) {
+    resizeVideoOverlayCanvas();
+  }
+
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
@@ -358,30 +409,40 @@ function drawLiveVideoOverlay() {
   const h = canvas.height;
   ctx.clearRect(0, 0, w, h);
 
-  const r = state.activeRecords[state.currentIndex];
+  if (state.video && state.video.overlayEnabled === false) return;
+
+  const records = (state.activeRecords && state.activeRecords.length > 0) ? state.activeRecords : state.records;
+  if (!records || records.length === 0) return;
+
+  const r = optRecord || records[state.currentIndex] || records[0];
   if (!r) return;
 
   const dpr = window.devicePixelRatio || 1;
-  const s = (w / 800) * dpr;
+  const cssW = w / dpr;
+  const cssH = h / dpr;
+  const s = Math.max(0.65, Math.min(1.5, cssW / 720));
 
-  const spd = (r.speed_kmh || 0) * (state.unitMph ? 0.621371 : 1.0);
+  ctx.save();
+  ctx.scale(dpr, dpr);
+
+  const spd = optSpd !== undefined ? optSpd : ((r.speed_kmh || 0) * (state.unitMph ? 0.621371 : 1.0));
   const spdUnit = state.unitMph ? 'MPH' : 'KM/H';
-  const rpm = r.rpm || 0;
+  const rpm = optRpm !== undefined ? optRpm : (r.rpm || 0);
   const gear = r.gear || 0;
-  const tps = r.tps_pct || 0;
-  const lean = r.lean_angle_deg || 0;
-  const gLong = r.accel_long_g || 0;
-  const gLat = r.accel_lat_g || 0;
+  const tps = optTps !== undefined ? optTps : (r.tps_pct || 0);
+  const lean = optLean !== undefined ? optLean : (r.lean_angle_deg || 0);
+  const gLong = optGLong !== undefined ? optGLong : (r.accel_long_g || 0);
+  const gLat = optGLat !== undefined ? optGLat : (r.accel_lat_g || 0);
 
   // =========================================================
   // 1. Lower Left: Cockpit Cluster (Speedometer, Gear, Lean)
   // =========================================================
-  const clusterX = 24 * s;
-  const clusterY = h - 110 * s;
+  const clusterX = 18 * s;
+  const clusterY = cssH - (90 * s) - (16 * s);
 
   // Dark Matte Glassmorphic Background Card
-  ctx.fillStyle = 'rgba(10, 13, 18, 0.78)';
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+  ctx.fillStyle = 'rgba(10, 13, 18, 0.82)';
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
   ctx.lineWidth = 1 * s;
   ctx.beginPath();
   ctx.roundRect(clusterX, clusterY, 210 * s, 85 * s, 8 * s);
@@ -389,31 +450,31 @@ function drawLiveVideoOverlay() {
   ctx.stroke();
 
   // Speed Digits
-  ctx.font = `900 ${36 * s}px "Outfit", sans-serif`;
+  ctx.font = `900 ${Math.round(36 * s)}px "Outfit", sans-serif`;
   ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
   ctx.fillText(Math.round(spd), clusterX + 14 * s, clusterY + 10 * s);
 
   // Speed Unit
-  ctx.font = `800 ${11 * s}px "Outfit", sans-serif`;
+  ctx.font = `800 ${Math.round(11 * s)}px "Outfit", sans-serif`;
   ctx.fillStyle = '#00e5ff';
   ctx.fillText(spdUnit, clusterX + 14 * s, clusterY + 54 * s);
 
   // Gear Indicator
-  ctx.font = `900 ${36 * s}px "Outfit", sans-serif`;
+  ctx.font = `900 ${Math.round(36 * s)}px "Outfit", sans-serif`;
   ctx.fillStyle = '#d500f9';
   ctx.textAlign = 'center';
   ctx.fillText(gear === 0 ? 'N' : gear, clusterX + 115 * s, clusterY + 10 * s);
 
-  ctx.font = `800 ${10 * s}px "Outfit", sans-serif`;
+  ctx.font = `800 ${Math.round(10 * s)}px "Outfit", sans-serif`;
   ctx.fillStyle = '#62697d';
   ctx.fillText('GEAR', clusterX + 115 * s, clusterY + 54 * s);
 
   // Lean Angle Arc Gauge
   const leanGaugeX = clusterX + 172 * s;
   const leanGaugeY = clusterY + 36 * s;
-  const gaugeR = 26 * s;
+  const gaugeR = 24 * s;
 
   // Base Arc
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
@@ -429,7 +490,7 @@ function drawLiveVideoOverlay() {
   ctx.arc(leanGaugeX, leanGaugeY, gaugeR, Math.PI * 1.5, leanAngleRad, lean < 0);
   ctx.stroke();
 
-  ctx.font = `800 ${12 * s}px "Outfit", sans-serif`;
+  ctx.font = `800 ${Math.round(12 * s)}px "Outfit", sans-serif`;
   ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'center';
   ctx.fillText(`${Math.abs(Math.round(lean))}°`, leanGaugeX, leanGaugeY + 4 * s);
@@ -462,8 +523,8 @@ function drawLiveVideoOverlay() {
   // =========================================================
   // 3. Top Left: MotoGP Broadcast Timing Card Overlay
   // =========================================================
-  if (state.motogp.showCard && typeof drawMotoGPOverlayCanvas === 'function') {
-    const curLap = state.laps.find(l => l.lap_number === state.selectedLapNum) || state.laps[1];
+  if (state.motogp && state.motogp.showCard && typeof drawMotoGPOverlayCanvas === 'function') {
+    const curLap = state.laps ? (state.laps.find(l => l.lap_number === state.selectedLapNum) || state.laps[1]) : null;
     let timeDigits = '0:00.000';
     let deltaStr = '+0.000';
     let deltaColor = '#62697d';
@@ -473,7 +534,7 @@ function drawLiveVideoOverlay() {
       timeDigits = formatLapTimePrecision(elapsed);
 
       // Delta against best lap
-      const bestLap = state.laps.find(l => l.is_best);
+      const bestLap = state.laps ? state.laps.find(l => l.is_best) : null;
       if (bestLap && bestLap.lap_number !== curLap.lap_number) {
         const delta = elapsed - (bestLap.duration_s * (elapsed / Math.max(0.1, curLap.duration_s)));
         const sign = delta >= 0 ? '+' : '-';
@@ -485,7 +546,7 @@ function drawLiveVideoOverlay() {
     const cardW = 320 * s;
     const cardH = 92 * s;
     ctx.save();
-    ctx.translate(24 * s, 24 * s);
+    ctx.translate(18 * s, 18 * s);
 
     // Render timing card
     drawMotoGPOverlayCanvas(
@@ -510,6 +571,8 @@ function drawLiveVideoOverlay() {
     );
     ctx.restore();
   }
+
+  ctx.restore();
 }
 
 function formatLapTimePrecision(sec) {

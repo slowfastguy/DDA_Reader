@@ -242,6 +242,31 @@
               <span class="dropdown-item-icon">🏁</span>
               <span id="lbl-motogp-status">MotoGP Live Card: ON</span>
             </span>
+          <div class="dropdown-divider"></div>
+          <div class="dropdown-header">Workspace View Modes</div>
+          <button id="btn-menu-view-map" class="dropdown-item" title="Show Full GPS Track Map">
+            <span class="dropdown-item-left">
+              <span class="dropdown-item-icon">🗺️</span>
+              <span>Map Only View</span>
+            </span>
+          </button>
+          <button id="btn-menu-view-split" class="dropdown-item active" title="Split Screen: GPS Map & Onboard Video Side-by-Side">
+            <span class="dropdown-item-left">
+              <span class="dropdown-item-icon">◫</span>
+              <span>Split View (Map & Video)</span>
+            </span>
+          </button>
+          <button id="btn-menu-view-video" class="dropdown-item" title="Full Video Viewport">
+            <span class="dropdown-item-left">
+              <span class="dropdown-item-icon">🎬</span>
+              <span>Video Primary View</span>
+            </span>
+          </button>
+          <button id="btn-menu-view-pip" class="dropdown-item" title="Floating Picture-in-Picture Video">
+            <span class="dropdown-item-left">
+              <span class="dropdown-item-icon">🗖</span>
+              <span>Picture-in-Picture (PIP)</span>
+            </span>
           </button>
         </div>
       </div>
@@ -319,6 +344,12 @@
                 <button id="btn-fit-bounds" class="btn-icon" title="Fit Entire Circuit (F)">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
                 </button>
+                <div class="video-view-mode-group" id="map-view-mode-group" title="Workspace View Modes">
+                  <button class="btn-tool-sm btn-vmode-map" data-vmode="map-only" title="Show Map Only">🗺️ Map</button>
+                  <button class="btn-tool-sm btn-vmode-split active" data-vmode="split" title="Split Screen: Map & Video Side-by-Side">◫ Split</button>
+                  <button class="btn-tool-sm btn-vmode-video" data-vmode="video-only" title="Show Video Primary">🎬 Video</button>
+                  <button class="btn-tool-sm btn-vmode-pip" data-vmode="pip" title="Floating Picture-in-Picture Video">🗖 PIP</button>
+                </div>
                 <button id="btn-maximize-map" class="btn-icon" title="Maximize Map Viewport">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
                 </button>
@@ -381,7 +412,9 @@
     </section>
 
         <!-- Top Split Resizer between Map & Video (in Split View) -->
-        <div class="resizer-split" id="resizer-top-split" style="display: none;" title="Drag to adjust Map vs. Video ratio"></div>
+        <div class="resizer-split" id="resizer-top-split" style="display: none;" title="Drag to adjust Map vs. Video ratio (Double-click to reset 50/50)">
+          <div class="resizer-handle-pill"></div>
+        </div>
 
         <!-- Left Column Top / Split: In-Browser Onboard Video Player Panel -->
         <section id="panel-video" class="panel panel-video" style="display: none;">
@@ -392,14 +425,14 @@
             </div>
             <div class="video-panel-controls">
               <!-- View Mode Switcher -->
-              <div class="video-view-mode-group">
-                <button id="btn-video-view-map" class="btn-tool-sm" title="Show Map Only">🗺️ Map</button>
-                <button id="btn-video-view-split" class="btn-tool-sm active" title="Split Screen: Map & Video Side-by-Side">◫ Split</button>
-                <button id="btn-video-view-video" class="btn-tool-sm" title="Show Video Primary">🎬 Video</button>
-                <button id="btn-video-view-pip" class="btn-tool-sm" title="Floating Picture-in-Picture Video">🗖 PIP</button>
+              <div class="video-view-mode-group" id="video-view-mode-group" title="Workspace View Modes">
+                <button id="btn-video-view-map" class="btn-tool-sm btn-vmode-map" data-vmode="map-only" title="Show Map Only">🗺️ Map</button>
+                <button id="btn-video-view-split" class="btn-tool-sm btn-vmode-split active" data-vmode="split" title="Split Screen: Map & Video Side-by-Side">◫ Split</button>
+                <button id="btn-video-view-video" class="btn-tool-sm btn-vmode-video" data-vmode="video-only" title="Show Video Primary">🎬 Video</button>
+                <button id="btn-video-view-pip" class="btn-tool-sm btn-vmode-pip" data-vmode="pip" title="Floating Picture-in-Picture Video">🗖 PIP</button>
               </div>
-              <button id="btn-open-video-sync" class="btn-tool" title="Toggle Synchronization Calibration Drawer">⏱️ Sync Calibration</button>
-              <button id="btn-toggle-video-overlay" class="btn-tool active" title="Toggle Live Telemetry HUD Overlay on Video">📊 HUD: ON</button>
+              <button id="btn-open-video-sync" class="btn-tool-sm" title="Toggle Synchronization Calibration Drawer">⏱️ Sync</button>
+              <button id="btn-toggle-video-overlay" class="btn-tool-sm active" title="Toggle Live Telemetry HUD Overlay on Video">📊 HUD: ON</button>
               <button id="btn-toggle-video-mute" class="btn-icon" title="Toggle Video Audio (Mute/Unmute)">
                 <svg id="icon-vol-on" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
                 <svg id="icon-vol-off" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
@@ -459,6 +492,8 @@
                     <button id="btn-nudge-fwd-1" class="btn-nudge" title="Nudge forward 1 frame (0.033s)">+1 Fr</button>
                     <button id="btn-nudge-fwd-10" class="btn-nudge" title="Nudge forward 0.5s">+0.5s</button>
                   </div>
+                  <button id="btn-sync-reset" class="btn-nudge" title="Reset sync offset to 0.00s">↺ 0s</button>
+                  <button id="btn-close-sync-drawer" class="btn-close-sync" title="Close Calibration Drawer">&times;</button>
                 </div>
               </div>
             </div>

@@ -331,9 +331,12 @@ function updateUI() {
     updateScrubberLinePosition();
   }
 
-  // 14. Video Player Frame-Accurate Synchronization
+  // 14. Video Player Frame-Accurate Synchronization & Live HUD Overlay
   if (typeof syncVideoPlayback === 'function' && r0) {
     syncVideoPlayback(interpTime || r0.time_s || 0, state.isPlaying, state.playbackSpeed);
+  }
+  if (typeof drawLiveVideoOverlay === 'function' && state.video && state.video.overlayEnabled !== false) {
+    drawLiveVideoOverlay(r0, spd, interpRpm, interpTps, interpLean, interpGlong, interpGlat);
   }
 }
 
