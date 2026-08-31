@@ -839,6 +839,7 @@ class DDAParser:
             "map.js",
             "gates.js",
             "charts.js",
+            "coaching.js",
             "playback.js"
         ]
         modular_js_blocks = {}

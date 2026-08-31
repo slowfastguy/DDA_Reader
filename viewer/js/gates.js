@@ -439,9 +439,9 @@ function recalculateLapsAndSectors() {
     const sectors = [];
     const maxLapSpeed = lapRecs.reduce((max, r) => (r.speed_kmh || 0) > max ? (r.speed_kmh || 0) : max, 0);
 
-    if (splitGates.length > 0) {
+    if (splitGates.length >= 2) {
       let splitCrossings = [];
-      splitGates.forEach(sg => {
+      splitGates.slice(0, 2).forEach(sg => {
         const scList = findGateCrossings(sg, lapRecs, 5.0);
         if (scList.length > 0) {
           splitCrossings.push({ time_s: scList[0].time_s });
@@ -466,20 +466,22 @@ function recalculateLapsAndSectors() {
 
       splitCrossings.sort((a, b) => a.time_s - b.time_s);
 
-      let prevT = c1.time_s;
-      splitCrossings.forEach(sc => {
-        const sDur = sc.time_s - prevT;
-        sectors.push(sDur > 3.0 ? sDur : null);
-        prevT = sc.time_s;
-      });
-      const lastDur = c2.time_s - prevT;
-      sectors.push(lastDur > 3.0 ? lastDur : null);
+      if (splitCrossings.length === 2 && splitCrossings[0].time_s > c1.time_s + 4.0 && splitCrossings[1].time_s > splitCrossings[0].time_s + 4.0 && splitCrossings[1].time_s < c2.time_s - 4.0) {
+        const s1 = splitCrossings[0].time_s - c1.time_s;
+        const s2 = splitCrossings[1].time_s - splitCrossings[0].time_s;
+        const s3 = c2.time_s - splitCrossings[1].time_s;
+        sectors.push(s1, s2, s3);
+      } else {
+        const s1 = dur * 0.28;
+        const s2 = dur * 0.38;
+        const s3 = dur - s1 - s2;
+        sectors.push(s1, s2, s3);
+      }
     } else {
-      sectors.push(dur * 0.28, dur * 0.38, dur * 0.34);
-    }
-
-    while (sectors.length < 3) {
-      sectors.push(dur / 3.0);
+      const s1 = dur * 0.28;
+      const s2 = dur * 0.38;
+      const s3 = dur - s1 - s2;
+      sectors.push(s1, s2, s3);
     }
 
     newLaps.push({
@@ -537,6 +539,7 @@ function recalculateLapsAndSectors() {
   }
 
   state.laps = newLaps;
+  if (typeof generateTheoreticalOptimalLap === 'function') generateTheoreticalOptimalLap();
   if (typeof renderLapListTable === 'function') renderLapListTable();
   renderMapGates();
   if (typeof selectLap === 'function') selectLap(state.selectedLapNum, false);

@@ -82,6 +82,19 @@ function renderMapTrack(shouldFitBounds = false) {
     if (state.heatmapMode === 'speed') {
       const ratio = Math.min(1.0, (p1.speed_kmh || 0) / maxSpeed);
       color = getHeatmapColor(ratio);
+    } else if (state.heatmapMode === 'phases') {
+      // 🟢 Accel (#00e676) | 🟡 Maint (#ffd600) | 🔴 Brake (#ff1744) | ⚪ Coast (#ff9100)
+      const tps = p1.tps_pct || 0;
+      const gLong = p1.accel_long_g !== undefined ? p1.accel_long_g : 0;
+      if (tps >= 60) {
+        color = '#00e676'; // Full Power / Acceleration
+      } else if (tps >= 5) {
+        color = '#ffd600'; // Maintenance Throttle
+      } else if (gLong < -0.35) {
+        color = '#ff1744'; // Heavy Braking
+      } else {
+        color = '#ff9100'; // Coasting / Roll Time
+      }
     } else if (state.heatmapMode === 'throttle') {
       const ratio = (p1.tps_pct || 0) / 100.0;
       color = getHeatmapColor(ratio);
@@ -113,6 +126,9 @@ function renderMapTrack(shouldFitBounds = false) {
     if (state.heatmapMode === 'speed') {
       dom.legendMin.textContent = state.unitMph ? '0 mph' : '0 km/h';
       dom.legendMax.textContent = state.unitMph ? `${(maxSpeed * 0.621371).toFixed(0)} mph` : `${maxSpeed.toFixed(0)} km/h`;
+    } else if (state.heatmapMode === 'phases') {
+      dom.legendMin.textContent = '🔴 Brake / ⚪ Coast';
+      dom.legendMax.textContent = '🟢 Accel / 🟡 Maint';
     } else if (state.heatmapMode === 'throttle') {
       dom.legendMin.textContent = '0% TPS';
       dom.legendMax.textContent = '100% TPS';
@@ -127,6 +143,54 @@ function renderMapTrack(shouldFitBounds = false) {
   }
 
   renderSpeedExtremaMarkers();
+  updateRidingPhasesBreakdown();
+}
+
+function updateRidingPhasesBreakdown() {
+  if (!dom.phaseBarAccel || !state.activeRecords || state.activeRecords.length === 0) return;
+  const recs = state.activeRecords;
+
+  let accelFrames = 0;
+  let maintFrames = 0;
+  let brakeFrames = 0;
+  let coastFrames = 0;
+  const total = recs.length;
+
+  for (let i = 0; i < total; i++) {
+    const r = recs[i];
+    const tps = r.tps_pct || 0;
+    const gLong = r.accel_long_g !== undefined ? r.accel_long_g : 0;
+
+    if (tps >= 60) {
+      accelFrames++;
+    } else if (tps >= 5) {
+      maintFrames++;
+    } else if (gLong < -0.35) {
+      brakeFrames++;
+    } else {
+      coastFrames++;
+    }
+  }
+
+  const pAccel = ((accelFrames / total) * 100).toFixed(0);
+  const pMaint = ((maintFrames / total) * 100).toFixed(0);
+  const pBrake = ((brakeFrames / total) * 100).toFixed(0);
+  const pCoast = ((coastFrames / total) * 100).toFixed(0);
+  const coastTimeSec = (coastFrames * 0.1).toFixed(1);
+
+  if (dom.phaseBarAccel) dom.phaseBarAccel.style.width = `${pAccel}%`;
+  if (dom.phaseBarMaint) dom.phaseBarMaint.style.width = `${pMaint}%`;
+  if (dom.phaseBarBrake) dom.phaseBarBrake.style.width = `${pBrake}%`;
+  if (dom.phaseBarCoast) dom.phaseBarCoast.style.width = `${pCoast}%`;
+
+  if (dom.valPhaseAccelPct) dom.valPhaseAccelPct.textContent = `${pAccel}%`;
+  if (dom.valPhaseMaintPct) dom.valPhaseMaintPct.textContent = `${pMaint}%`;
+  if (dom.valPhaseBrakePct) dom.valPhaseBrakePct.textContent = `${pBrake}%`;
+  if (dom.valPhaseCoastPct) dom.valPhaseCoastPct.textContent = `${pCoast}%`;
+
+  if (dom.valCoastSummary) {
+    dom.valCoastSummary.textContent = `${coastTimeSec}s Coast`;
+  }
 }
 
 function getHeatmapColor(ratio) {

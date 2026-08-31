@@ -370,7 +370,11 @@ function selectLap(lapNum, shouldFit = false) {
     row.classList.toggle('active-lap-row', parseInt(row.dataset.lap, 10) === lapNum);
   });
 
-  if (lapNum === -1) {
+  if (lapNum === 999 && state.optimalLap) {
+    state.activeRecords = state.optimalLap.optimal_records || [];
+    if (dom.mapPanelTitle) dom.mapPanelTitle.textContent = `GPS Track Map - ⚡ Optimal Lap (${formatTime(state.optimalLap.duration_s)})`;
+    if (dom.chartsPanelTitle) dom.chartsPanelTitle.textContent = `Telemetry Channels - ⚡ Optimal Lap (${formatTime(state.optimalLap.duration_s)})`;
+  } else if (lapNum === -1) {
     state.activeRecords = state.records;
     if (dom.mapPanelTitle) dom.mapPanelTitle.textContent = "GPS Track Map (All Laps)";
     if (dom.chartsPanelTitle) dom.chartsPanelTitle.textContent = "Synchronized Telemetry Channels (Full Session)";

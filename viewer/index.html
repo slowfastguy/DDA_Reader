@@ -73,6 +73,12 @@
         <span>Lean vs TPS</span>
       </button>
 
+      <!-- Corner Scorecard Button -->
+      <button id="btn-open-scorecard" class="btn btn-secondary" title="View Turn-by-Turn Performance Scorecard (T)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <span>Scorecard</span>
+      </button>
+
       <!-- MotoGP HUD & Video Export Buttons -->
       <button id="btn-toggle-motogp" class="btn btn-motogp active" title="Toggle Floating MotoGP Broadcast Timer Card">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
@@ -142,6 +148,7 @@
           </select>
           <select id="select-heatmap-color" class="control-select">
             <option value="speed" selected>Trace: Speed</option>
+            <option value="phases">Trace: Riding Phases (Coasting/Braking)</option>
             <option value="throttle">Trace: Throttle %</option>
             <option value="lean">Trace: Lean Angle</option>
             <option value="gear">Trace: Gear</option>
@@ -420,6 +427,44 @@
             <span class="peak-item">Brake: <strong id="val-max-brake-g" class="text-red">0.00g</strong></span>
             <span class="peak-item">Accel: <strong id="val-max-accel-g" class="text-green">0.00g</strong></span>
             <span class="peak-item">Corner: <strong id="val-max-lat-g" class="text-cyan">0.00g</strong></span>
+          </div>
+        </div>
+
+        <!-- 3c. Riding Phases & Coast Time Distribution Card -->
+        <div class="data-card phases-card">
+          <div class="card-header-sm">
+            <span class="card-title-text">RIDING PHASES & ROLL TIME</span>
+            <span id="val-coast-summary" class="badge badge-accent">0.0s Coast</span>
+          </div>
+          <div class="phases-bar-container">
+            <div class="phases-progress-bar">
+              <div id="phase-bar-accel" class="phase-segment phase-accel" style="width: 35%;" title="Full Power / Accel (TPS >= 60%)"></div>
+              <div id="phase-bar-maint" class="phase-segment phase-maint" style="width: 25%;" title="Maintenance / Part Throttle (5% - 60%)"></div>
+              <div id="phase-bar-brake" class="phase-segment phase-brake" style="width: 20%;" title="Heavy Braking (Decel < -0.35g)"></div>
+              <div id="phase-bar-coast" class="phase-segment phase-coast" style="width: 20%;" title="Coasting / Roll Time (No Gas, No Hard Brake)"></div>
+            </div>
+          </div>
+          <div class="phases-legend-grid">
+            <div class="phase-legend-item">
+              <span class="phase-dot dot-accel"></span>
+              <span class="phase-lbl">Full Gas:</span>
+              <strong id="val-phase-accel-pct" class="phase-val">0%</strong>
+            </div>
+            <div class="phase-legend-item">
+              <span class="phase-dot dot-maint"></span>
+              <span class="phase-lbl">Maint:</span>
+              <strong id="val-phase-maint-pct" class="phase-val">0%</strong>
+            </div>
+            <div class="phase-legend-item">
+              <span class="phase-dot dot-brake"></span>
+              <span class="phase-lbl">Brake:</span>
+              <strong id="val-phase-brake-pct" class="phase-val">0%</strong>
+            </div>
+            <div class="phase-legend-item">
+              <span class="phase-dot dot-coast"></span>
+              <span class="phase-lbl">Coast:</span>
+              <strong id="val-phase-coast-pct" class="phase-val text-warning">0%</strong>
+            </div>
           </div>
         </div>
 
@@ -909,6 +954,65 @@
     </div>
   </div>
 
+  <!-- Turn-by-Turn Performance Scorecard Modal -->
+  <div id="modal-scorecard" class="modal-overlay" style="display: none;">
+    <div class="modal-card modal-scorecard-card">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <h3>Turn-by-Turn Rider Performance Scorecard</h3>
+        </div>
+        <button id="btn-close-scorecard" class="btn-close">&times;</button>
+      </div>
+
+      <div class="scorecard-body">
+        <div class="scorecard-controls-bar">
+          <div class="scorecard-lap-select">
+            <label for="select-scorecard-lap">Target Lap:</label>
+            <select id="select-scorecard-lap" class="control-select">
+              <option value="-1">All Laps (Session Averages & Consistency)</option>
+            </select>
+          </div>
+          <div class="scorecard-summary-pills">
+            <div class="scorecard-kpi-pill">
+              <span>Turns Analyzed:</span>
+              <strong id="kpi-scorecard-turns" class="text-cyan">--</strong>
+            </div>
+            <div class="scorecard-kpi-pill">
+              <span>Avg Apex Min Speed:</span>
+              <strong id="kpi-scorecard-apex-spd" class="text-green">--</strong>
+            </div>
+            <div class="scorecard-kpi-pill">
+              <span>Total Lap Coast Time:</span>
+              <strong id="kpi-scorecard-coast" class="text-warning">--</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="scorecard-table-wrap">
+          <table class="scorecard-table" id="scorecard-table">
+            <thead>
+              <tr>
+                <th>Turn</th>
+                <th>Type</th>
+                <th>Braking Point</th>
+                <th>Apex Speed</th>
+                <th>Max Lean</th>
+                <th>Throttle Pickup</th>
+                <th>Exit Speed</th>
+                <th>Coasting</th>
+                <th>Rider Coaching Cue</th>
+              </tr>
+            </thead>
+            <tbody id="scorecard-table-body">
+              <!-- Dynamically populated turn evaluations -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Drag-and-Drop Overlay -->
   <div id="drop-overlay" class="drop-overlay" style="display: none;">
     <div class="drop-box">
@@ -935,6 +1039,7 @@
   <script src="js/map.js"></script>
   <script src="js/gates.js"></script>
   <script src="js/charts.js"></script>
+  <script src="js/coaching.js"></script>
   <script src="js/playback.js"></script>
   <script src="app.js"></script>
 </body>

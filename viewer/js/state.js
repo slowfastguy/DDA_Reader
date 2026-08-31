@@ -288,6 +288,27 @@ const dom = {
   kpiUprightGas: document.getElementById('kpi-upright-gas'),
   kpiLeanRisk: document.getElementById('kpi-lean-risk'),
 
+  // Riding Phases Elements
+  valCoastSummary: document.getElementById('val-coast-summary'),
+  phaseBarAccel: document.getElementById('phase-bar-accel'),
+  phaseBarMaint: document.getElementById('phase-bar-maint'),
+  phaseBarBrake: document.getElementById('phase-bar-brake'),
+  phaseBarCoast: document.getElementById('phase-bar-coast'),
+  valPhaseAccelPct: document.getElementById('val-phase-accel-pct'),
+  valPhaseMaintPct: document.getElementById('val-phase-maint-pct'),
+  valPhaseBrakePct: document.getElementById('val-phase-brake-pct'),
+  valPhaseCoastPct: document.getElementById('val-phase-coast-pct'),
+
+  // Turn-by-Turn Scorecard Elements
+  btnOpenScorecard: document.getElementById('btn-open-scorecard'),
+  modalScorecard: document.getElementById('modal-scorecard'),
+  btnCloseScorecard: document.getElementById('btn-close-scorecard'),
+  selectScorecardLap: document.getElementById('select-scorecard-lap'),
+  kpiScorecardTurns: document.getElementById('kpi-scorecard-turns'),
+  kpiScorecardApexSpd: document.getElementById('kpi-scorecard-apex-spd'),
+  kpiScorecardCoast: document.getElementById('kpi-scorecard-coast'),
+  scorecardTableBody: document.getElementById('scorecard-table-body'),
+
   // Section Drag Comparison Elements
   btnSelectSection: document.getElementById('btn-select-section'),
   btnClearSection: document.getElementById('btn-clear-section'),

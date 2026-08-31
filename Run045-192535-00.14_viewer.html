@@ -2795,6 +2795,206 @@ kbd {
   font-size: 9.5px;
 }
 
+/* ==========================================================================
+   Category B: Riding Phases & Roll Time Distribution Card
+   ========================================================================== */
+.phases-card {
+  padding: 8px 10px;
+}
+
+.phases-bar-container {
+  width: 100%;
+  margin: 6px 0;
+}
+
+.phases-progress-bar {
+  display: flex;
+  width: 100%;
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: #11141c;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.phase-segment {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.phase-accel { background: linear-gradient(90deg, #00c853, #00e676); }
+.phase-maint { background: linear-gradient(90deg, #ffd600, #ffea00); }
+.phase-brake { background: linear-gradient(90deg, #d50000, #ff1744); }
+.phase-coast { background: linear-gradient(90deg, #ff9100, #ffa726); }
+
+.phases-legend-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  font-size: 9px;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+
+.phase-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.phase-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dot-accel { background: #00e676; box-shadow: 0 0 4px #00e676; }
+.dot-maint { background: #ffd600; box-shadow: 0 0 4px #ffd600; }
+.dot-brake { background: #ff1744; box-shadow: 0 0 4px #ff1744; }
+.dot-coast { background: #ff9100; box-shadow: 0 0 4px #ff9100; }
+
+.phase-val {
+  color: var(--text-main);
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+/* ==========================================================================
+   Category B: Turn-by-Turn Performance Scorecard Modal
+   ========================================================================== */
+.modal-scorecard-card {
+  max-width: 1060px;
+  width: 95vw;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.scorecard-body {
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.scorecard-controls-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: rgba(16, 18, 25, 0.7);
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+.scorecard-lap-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+.scorecard-summary-pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.scorecard-kpi-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #141722;
+  padding: 5px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border-subtle);
+  font-size: 10.5px;
+  color: var(--text-dim);
+}
+
+.scorecard-kpi-pill strong {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.scorecard-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: #0d0f17;
+}
+
+.scorecard-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  text-align: left;
+}
+
+.scorecard-table th {
+  background: #151824;
+  padding: 8px 10px;
+  color: var(--text-dim);
+  font-weight: 700;
+  border-bottom: 1px solid var(--border-subtle);
+  white-space: nowrap;
+}
+
+.scorecard-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  vertical-align: middle;
+}
+
+.scorecard-table tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.turn-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: #1a1e2d;
+  color: #00e5ff;
+  font-family: var(--font-mono);
+  font-weight: 800;
+  font-size: 11px;
+}
+
+.cue-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.cue-good {
+  background: rgba(0, 230, 118, 0.15);
+  color: #00e676;
+  border: 1px solid rgba(0, 230, 118, 0.3);
+}
+
+.cue-warning {
+  background: rgba(255, 214, 0, 0.15);
+  color: #ffd600;
+  border: 1px solid rgba(255, 214, 0, 0.3);
+}
+
+.cue-danger {
+  background: rgba(255, 23, 68, 0.15);
+  color: #ff5252;
+  border: 1px solid rgba(255, 23, 68, 0.3);
+}
+
+
 </style>
 </head>
 <body class="dark-theme">
@@ -2852,6 +3052,12 @@ kbd {
       <button id="btn-open-matrix" class="btn btn-secondary" title="View Lean Angle vs Throttle Application 2D Heat Matrix (M)">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
         <span>Lean vs TPS</span>
+      </button>
+
+      <!-- Corner Scorecard Button -->
+      <button id="btn-open-scorecard" class="btn btn-secondary" title="View Turn-by-Turn Performance Scorecard (T)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <span>Scorecard</span>
       </button>
 
       <!-- MotoGP HUD & Video Export Buttons -->
@@ -2923,6 +3129,7 @@ kbd {
           </select>
           <select id="select-heatmap-color" class="control-select">
             <option value="speed" selected>Trace: Speed</option>
+            <option value="phases">Trace: Riding Phases (Coasting/Braking)</option>
             <option value="throttle">Trace: Throttle %</option>
             <option value="lean">Trace: Lean Angle</option>
             <option value="gear">Trace: Gear</option>
@@ -3201,6 +3408,44 @@ kbd {
             <span class="peak-item">Brake: <strong id="val-max-brake-g" class="text-red">0.00g</strong></span>
             <span class="peak-item">Accel: <strong id="val-max-accel-g" class="text-green">0.00g</strong></span>
             <span class="peak-item">Corner: <strong id="val-max-lat-g" class="text-cyan">0.00g</strong></span>
+          </div>
+        </div>
+
+        <!-- 3c. Riding Phases & Coast Time Distribution Card -->
+        <div class="data-card phases-card">
+          <div class="card-header-sm">
+            <span class="card-title-text">RIDING PHASES & ROLL TIME</span>
+            <span id="val-coast-summary" class="badge badge-accent">0.0s Coast</span>
+          </div>
+          <div class="phases-bar-container">
+            <div class="phases-progress-bar">
+              <div id="phase-bar-accel" class="phase-segment phase-accel" style="width: 35%;" title="Full Power / Accel (TPS >= 60%)"></div>
+              <div id="phase-bar-maint" class="phase-segment phase-maint" style="width: 25%;" title="Maintenance / Part Throttle (5% - 60%)"></div>
+              <div id="phase-bar-brake" class="phase-segment phase-brake" style="width: 20%;" title="Heavy Braking (Decel < -0.35g)"></div>
+              <div id="phase-bar-coast" class="phase-segment phase-coast" style="width: 20%;" title="Coasting / Roll Time (No Gas, No Hard Brake)"></div>
+            </div>
+          </div>
+          <div class="phases-legend-grid">
+            <div class="phase-legend-item">
+              <span class="phase-dot dot-accel"></span>
+              <span class="phase-lbl">Full Gas:</span>
+              <strong id="val-phase-accel-pct" class="phase-val">0%</strong>
+            </div>
+            <div class="phase-legend-item">
+              <span class="phase-dot dot-maint"></span>
+              <span class="phase-lbl">Maint:</span>
+              <strong id="val-phase-maint-pct" class="phase-val">0%</strong>
+            </div>
+            <div class="phase-legend-item">
+              <span class="phase-dot dot-brake"></span>
+              <span class="phase-lbl">Brake:</span>
+              <strong id="val-phase-brake-pct" class="phase-val">0%</strong>
+            </div>
+            <div class="phase-legend-item">
+              <span class="phase-dot dot-coast"></span>
+              <span class="phase-lbl">Coast:</span>
+              <strong id="val-phase-coast-pct" class="phase-val text-warning">0%</strong>
+            </div>
           </div>
         </div>
 
@@ -3690,6 +3935,65 @@ kbd {
     </div>
   </div>
 
+  <!-- Turn-by-Turn Performance Scorecard Modal -->
+  <div id="modal-scorecard" class="modal-overlay" style="display: none;">
+    <div class="modal-card modal-scorecard-card">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <h3>Turn-by-Turn Rider Performance Scorecard</h3>
+        </div>
+        <button id="btn-close-scorecard" class="btn-close">&times;</button>
+      </div>
+
+      <div class="scorecard-body">
+        <div class="scorecard-controls-bar">
+          <div class="scorecard-lap-select">
+            <label for="select-scorecard-lap">Target Lap:</label>
+            <select id="select-scorecard-lap" class="control-select">
+              <option value="-1">All Laps (Session Averages & Consistency)</option>
+            </select>
+          </div>
+          <div class="scorecard-summary-pills">
+            <div class="scorecard-kpi-pill">
+              <span>Turns Analyzed:</span>
+              <strong id="kpi-scorecard-turns" class="text-cyan">--</strong>
+            </div>
+            <div class="scorecard-kpi-pill">
+              <span>Avg Apex Min Speed:</span>
+              <strong id="kpi-scorecard-apex-spd" class="text-green">--</strong>
+            </div>
+            <div class="scorecard-kpi-pill">
+              <span>Total Lap Coast Time:</span>
+              <strong id="kpi-scorecard-coast" class="text-warning">--</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="scorecard-table-wrap">
+          <table class="scorecard-table" id="scorecard-table">
+            <thead>
+              <tr>
+                <th>Turn</th>
+                <th>Type</th>
+                <th>Braking Point</th>
+                <th>Apex Speed</th>
+                <th>Max Lean</th>
+                <th>Throttle Pickup</th>
+                <th>Exit Speed</th>
+                <th>Coasting</th>
+                <th>Rider Coaching Cue</th>
+              </tr>
+            </thead>
+            <tbody id="scorecard-table-body">
+              <!-- Dynamically populated turn evaluations -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Drag-and-Drop Overlay -->
   <div id="drop-overlay" class="drop-overlay" style="display: none;">
     <div class="drop-box">
@@ -4016,6 +4320,27 @@ const dom = {
   kpiPickupLean: document.getElementById('kpi-pickup-lean'),
   kpiUprightGas: document.getElementById('kpi-upright-gas'),
   kpiLeanRisk: document.getElementById('kpi-lean-risk'),
+
+  // Riding Phases Elements
+  valCoastSummary: document.getElementById('val-coast-summary'),
+  phaseBarAccel: document.getElementById('phase-bar-accel'),
+  phaseBarMaint: document.getElementById('phase-bar-maint'),
+  phaseBarBrake: document.getElementById('phase-bar-brake'),
+  phaseBarCoast: document.getElementById('phase-bar-coast'),
+  valPhaseAccelPct: document.getElementById('val-phase-accel-pct'),
+  valPhaseMaintPct: document.getElementById('val-phase-maint-pct'),
+  valPhaseBrakePct: document.getElementById('val-phase-brake-pct'),
+  valPhaseCoastPct: document.getElementById('val-phase-coast-pct'),
+
+  // Turn-by-Turn Scorecard Elements
+  btnOpenScorecard: document.getElementById('btn-open-scorecard'),
+  modalScorecard: document.getElementById('modal-scorecard'),
+  btnCloseScorecard: document.getElementById('btn-close-scorecard'),
+  selectScorecardLap: document.getElementById('select-scorecard-lap'),
+  kpiScorecardTurns: document.getElementById('kpi-scorecard-turns'),
+  kpiScorecardApexSpd: document.getElementById('kpi-scorecard-apex-spd'),
+  kpiScorecardCoast: document.getElementById('kpi-scorecard-coast'),
+  scorecardTableBody: document.getElementById('scorecard-table-body'),
 
   // Section Drag Comparison Elements
   btnSelectSection: document.getElementById('btn-select-section'),
@@ -5892,6 +6217,19 @@ function renderMapTrack(shouldFitBounds = false) {
     if (state.heatmapMode === 'speed') {
       const ratio = Math.min(1.0, (p1.speed_kmh || 0) / maxSpeed);
       color = getHeatmapColor(ratio);
+    } else if (state.heatmapMode === 'phases') {
+      // 🟢 Accel (#00e676) | 🟡 Maint (#ffd600) | 🔴 Brake (#ff1744) | ⚪ Coast (#ff9100)
+      const tps = p1.tps_pct || 0;
+      const gLong = p1.accel_long_g !== undefined ? p1.accel_long_g : 0;
+      if (tps >= 60) {
+        color = '#00e676'; // Full Power / Acceleration
+      } else if (tps >= 5) {
+        color = '#ffd600'; // Maintenance Throttle
+      } else if (gLong < -0.35) {
+        color = '#ff1744'; // Heavy Braking
+      } else {
+        color = '#ff9100'; // Coasting / Roll Time
+      }
     } else if (state.heatmapMode === 'throttle') {
       const ratio = (p1.tps_pct || 0) / 100.0;
       color = getHeatmapColor(ratio);
@@ -5923,6 +6261,9 @@ function renderMapTrack(shouldFitBounds = false) {
     if (state.heatmapMode === 'speed') {
       dom.legendMin.textContent = state.unitMph ? '0 mph' : '0 km/h';
       dom.legendMax.textContent = state.unitMph ? `${(maxSpeed * 0.621371).toFixed(0)} mph` : `${maxSpeed.toFixed(0)} km/h`;
+    } else if (state.heatmapMode === 'phases') {
+      dom.legendMin.textContent = '🔴 Brake / ⚪ Coast';
+      dom.legendMax.textContent = '🟢 Accel / 🟡 Maint';
     } else if (state.heatmapMode === 'throttle') {
       dom.legendMin.textContent = '0% TPS';
       dom.legendMax.textContent = '100% TPS';
@@ -5937,6 +6278,54 @@ function renderMapTrack(shouldFitBounds = false) {
   }
 
   renderSpeedExtremaMarkers();
+  updateRidingPhasesBreakdown();
+}
+
+function updateRidingPhasesBreakdown() {
+  if (!dom.phaseBarAccel || !state.activeRecords || state.activeRecords.length === 0) return;
+  const recs = state.activeRecords;
+
+  let accelFrames = 0;
+  let maintFrames = 0;
+  let brakeFrames = 0;
+  let coastFrames = 0;
+  const total = recs.length;
+
+  for (let i = 0; i < total; i++) {
+    const r = recs[i];
+    const tps = r.tps_pct || 0;
+    const gLong = r.accel_long_g !== undefined ? r.accel_long_g : 0;
+
+    if (tps >= 60) {
+      accelFrames++;
+    } else if (tps >= 5) {
+      maintFrames++;
+    } else if (gLong < -0.35) {
+      brakeFrames++;
+    } else {
+      coastFrames++;
+    }
+  }
+
+  const pAccel = ((accelFrames / total) * 100).toFixed(0);
+  const pMaint = ((maintFrames / total) * 100).toFixed(0);
+  const pBrake = ((brakeFrames / total) * 100).toFixed(0);
+  const pCoast = ((coastFrames / total) * 100).toFixed(0);
+  const coastTimeSec = (coastFrames * 0.1).toFixed(1);
+
+  if (dom.phaseBarAccel) dom.phaseBarAccel.style.width = `${pAccel}%`;
+  if (dom.phaseBarMaint) dom.phaseBarMaint.style.width = `${pMaint}%`;
+  if (dom.phaseBarBrake) dom.phaseBarBrake.style.width = `${pBrake}%`;
+  if (dom.phaseBarCoast) dom.phaseBarCoast.style.width = `${pCoast}%`;
+
+  if (dom.valPhaseAccelPct) dom.valPhaseAccelPct.textContent = `${pAccel}%`;
+  if (dom.valPhaseMaintPct) dom.valPhaseMaintPct.textContent = `${pMaint}%`;
+  if (dom.valPhaseBrakePct) dom.valPhaseBrakePct.textContent = `${pBrake}%`;
+  if (dom.valPhaseCoastPct) dom.valPhaseCoastPct.textContent = `${pCoast}%`;
+
+  if (dom.valCoastSummary) {
+    dom.valCoastSummary.textContent = `${coastTimeSec}s Coast`;
+  }
 }
 
 function getHeatmapColor(ratio) {
@@ -7176,9 +7565,9 @@ function recalculateLapsAndSectors() {
     const sectors = [];
     const maxLapSpeed = lapRecs.reduce((max, r) => (r.speed_kmh || 0) > max ? (r.speed_kmh || 0) : max, 0);
 
-    if (splitGates.length > 0) {
+    if (splitGates.length >= 2) {
       let splitCrossings = [];
-      splitGates.forEach(sg => {
+      splitGates.slice(0, 2).forEach(sg => {
         const scList = findGateCrossings(sg, lapRecs, 5.0);
         if (scList.length > 0) {
           splitCrossings.push({ time_s: scList[0].time_s });
@@ -7203,20 +7592,22 @@ function recalculateLapsAndSectors() {
 
       splitCrossings.sort((a, b) => a.time_s - b.time_s);
 
-      let prevT = c1.time_s;
-      splitCrossings.forEach(sc => {
-        const sDur = sc.time_s - prevT;
-        sectors.push(sDur > 3.0 ? sDur : null);
-        prevT = sc.time_s;
-      });
-      const lastDur = c2.time_s - prevT;
-      sectors.push(lastDur > 3.0 ? lastDur : null);
+      if (splitCrossings.length === 2 && splitCrossings[0].time_s > c1.time_s + 4.0 && splitCrossings[1].time_s > splitCrossings[0].time_s + 4.0 && splitCrossings[1].time_s < c2.time_s - 4.0) {
+        const s1 = splitCrossings[0].time_s - c1.time_s;
+        const s2 = splitCrossings[1].time_s - splitCrossings[0].time_s;
+        const s3 = c2.time_s - splitCrossings[1].time_s;
+        sectors.push(s1, s2, s3);
+      } else {
+        const s1 = dur * 0.28;
+        const s2 = dur * 0.38;
+        const s3 = dur - s1 - s2;
+        sectors.push(s1, s2, s3);
+      }
     } else {
-      sectors.push(dur * 0.28, dur * 0.38, dur * 0.34);
-    }
-
-    while (sectors.length < 3) {
-      sectors.push(dur / 3.0);
+      const s1 = dur * 0.28;
+      const s2 = dur * 0.38;
+      const s3 = dur - s1 - s2;
+      sectors.push(s1, s2, s3);
     }
 
     newLaps.push({
@@ -7274,6 +7665,7 @@ function recalculateLapsAndSectors() {
   }
 
   state.laps = newLaps;
+  if (typeof generateTheoreticalOptimalLap === 'function') generateTheoreticalOptimalLap();
   if (typeof renderLapListTable === 'function') renderLapListTable();
   renderMapGates();
   if (typeof selectLap === 'function') selectLap(state.selectedLapNum, false);
@@ -8399,6 +8791,316 @@ function renderLeanThrottleMatrix(lapNumber = -1) {
 }
 
 
+/* --- Module: js/coaching.js --- */
+/**
+ * coaching.js - Rider Coaching Intelligence, Automated Turn-by-Turn Scorecards,
+ * and Theoretical Optimal Lap Synthesizer
+ * Ducati DDA Telemetry & GPS Visualizer
+ */
+
+/**
+ * Automatically synthesizes a Virtual Theoretical Optimal Lap by extracting
+ * and stitching together the fastest Sector 1, Sector 2, and Sector 3 records.
+ */
+function generateTheoreticalOptimalLap() {
+  if (!state.laps || state.laps.length === 0 || !state.records || state.records.length === 0) return null;
+
+  // Filter valid timed laps with defined sector splits
+  const validLaps = state.laps.filter(l => 
+    l.duration_s > 25 && 
+    l.sectors && 
+    l.sectors.length >= 3 && 
+    typeof l.sectors[0] === 'number' && 
+    typeof l.sectors[1] === 'number' && 
+    typeof l.sectors[2] === 'number' &&
+    l.sectors[0] > 1.0 && 
+    l.sectors[1] > 1.0 && 
+    l.sectors[2] > 1.0
+  );
+  if (validLaps.length === 0) return null;
+
+  // Find best laps for S1, S2, S3
+  let bestS1Lap = validLaps[0];
+  let bestS2Lap = validLaps[0];
+  let bestS3Lap = validLaps[0];
+
+  let minS1 = bestS1Lap.sectors[0];
+  let minS2 = bestS1Lap.sectors[1];
+  let minS3 = bestS1Lap.sectors[2];
+
+  for (const l of validLaps) {
+    if (l.sectors[0] < minS1) { minS1 = l.sectors[0]; bestS1Lap = l; }
+    if (l.sectors[1] < minS2) { minS2 = l.sectors[1]; bestS2Lap = l; }
+    if (l.sectors[2] < minS3) { minS3 = l.sectors[2]; bestS3Lap = l; }
+  }
+
+  // Extract slices
+  const recsS1 = getSectorRecords(bestS1Lap, 0);
+  const recsS2 = getSectorRecords(bestS2Lap, 1);
+  const recsS3 = getSectorRecords(bestS3Lap, 2);
+
+  if (recsS1.length === 0 || recsS2.length === 0 || recsS3.length === 0) return null;
+
+  // Synthesize unified records with continuous time & distance
+  const optimalRecords = [];
+  let curTime = 0.0;
+  let curDist = 0.0;
+
+  function appendSectorRecords(srcRecs) {
+    if (srcRecs.length === 0) return;
+    const tBase = srcRecs[0].time_s || 0;
+    const dBase = srcRecs[0].distance_m || 0;
+    const startT = curTime;
+    const startD = curDist;
+
+    for (let i = 0; i < srcRecs.length; i++) {
+      const orig = srcRecs[i];
+      const rCopy = Object.assign({}, orig);
+      rCopy.time_s = startT + ((orig.time_s || 0) - tBase);
+      rCopy.distance_m = startD + ((orig.distance_m || 0) - dBase);
+      rCopy.local_index = optimalRecords.length;
+      optimalRecords.push(rCopy);
+    }
+    curTime = optimalRecords[optimalRecords.length - 1].time_s + 0.1;
+    curDist = optimalRecords[optimalRecords.length - 1].distance_m;
+  }
+
+  appendSectorRecords(recsS1);
+  appendSectorRecords(recsS2);
+  appendSectorRecords(recsS3);
+
+  const totalOptimalDur = minS1 + minS2 + minS3;
+  const maxSpd = Math.max(...optimalRecords.map(r => r.speed_kmh || 0));
+
+  const optimalLap = {
+    lap_number: 999,
+    name: "⚡ Optimal Lap (Virtual)",
+    duration_s: totalOptimalDur,
+    start_index: 0,
+    end_index: optimalRecords.length - 1,
+    start_time_s: 0,
+    end_time_s: totalOptimalDur,
+    distance_m: curDist,
+    max_speed_kmh: maxSpd,
+    is_best: false,
+    is_optimal: true,
+    sectors: [minS1, minS2, minS3],
+    optimal_records: optimalRecords
+  };
+
+  state.optimalLap = optimalLap;
+  return optimalLap;
+}
+
+function getSectorRecords(lapObj, secIndex) {
+  const fullLapRecs = state.records.slice(lapObj.start_index, lapObj.end_index + 1);
+  if (fullLapRecs.length < 5) return fullLapRecs;
+
+  const s1Dur = lapObj.sectors[0];
+  const s2Dur = lapObj.sectors[1];
+  const t0 = lapObj.start_time_s;
+
+  let tStart = t0;
+  let tEnd = t0 + s1Dur;
+
+  if (secIndex === 1) {
+    tStart = t0 + s1Dur;
+    tEnd = t0 + s1Dur + s2Dur;
+  } else if (secIndex === 2) {
+    tStart = t0 + s1Dur + s2Dur;
+    tEnd = lapObj.end_time_s;
+  }
+
+  return fullLapRecs.filter(r => (r.time_s || 0) >= tStart && (r.time_s || 0) <= tEnd);
+}
+
+/**
+ * Analyzes turn-by-turn cornering dynamics, roll time, apex speeds,
+ * and coaching feedback cues.
+ */
+function analyzeCornerPerformance(targetLapNum = -1) {
+  let targetRecords = state.records || [];
+  let isFullSession = targetLapNum === -1;
+
+  if (!isFullSession) {
+    const lapObj = state.laps.find(l => l.lap_number === targetLapNum);
+    if (lapObj) {
+      targetRecords = state.records.slice(lapObj.start_index, lapObj.end_index + 1);
+    }
+  }
+
+  if (!targetRecords || targetRecords.length < 20) return [];
+
+  // Corner Apex Detection: Find local speed minima with lean > 18° separated by > 70m
+  const turns = [];
+  const minLeanThreshold = 18.0;
+  const minTurnSeparationM = 75.0;
+
+  let lastApexDist = -999;
+  for (let i = 5; i < targetRecords.length - 5; i++) {
+    const r = targetRecords[i];
+    const spd = r.speed_kmh || 0;
+    const lean = Math.abs(r.lean_angle_deg || 0);
+    const dist = r.distance_m || (i * 2.0);
+
+    if (lean >= minLeanThreshold && dist - lastApexDist >= minTurnSeparationM) {
+      // Check if local minimum speed in a window of +- 4 frames (0.8s)
+      let isLocalMin = true;
+      for (let k = i - 4; k <= i + 4; k++) {
+        if (k !== i && targetRecords[k] && (targetRecords[k].speed_kmh || 0) < spd) {
+          isLocalMin = false;
+          break;
+        }
+      }
+
+      if (isLocalMin) {
+        lastApexDist = dist;
+        const turnIndex = turns.length + 1;
+        const apexRec = r;
+        const apexIdx = i;
+
+        // Find Braking Onset (scan backwards from apex until decel ends or TPS starts)
+        let brakeRec = targetRecords[Math.max(0, apexIdx - 1)];
+        let brakeDistM = 0;
+        for (let b = apexIdx; b >= Math.max(0, apexIdx - 35); b--) {
+          const recB = targetRecords[b];
+          if ((recB.accel_long_g || 0) < -0.30) {
+            brakeRec = recB;
+          } else if ((recB.tps_pct || 0) > 10 && b < apexIdx - 2) {
+            break;
+          }
+        }
+        brakeDistM = Math.max(0, (apexRec.distance_m || 0) - (brakeRec.distance_m || 0));
+
+        // Find Throttle Pickup (scan forwards from apex until TPS >= 18%)
+        let pickupRec = apexRec;
+        let pickupDistM = 0;
+        for (let p = apexIdx; p <= Math.min(targetRecords.length - 1, apexIdx + 35); p++) {
+          const recP = targetRecords[p];
+          if ((recP.tps_pct || 0) >= 18) {
+            pickupRec = recP;
+            break;
+          }
+        }
+        pickupDistM = Math.max(0, (pickupRec.distance_m || 0) - (apexRec.distance_m || 0));
+
+        // Find Corner Exit (scan forwards until lean <= 12°)
+        let exitRec = targetRecords[Math.min(targetRecords.length - 1, apexIdx + 15)];
+        for (let e = apexIdx; e <= Math.min(targetRecords.length - 1, apexIdx + 50); e++) {
+          const recE = targetRecords[e];
+          if (Math.abs(recE.lean_angle_deg || 0) <= 12) {
+            exitRec = recE;
+            break;
+          }
+        }
+
+        // Calculate Coasting / Dead Roll Time within corner entry and apex zone
+        let coastFrames = 0;
+        const entryIdx = Math.max(0, apexIdx - 20);
+        const postApexIdx = Math.min(targetRecords.length - 1, apexIdx + 15);
+        for (let c = entryIdx; c <= postApexIdx; c++) {
+          const recC = targetRecords[c];
+          if ((recC.tps_pct || 0) < 5 && (recC.accel_long_g || 0) >= -0.35) {
+            coastFrames++;
+          }
+        }
+        const coastTimeSec = coastFrames * 0.1;
+
+        // Turn Type: Left or Right
+        const isLeft = (apexRec.lean_angle_deg || 0) < 0;
+        const turnType = isLeft ? 'Left ↰' : 'Right ↱';
+
+        // Coaching Evaluation Cues
+        let cueText = 'Normal Progression';
+        let cueClass = 'cue-good';
+
+        if (coastTimeSec > 1.3) {
+          cueText = `⚠️ Long roll time (${coastTimeSec.toFixed(1)}s) - trail brake deeper or roll on gas earlier`;
+          cueClass = 'cue-warning';
+        } else if (lean >= 48 && (apexRec.speed_kmh || 0) > 85) {
+          cueText = `🏆 High commitment! Peak lean ${lean.toFixed(1)}° with strong carry speed`;
+          cueClass = 'cue-good';
+        } else if (pickupDistM <= 12 && (exitRec.speed_kmh || 0) > (apexRec.speed_kmh || 0) + 20) {
+          cueText = `🟢 Excellent drive off apex (+${((exitRec.speed_kmh - apexRec.speed_kmh) * (state.unitMph ? 0.621371 : 1)).toFixed(0)} ${state.unitMph ? 'mph' : 'km/h'})`;
+          cueClass = 'cue-good';
+        } else if (brakeDistM > 95 && (apexRec.speed_kmh || 0) < 55) {
+          cueText = `⚡ Overslowing on entry - release brake earlier to carry momentum`;
+          cueClass = 'cue-warning';
+        } else {
+          cueText = `✅ Clean apex transition`;
+          cueClass = 'cue-good';
+        }
+
+        turns.push({
+          turnNumber: turnIndex,
+          name: `Turn ${turnIndex}`,
+          type: turnType,
+          apexSpeedKmh: apexRec.speed_kmh || 0,
+          maxLeanDeg: lean,
+          brakingDistM: brakeDistM,
+          throttlePickupDistM: pickupDistM,
+          exitSpeedKmh: exitRec.speed_kmh || 0,
+          coastTimeSec: coastTimeSec,
+          cueText: cueText,
+          cueClass: cueClass,
+          apexDistanceM: apexRec.distance_m || 0
+        });
+      }
+    }
+  }
+
+  return turns;
+}
+
+/**
+ * Renders the Turn-by-Turn Scorecard table and KPI badges in the modal.
+ */
+function renderScorecardTable(targetLapNum = -1) {
+  if (!dom.scorecardTableBody) return;
+
+  const turns = analyzeCornerPerformance(targetLapNum);
+  if (!turns || turns.length === 0) {
+    dom.scorecardTableBody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:20px; color:#888;">No turns detected in target lap.</td></tr>';
+    return;
+  }
+
+  const spdUnit = state.unitMph ? 'mph' : 'km/h';
+  const spdFactor = state.unitMph ? 0.621371 : 1.0;
+
+  let totalApexSpd = 0;
+  let totalCoast = 0;
+
+  const rowsHtml = turns.map(t => {
+    totalApexSpd += t.apexSpeedKmh * spdFactor;
+    totalCoast += t.coastTimeSec;
+
+    const apexSpdStr = (t.apexSpeedKmh * spdFactor).toFixed(1);
+    const exitSpdStr = (t.exitSpeedKmh * spdFactor).toFixed(1);
+
+    return `
+      <tr>
+        <td><span class="turn-badge">${t.name}</span></td>
+        <td><strong style="color:${t.type.includes('Left') ? '#00e5ff' : '#ffd600'};">${t.type}</strong></td>
+        <td><span class="text-red">-${t.brakingDistM.toFixed(0)}m</span></td>
+        <td><strong class="text-green">${apexSpdStr} ${spdUnit}</strong></td>
+        <td><strong class="text-cyan">${t.maxLeanDeg.toFixed(1)}°</strong></td>
+        <td><span class="text-yellow">+${t.throttlePickupDistM.toFixed(0)}m</span></td>
+        <td><strong style="color:#a5b4fc;">${exitSpdStr} ${spdUnit}</strong></td>
+        <td><strong style="color:${t.coastTimeSec > 1.2 ? '#ff9100' : '#00e676'};">${t.coastTimeSec.toFixed(1)}s</strong></td>
+        <td><span class="cue-badge ${t.cueClass}">${t.cueText}</span></td>
+      </tr>
+    `;
+  }).join('');
+
+  dom.scorecardTableBody.innerHTML = rowsHtml;
+
+  // Update Scorecard KPIs
+  if (dom.kpiScorecardTurns) dom.kpiScorecardTurns.textContent = turns.length.toString();
+  if (dom.kpiScorecardApexSpd) dom.kpiScorecardApexSpd.textContent = `${(totalApexSpd / turns.length).toFixed(1)} ${spdUnit}`;
+  if (dom.kpiScorecardCoast) dom.kpiScorecardCoast.textContent = `${totalCoast.toFixed(1)}s`;
+}
+
+
 /* --- Module: js/playback.js --- */
 /**
  * playback.js - Telemetry Transport Loop, Smoothing Filters, and UI Updater
@@ -8772,7 +9474,11 @@ function selectLap(lapNum, shouldFit = false) {
     row.classList.toggle('active-lap-row', parseInt(row.dataset.lap, 10) === lapNum);
   });
 
-  if (lapNum === -1) {
+  if (lapNum === 999 && state.optimalLap) {
+    state.activeRecords = state.optimalLap.optimal_records || [];
+    if (dom.mapPanelTitle) dom.mapPanelTitle.textContent = `GPS Track Map - ⚡ Optimal Lap (${formatTime(state.optimalLap.duration_s)})`;
+    if (dom.chartsPanelTitle) dom.chartsPanelTitle.textContent = `Telemetry Channels - ⚡ Optimal Lap (${formatTime(state.optimalLap.duration_s)})`;
+  } else if (lapNum === -1) {
     state.activeRecords = state.records;
     if (dom.mapPanelTitle) dom.mapPanelTitle.textContent = "GPS Track Map (All Laps)";
     if (dom.chartsPanelTitle) dom.chartsPanelTitle.textContent = "Synchronized Telemetry Channels (Full Session)";
@@ -8849,6 +9555,7 @@ function renderLapListTable() {
   if (dom.selectLapB) dom.selectLapB.innerHTML = '';
   if (dom.selectExportLap) dom.selectExportLap.innerHTML = '';
   if (dom.selectMatrixLap) dom.selectMatrixLap.innerHTML = '<option value="-1">All Laps (Full Session)</option>';
+  if (dom.selectScorecardLap) dom.selectScorecardLap.innerHTML = '<option value="-1">All Laps (Session Averages & Consistency)</option>';
 
   const trAll = document.createElement('tr');
   trAll.dataset.lap = '-1';
@@ -8896,7 +9603,18 @@ function renderLapListTable() {
     if (dom.selectLapB) dom.selectLapB.appendChild(opt.cloneNode(true));
     if (dom.selectExportLap) dom.selectExportLap.appendChild(opt.cloneNode(true));
     if (dom.selectMatrixLap) dom.selectMatrixLap.appendChild(opt.cloneNode(true));
+    if (dom.selectScorecardLap) dom.selectScorecardLap.appendChild(opt.cloneNode(true));
   });
+
+  // Optimal Lap Virtual Entry
+  if (state.optimalLap) {
+    const optVirtual = document.createElement('option');
+    optVirtual.value = 999;
+    optVirtual.textContent = `⚡ Optimal Lap (${formatTime(state.optimalLap.duration_s)}) [VIRTUAL]`;
+    if (dom.selectLapJump) dom.selectLapJump.appendChild(optVirtual.cloneNode(true));
+    if (dom.selectLapB) dom.selectLapB.appendChild(optVirtual.cloneNode(true));
+    if (dom.selectScorecardLap) dom.selectScorecardLap.appendChild(optVirtual.cloneNode(true));
+  }
 
   const bestLap = state.laps.find(l => l.is_best);
   if (bestLap) {
@@ -8989,6 +9707,10 @@ function loadSessionData(jsonObj) {
 
   applySmoothingToRecords();
   recalculateLapsAndSectors();
+
+  if (typeof generateTheoreticalOptimalLap === 'function') {
+    generateTheoreticalOptimalLap();
+  }
 
   if (dom.timelineSlider) {
     dom.timelineSlider.max = state.records.length - 1;
@@ -9096,6 +9818,26 @@ function bindEvents() {
     dom.selectMatrixLap.addEventListener('change', (e) => {
       const lapNum = parseInt(e.target.value, 10);
       if (typeof renderLeanThrottleMatrix === 'function') renderLeanThrottleMatrix(lapNum);
+    });
+  }
+
+  // Turn-by-Turn Scorecard Modal
+  if (dom.btnOpenScorecard) {
+    dom.btnOpenScorecard.addEventListener('click', () => {
+      const lapNum = dom.selectScorecardLap ? parseInt(dom.selectScorecardLap.value, 10) : -1;
+      if (typeof renderScorecardTable === 'function') renderScorecardTable(lapNum);
+      if (dom.modalScorecard) dom.modalScorecard.style.display = 'flex';
+    });
+  }
+  if (dom.btnCloseScorecard) {
+    dom.btnCloseScorecard.addEventListener('click', () => {
+      if (dom.modalScorecard) dom.modalScorecard.style.display = 'none';
+    });
+  }
+  if (dom.selectScorecardLap) {
+    dom.selectScorecardLap.addEventListener('change', (e) => {
+      const lapNum = parseInt(e.target.value, 10);
+      if (typeof renderScorecardTable === 'function') renderScorecardTable(lapNum);
     });
   }
 
@@ -9559,6 +10301,15 @@ function bindEvents() {
           if (typeof renderLeanThrottleMatrix === 'function') renderLeanThrottleMatrix(lapNum);
         }
       }
+    } else if (e.code === 'KeyT') {
+      if (dom.modalScorecard) {
+        const isVis = dom.modalScorecard.style.display === 'flex';
+        dom.modalScorecard.style.display = isVis ? 'none' : 'flex';
+        if (!isVis) {
+          const lapNum = dom.selectScorecardLap ? parseInt(dom.selectScorecardLap.value, 10) : -1;
+          if (typeof renderScorecardTable === 'function') renderScorecardTable(lapNum);
+        }
+      }
     } else if (e.code === 'KeyL') {
       if (typeof toggleWorkspaceLayout === 'function') toggleWorkspaceLayout();
     } else if (e.code === 'KeyS') {
@@ -9570,6 +10321,7 @@ function bindEvents() {
     } else if (e.code === 'KeyF') {
       if (dom.btnFitBounds) dom.btnFitBounds.click();
     } else if (e.code === 'Escape') {
+      if (dom.modalScorecard) dom.modalScorecard.style.display = 'none';
       if (dom.modalLeanThrottle) dom.modalLeanThrottle.style.display = 'none';
       if (dom.modalSettings) dom.modalSettings.style.display = 'none';
       if (dom.modalVideoExport) dom.modalVideoExport.style.display = 'none';

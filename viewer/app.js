@@ -20,6 +20,7 @@ function renderLapListTable() {
   if (dom.selectLapB) dom.selectLapB.innerHTML = '';
   if (dom.selectExportLap) dom.selectExportLap.innerHTML = '';
   if (dom.selectMatrixLap) dom.selectMatrixLap.innerHTML = '<option value="-1">All Laps (Full Session)</option>';
+  if (dom.selectScorecardLap) dom.selectScorecardLap.innerHTML = '<option value="-1">All Laps (Session Averages & Consistency)</option>';
 
   const trAll = document.createElement('tr');
   trAll.dataset.lap = '-1';
@@ -67,7 +68,18 @@ function renderLapListTable() {
     if (dom.selectLapB) dom.selectLapB.appendChild(opt.cloneNode(true));
     if (dom.selectExportLap) dom.selectExportLap.appendChild(opt.cloneNode(true));
     if (dom.selectMatrixLap) dom.selectMatrixLap.appendChild(opt.cloneNode(true));
+    if (dom.selectScorecardLap) dom.selectScorecardLap.appendChild(opt.cloneNode(true));
   });
+
+  // Optimal Lap Virtual Entry
+  if (state.optimalLap) {
+    const optVirtual = document.createElement('option');
+    optVirtual.value = 999;
+    optVirtual.textContent = `⚡ Optimal Lap (${formatTime(state.optimalLap.duration_s)}) [VIRTUAL]`;
+    if (dom.selectLapJump) dom.selectLapJump.appendChild(optVirtual.cloneNode(true));
+    if (dom.selectLapB) dom.selectLapB.appendChild(optVirtual.cloneNode(true));
+    if (dom.selectScorecardLap) dom.selectScorecardLap.appendChild(optVirtual.cloneNode(true));
+  }
 
   const bestLap = state.laps.find(l => l.is_best);
   if (bestLap) {
@@ -160,6 +172,10 @@ function loadSessionData(jsonObj) {
 
   applySmoothingToRecords();
   recalculateLapsAndSectors();
+
+  if (typeof generateTheoreticalOptimalLap === 'function') {
+    generateTheoreticalOptimalLap();
+  }
 
   if (dom.timelineSlider) {
     dom.timelineSlider.max = state.records.length - 1;
@@ -267,6 +283,26 @@ function bindEvents() {
     dom.selectMatrixLap.addEventListener('change', (e) => {
       const lapNum = parseInt(e.target.value, 10);
       if (typeof renderLeanThrottleMatrix === 'function') renderLeanThrottleMatrix(lapNum);
+    });
+  }
+
+  // Turn-by-Turn Scorecard Modal
+  if (dom.btnOpenScorecard) {
+    dom.btnOpenScorecard.addEventListener('click', () => {
+      const lapNum = dom.selectScorecardLap ? parseInt(dom.selectScorecardLap.value, 10) : -1;
+      if (typeof renderScorecardTable === 'function') renderScorecardTable(lapNum);
+      if (dom.modalScorecard) dom.modalScorecard.style.display = 'flex';
+    });
+  }
+  if (dom.btnCloseScorecard) {
+    dom.btnCloseScorecard.addEventListener('click', () => {
+      if (dom.modalScorecard) dom.modalScorecard.style.display = 'none';
+    });
+  }
+  if (dom.selectScorecardLap) {
+    dom.selectScorecardLap.addEventListener('change', (e) => {
+      const lapNum = parseInt(e.target.value, 10);
+      if (typeof renderScorecardTable === 'function') renderScorecardTable(lapNum);
     });
   }
 
@@ -730,6 +766,15 @@ function bindEvents() {
           if (typeof renderLeanThrottleMatrix === 'function') renderLeanThrottleMatrix(lapNum);
         }
       }
+    } else if (e.code === 'KeyT') {
+      if (dom.modalScorecard) {
+        const isVis = dom.modalScorecard.style.display === 'flex';
+        dom.modalScorecard.style.display = isVis ? 'none' : 'flex';
+        if (!isVis) {
+          const lapNum = dom.selectScorecardLap ? parseInt(dom.selectScorecardLap.value, 10) : -1;
+          if (typeof renderScorecardTable === 'function') renderScorecardTable(lapNum);
+        }
+      }
     } else if (e.code === 'KeyL') {
       if (typeof toggleWorkspaceLayout === 'function') toggleWorkspaceLayout();
     } else if (e.code === 'KeyS') {
@@ -741,6 +786,7 @@ function bindEvents() {
     } else if (e.code === 'KeyF') {
       if (dom.btnFitBounds) dom.btnFitBounds.click();
     } else if (e.code === 'Escape') {
+      if (dom.modalScorecard) dom.modalScorecard.style.display = 'none';
       if (dom.modalLeanThrottle) dom.modalLeanThrottle.style.display = 'none';
       if (dom.modalSettings) dom.modalSettings.style.display = 'none';
       if (dom.modalVideoExport) dom.modalVideoExport.style.display = 'none';
