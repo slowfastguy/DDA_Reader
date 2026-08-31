@@ -4,7 +4,7 @@ Session title,"Sonoma Raceway"
 Session type,Lap timing
 Track name,"Sonoma Raceway"
 Driver name,"Max Fischer"
-Created,30/08/2026,19:33
+Created,30/08/2026,21:07
 Note,Converted from Ducati DDA binary log
 
 timestamp,fragment_id,lap_number,elapsed_time,distance_traveled,altitude,bearing,latitude,longitude,speed,engine_rpm,throttle_position,gear,lean_angle,torque_reduction_fast,torque_reduction_slow

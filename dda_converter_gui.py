@@ -10,9 +10,11 @@ Includes customizable batch directory conversion with selective output format ch
 import os
 import sys
 import argparse
+import importlib
 import webbrowser
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
+import dda_core
 from dda_core import DDAParser
 
 
@@ -307,7 +309,8 @@ class DDAConverterApp(tk.Tk):
         self._log(f"[*] Opening and analyzing DDA file: {fpath}")
 
         try:
-            self.parser = DDAParser(fpath)
+            importlib.reload(dda_core)
+            self.parser = dda_core.DDAParser(fpath)
             count = self.parser.parse()
             self._log(f"[+] Successfully decoded {count:,} telemetry frames.\n")
 

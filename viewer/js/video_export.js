@@ -479,33 +479,44 @@ function drawMotoGPOverlayCanvas(ctx, cardWidth, cardHeight, riderName, bikeName
     ctx.clip();
     ctx.globalAlpha = bodyAlpha;
 
-    // Middle Row: Time & Delta Displays
-    if (isGateHighlight) {
-      // Gate crossing 5s pop: Paused Split Time on Left is Shrunk (14px), Delta on Right is Enlarged (24px)
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'middle';
-      ctx.font = `800 ${14 * s}px "JetBrains Mono", monospace`;
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.70)';
-      ctx.fillText(timeStr, x + 10 * s, y + 53 * s);
+    // Middle Row: Time & Delta Displays (Smooth Size & Glow Transition)
+    const gatePop = typeof isGateHighlight === 'number'
+      ? Math.max(0, Math.min(1, isGateHighlight))
+      : (isGateHighlight ? 1.0 : 0.0);
 
-      ctx.textAlign = 'right';
-      ctx.font = `900 ${24 * s}px "JetBrains Mono", "Outfit", monospace`;
-      ctx.fillStyle = deltaColorHex || '#8e94a5';
+    // Smooth Timer Size (Left): 24px (normal) -> 14px (shrunk)
+    const timerFontSize = Math.round((24 - 10 * gatePop) * s);
+    const timerWeight = gatePop > 0.6 ? 800 : 900;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.font = `${timerWeight} ${timerFontSize}px "JetBrains Mono", "Outfit", monospace`;
+
+    if (gatePop > 0.01) {
+      // Smooth color transition towards dimmed white rgba(255, 255, 255, 0.70)
+      ctx.fillStyle = timeColorHex || '#ff8c00';
+      ctx.globalAlpha = bodyAlpha * (1 - 0.30 * gatePop);
+      ctx.fillText(timeStr, x + 10 * s, y + 53 * s);
+      ctx.globalAlpha = bodyAlpha;
+    } else {
+      ctx.fillStyle = timeColorHex || '#ff8c00';
+      ctx.fillText(timeStr, x + 10 * s, y + 53 * s);
+    }
+
+    // Smooth Delta Size (Right): 14px (normal) -> 24px (enlarged)
+    const deltaFontSize = Math.round((14 + 10 * gatePop) * s);
+    const deltaWeight = gatePop > 0.4 ? 900 : 800;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.font = `${deltaWeight} ${deltaFontSize}px "JetBrains Mono", "Outfit", monospace`;
+    ctx.fillStyle = deltaColorHex || '#8e94a5';
+
+    if (gatePop > 0.05) {
       ctx.shadowColor = deltaColorHex || '#8e94a5';
-      ctx.shadowBlur = 8 * s;
+      ctx.shadowBlur = 8 * gatePop * s;
       ctx.fillText(deltaStr, x + w - 10 * s, y + 53 * s);
       ctx.shadowBlur = 0;
     } else {
-      // Normal Live Counting: Timer on Left is Big (24px), Delta on Right is Normal (14px)
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'middle';
-      ctx.font = `900 ${24 * s}px "JetBrains Mono", "Outfit", monospace`;
-      ctx.fillStyle = timeColorHex || '#ff8c00';
-      ctx.fillText(timeStr, x + 10 * s, y + 53 * s);
-
-      ctx.textAlign = 'right';
-      ctx.font = `800 ${14 * s}px "JetBrains Mono", monospace`;
-      ctx.fillStyle = deltaColorHex || '#8e94a5';
+      ctx.shadowBlur = 0;
       ctx.fillText(deltaStr, x + w - 10 * s, y + 53 * s);
     }
 
@@ -1069,10 +1080,12 @@ function calculateOverlayFrameState(tRelLap, tSplit1, tSplit2, s1Dur, s2Dur, s3D
   let deltaStr = '+0.000';
   let deltaColor = '#8e94a5';
   let timeColor = '#ff8c00';
-  let isGateHighlight = false;
+  let gatePopFactor = 0.0;
   let timeStr = '0:00.000';
   let ticFrac = 0;
   let finishState = null;
+
+  const transDuration = 0.25; // 250ms smooth cubic ease matching CSS transition
 
   if (tRelLap < 0) {
     timeStr = formatMotoGPTimer(0);
@@ -1080,14 +1093,14 @@ function calculateOverlayFrameState(tRelLap, tSplit1, tSplit2, s1Dur, s2Dur, s3D
     deltaColor = '#8e94a5';
     timeColor = '#ff8c00';
     ticFrac = 0;
-    isGateHighlight = false;
+    gatePopFactor = 0.0;
   } else if (tRelLap < tSplit1) {
     timeStr = formatMotoGPTimer(tRelLap);
     deltaStr = '+0.000';
     deltaColor = '#8e94a5';
     timeColor = '#ff8c00';
     ticFrac = (tRelLap / tSplit1) * (1 / 3);
-    isGateHighlight = false;
+    gatePopFactor = 0.0;
   } else if (tRelLap < tSplit2) {
     const d1 = s1Dur - r1;
     sectors[0].color = d1 < 0 ? '#ff1744' : (d1 <= 0.5 ? '#ff8c00' : '#8e94a5');
@@ -1096,11 +1109,20 @@ function calculateOverlayFrameState(tRelLap, tSplit1, tSplit2, s1Dur, s2Dur, s3D
     timeColor = deltaColor;
     ticFrac = (1 / 3) + ((tRelLap - tSplit1) / s2Dur) * (1 / 3);
 
-    if (tRelLap >= tSplit1 && tRelLap < tSplit1 + 5.0) {
-      isGateHighlight = true;
+    const dtGate = tRelLap - tSplit1;
+    if (dtGate < 5.0) {
+      if (dtGate < transDuration) {
+        const u = dtGate / transDuration;
+        gatePopFactor = u * u * (3 - 2 * u);
+      } else if (dtGate < 5.0 - transDuration) {
+        gatePopFactor = 1.0;
+      } else {
+        const v = (5.0 - dtGate) / transDuration;
+        gatePopFactor = v * v * (3 - 2 * v);
+      }
       timeStr = formatMotoGPTimer(tSplit1);
     } else {
-      isGateHighlight = false;
+      gatePopFactor = 0.0;
       timeStr = formatMotoGPTimer(tRelLap);
     }
   } else if (tRelLap < totalLapDuration) {
@@ -1113,11 +1135,20 @@ function calculateOverlayFrameState(tRelLap, tSplit1, tSplit2, s1Dur, s2Dur, s3D
     timeColor = deltaColor;
     ticFrac = (2 / 3) + (Math.min(1.0, (tRelLap - tSplit2) / s3Dur)) * (1 / 3);
 
-    if (tRelLap >= tSplit2 && tRelLap < tSplit2 + 5.0) {
-      isGateHighlight = true;
+    const dtGate = tRelLap - tSplit2;
+    if (dtGate < 5.0) {
+      if (dtGate < transDuration) {
+        const u = dtGate / transDuration;
+        gatePopFactor = u * u * (3 - 2 * u);
+      } else if (dtGate < 5.0 - transDuration) {
+        gatePopFactor = 1.0;
+      } else {
+        const v = (5.0 - dtGate) / transDuration;
+        gatePopFactor = v * v * (3 - 2 * v);
+      }
       timeStr = formatMotoGPTimer(tSplit2);
     } else {
-      isGateHighlight = false;
+      gatePopFactor = 0.0;
       timeStr = formatMotoGPTimer(tRelLap);
     }
   } else {
@@ -1131,7 +1162,7 @@ function calculateOverlayFrameState(tRelLap, tSplit1, tSplit2, s1Dur, s2Dur, s3D
     deltaColor = d3 < 0 ? '#ff1744' : (d3 <= 0.5 ? '#ff8c00' : '#8e94a5');
     timeColor = deltaColor;
 
-    isGateHighlight = true;
+    gatePopFactor = 1.0;
     timeStr = formatMotoGPTimer(totalLapDuration);
     ticFrac = 1.0;
 
@@ -1145,5 +1176,5 @@ function calculateOverlayFrameState(tRelLap, tSplit1, tSplit2, s1Dur, s2Dur, s3D
     };
   }
 
-  return { timeStr, deltaStr, deltaColor, timeColor, sectors, ticFrac, isGateHighlight, finishState };
+  return { timeStr, deltaStr, deltaColor, timeColor, sectors, ticFrac, isGateHighlight: gatePopFactor, finishState };
 }

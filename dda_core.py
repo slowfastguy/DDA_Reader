@@ -816,26 +816,34 @@ class DDAParser:
             embedded_json_tag
         )
         
-        # Replace script tags with inlined muxers and modular scripts
-        html_content = html_content.replace(
-            '<script src="webm-muxer.min.js"></script>',
-            f'<script>\n{webmMuxer_content}\n</script>' if webmMuxer_content else ''
-        )
-        html_content = html_content.replace(
-            '<script src="mp4-muxer.min.js"></script>',
-            f'<script>\n{mp4Muxer_content}\n</script>' if mp4Muxer_content else ''
-        )
+        # Assemble complete bundled JavaScript in strict dependency order
+        all_scripts = []
+        if webmMuxer_content:
+            all_scripts.append(f"/* --- WebM Muxer --- */\n{webmMuxer_content}")
+        if mp4Muxer_content:
+            all_scripts.append(f"/* --- MP4 Muxer --- */\n{mp4Muxer_content}")
+        for mod_name in js_modules:
+            if mod_name in modular_js_blocks:
+                all_scripts.append(f"/* --- Module: js/{mod_name} --- */\n{modular_js_blocks[mod_name]}")
+        if js_content:
+            all_scripts.append(f"/* --- Main Coordinator: app.js --- */\n{js_content}")
 
-        for mod_name, mod_code in modular_js_blocks.items():
-            html_content = html_content.replace(
-                f'<script src="js/{mod_name}"></script>',
-                f'<script>\n{mod_code}\n</script>'
-            )
+        bundled_js_payload = "\n\n".join(all_scripts)
+        bundled_script_tag = f"<script>\n{bundled_js_payload}\n</script>"
 
-        html_content = html_content.replace(
-            '<script src="app.js"></script>',
-            f'<script>\n{js_content}\n</script>'
-        )
+        # Robust replacement: replace the entire script block at bottom of index.html
+        import re
+        # Match from the first local script tag (webm-muxer or js/...) until the end of app.js
+        script_block_pattern = r'<!-- Video Muxing Libraries[\s\S]*?<script[\s\S]*?src=["\']app\.js["\']\s*></script>'
+        if re.search(script_block_pattern, html_content):
+            html_content = re.sub(script_block_pattern, lambda _: bundled_script_tag, html_content)
+        else:
+            # Fallback direct tag replacements
+            html_content = re.sub(r'<script\s+src=["\']webm-muxer\.min\.js["\']\s*></script>', '', html_content)
+            html_content = re.sub(r'<script\s+src=["\']mp4-muxer\.min\.js["\']\s*></script>', '', html_content)
+            for mod_name in js_modules:
+                html_content = re.sub(r'<script\s+src=["\']js/' + re.escape(mod_name) + r'["\']\s*></script>', '', html_content)
+            html_content = re.sub(r'<script\s+src=["\']app\.js["\']\s*></script>', lambda _: bundled_script_tag, html_content)
 
         with open(out_path, "w", encoding="utf-8") as f:
             f.write(html_content)
