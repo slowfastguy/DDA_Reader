@@ -25,14 +25,21 @@ def main():
 
     # Path separator for --add-data argument (':' on Unix/macOS, ';' on Windows)
     sep = ";" if sys.platform.startswith("win") else ":"
-    data_arg = f"viewer{sep}viewer"
+    data_viewer = f"viewer{sep}viewer"
+    data_settings = f"dda_settings.json{sep}."
+
+    mode_arg = "--onefile" if "--onefile" in sys.argv else ("--onedir" if "--onedir" in sys.argv else "--onefile")
 
     cmd = [
         sys.executable, "-m", "PyInstaller",
         "--name=Ducati DDA Reader",
         "--noconsole",
         "--windowed",
-        f"--add-data={data_arg}",
+        "--clean",
+        "--noconfirm",
+        mode_arg,
+        f"--add-data={data_viewer}",
+        f"--add-data={data_settings}",
         "dda_converter_gui.py"
     ]
 
@@ -46,7 +53,10 @@ def main():
         print("  macOS App Bundle : dist/Ducati DDA Reader.app")
         print("  (You can double-click this .app in Finder or move it to /Applications)")
     elif sys.platform.startswith("win"):
-        print("  Windows Executable: dist\\Ducati DDA Reader.exe")
+        if mode_arg == "--onefile":
+            print("  Windows Portable Executable: dist\\Ducati DDA Reader.exe")
+        else:
+            print("  Windows Directory Bundle   : dist\\Ducati DDA Reader\\Ducati DDA Reader.exe")
         print("  (Double-click in File Explorer to launch)")
     else:
         print("  Linux Executable  : dist/Ducati DDA Reader")

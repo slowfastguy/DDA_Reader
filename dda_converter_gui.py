@@ -48,6 +48,14 @@ from dda_core import DDAParser
 IS_MAC = sys.platform == "darwin"
 IS_WIN = sys.platform.startswith("win")
 
+if IS_WIN:
+    import ctypes
+    try:
+        myappid = "ducati.dda.reader.pro"
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+    except Exception:
+        pass
+
 # QSS Theme Stylesheet for Modern Dark Interface
 QSS_DARK = """
 QMainWindow {

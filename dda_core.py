@@ -12,11 +12,18 @@ Decodes proprietary Prosa CAN-bus binary telemetry streams with GPS & chassis dy
 """
 
 import os
+import sys
 import struct
 import math
 import json
 import zipfile
 from datetime import datetime, timedelta
+
+def _get_base_dir():
+    """Returns the base directory for bundled assets (supports PyInstaller frozen bundles and standard execution)."""
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        return sys._MEIPASS
+    return os.path.dirname(os.path.abspath(__file__))
 
 def haversine_distance_m(lat1, lon1, lat2, lon2):
     """Calculates great-circle distance between two GPS coordinates in meters."""
@@ -777,7 +784,7 @@ class DDAParser:
         }
 
     def _load_settings_json(self):
-        settings_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dda_settings.json")
+        settings_path = os.path.join(_get_base_dir(), "dda_settings.json")
         if os.path.exists(settings_path):
             try:
                 with open(settings_path, "r", encoding="utf-8") as f:
@@ -802,7 +809,7 @@ class DDAParser:
         Can be opened directly in any browser with zero installation or local server required.
         """
         if viewer_dir is None:
-            viewer_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "viewer")
+            viewer_dir = os.path.join(_get_base_dir(), "viewer")
 
         html_template_path = os.path.join(viewer_dir, "index.html")
         leaflet_css_path = os.path.join(viewer_dir, "leaflet.css")

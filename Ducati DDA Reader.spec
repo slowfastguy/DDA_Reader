@@ -5,7 +5,7 @@ a = Analysis(
     ['dda_converter_gui.py'],
     pathex=[],
     binaries=[],
-    datas=[('viewer', 'viewer')],
+    datas=[('viewer', 'viewer'), ('dda_settings.json', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -36,9 +36,11 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
 )
-app = BUNDLE(
-    exe,
-    name='Ducati DDA Reader.app',
-    icon=None,
-    bundle_identifier=None,
-)
+
+if sys.platform == 'darwin':
+    app = BUNDLE(
+        exe,
+        name='Ducati DDA Reader.app',
+        icon=None,
+        bundle_identifier=None,
+    )
