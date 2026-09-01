@@ -1,0 +1,63 @@
+;
+; Ducati Data Analyzer (DDA) USB Device WinUSB Driver
+; Compatible with: Prosa DDA, DDA+, DDA 2.0, DDA 3.x (VID: 0x1781, PID: 0x0B7B)
+; Architecture: Windows 7, 8, 10, 11 (x86, x64, ARM64)
+;
+
+[Version]
+Signature   = "$Windows NT$"
+Class       = USBDevice
+ClassGUID   = {88BAE032-5A81-49f0-BC3D-A4FF138216D6}
+Provider    = %ManufacturerName%
+CatalogFile = dda_winusb.cat
+DriverVer   = 09/01/2026,1.0.0.0
+
+; ========== Manufacturer/Models sections ===========
+
+[Manufacturer]
+%ManufacturerName% = Standard,NTx86,NTamd64,NTarm64
+
+[Standard.NTx86]
+%DeviceName% = USB_Install, USB\VID_1781&PID_0B7B
+
+[Standard.NTamd64]
+%DeviceName% = USB_Install, USB\VID_1781&PID_0B7B
+
+[Standard.NTarm64]
+%DeviceName% = USB_Install, USB\VID_1781&PID_0B7B
+
+; =================== Installation ===================
+
+[USB_Install]
+Include = winusb.inf
+Needs   = WINUSB.NT
+
+[USB_Install.Services]
+Include = winusb.inf
+AddService = WinUSB,0x00000002,WinUSB_ServiceInstall
+
+[WinUSB_ServiceInstall]
+DisplayName     = %WinUSB_SvcDesc%
+ServiceType     = 1
+StartType       = 3
+ErrorControl    = 1
+ServiceBinary   = %12%\WinUSB.sys
+
+[USB_Install.Wdf]
+KmdfService = WINUSB, WinUSB_Install
+
+[WinUSB_Install]
+KmdfLibraryVersion = 1.11
+
+[USB_Install.HW]
+AddReg = Dev_AddReg
+
+[Dev_AddReg]
+HKR,,DeviceInterfaceGUIDs,0x10000,"{044F0DE0-4B4C-4247-B18A-4C8F1FFB67A8}"
+
+; =================== Strings ===================
+
+[Strings]
+ManufacturerName = "Prosa / Ducati Motor Holding"
+DeviceName       = "Ducati Data Analyzer (DDA) USB Device"
+WinUSB_SvcDesc   = "Microsoft WinUSB Driver for DDA"
