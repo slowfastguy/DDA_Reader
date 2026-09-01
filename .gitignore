@@ -50,3 +50,8 @@ sample_run.json
 sample_run.csv
 sample_run_racechrono_v3.csv
 
+# Installer binaries
+*.exe
+*.dmg
+*.pkg
+

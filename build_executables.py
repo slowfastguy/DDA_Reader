@@ -38,6 +38,8 @@ def main():
         "--clean",
         "--noconfirm",
         mode_arg,
+        "--collect-all=libusb_package",
+        "--collect-all=usb",
         f"--add-data={data_viewer}",
         f"--add-data={data_settings}",
         "dda_converter_gui.py"

@@ -1,5 +1,10 @@
 # Core GUI Dependencies
 PyQt6>=6.6.0
 
+# Hardware USB Device Communication
+pyusb>=1.2.1
+libusb-package>=1.0.30.0
+
 # Packaging & Executable Bundling
 pyinstaller>=6.0.0
+

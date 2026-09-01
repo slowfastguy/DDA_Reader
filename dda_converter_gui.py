@@ -17,24 +17,26 @@ from pathlib import Path
 
 # Dual Qt Library Import (PyQt6 preferred, PySide6 fallback)
 try:
-    from PyQt6.QtCore import Qt, QSize
+    from PyQt6.QtCore import Qt, QSize, QThread, pyqtSignal as Signal
     from PyQt6.QtGui import QFont, QColor, QPalette, QIcon, QAction
     from PyQt6.QtWidgets import (
         QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
         QGridLayout, QLabel, QPushButton, QLineEdit, QGroupBox,
         QTabWidget, QTableWidget, QTableWidgetItem, QHeaderView,
-        QCheckBox, QTextEdit, QFileDialog, QMessageBox, QFrame
+        QCheckBox, QTextEdit, QFileDialog, QMessageBox, QFrame,
+        QDialog, QProgressBar
     )
     QT_LIB = "PyQt6"
 except ImportError:
     try:
-        from PySide6.QtCore import Qt, QSize
+        from PySide6.QtCore import Qt, QSize, QThread, Signal
         from PySide6.QtGui import QFont, QColor, QPalette, QIcon, QAction
         from PySide6.QtWidgets import (
             QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
             QGridLayout, QLabel, QPushButton, QLineEdit, QGroupBox,
             QTabWidget, QTableWidget, QTableWidgetItem, QHeaderView,
-            QCheckBox, QTextEdit, QFileDialog, QMessageBox, QFrame
+            QCheckBox, QTextEdit, QFileDialog, QMessageBox, QFrame,
+            QDialog, QProgressBar
         )
         QT_LIB = "PySide6"
     except ImportError:
@@ -44,6 +46,8 @@ except ImportError:
 
 import dda_core
 from dda_core import DDAParser
+from dda_device import DDADevice, DDARunInfo, HAS_USB
+
 
 IS_MAC = sys.platform == "darwin"
 IS_WIN = sys.platform.startswith("win")
@@ -217,7 +221,377 @@ QScrollBar::handle:vertical {
 """
 
 
+class DDADownloadWorker(QThread):
+    """Background worker for downloading runs from the DDA USB stick without blocking the UI."""
+    sig_progress = Signal(int, int, float, str)       # cur_bytes, total_bytes, speed_kb_s, current_file
+    sig_run_finished = Signal(int, str)               # run_index, saved_filepath
+    sig_all_done = Signal(list)                       # list of all saved filepaths
+    sig_error = Signal(str)                           # error message
+
+    def __init__(self, device: DDADevice, runs: list, dest_folder: str):
+        super().__init__()
+        self.device = device
+        self.runs = runs
+        self.dest_folder = dest_folder
+        self._is_cancelled = False
+
+    def cancel(self):
+        self._is_cancelled = True
+
+    def run(self):
+        saved_files = []
+        try:
+            for idx, r in enumerate(self.runs):
+                if self._is_cancelled:
+                    break
+                fname = r.default_filename()
+
+                def on_chunk(cur, tot, spd):
+                    if not self._is_cancelled:
+                        self.sig_progress.emit(cur, tot, spd, fname)
+
+                saved_path = self.device.download_run_to_file(
+                    r,
+                    destination_folder=self.dest_folder,
+                    filename=fname,
+                    progress_callback=on_chunk
+                )
+                saved_files.append(saved_path)
+                self.sig_run_finished.emit(r.index, saved_path)
+
+            if not self._is_cancelled:
+                self.sig_all_done.emit(saved_files)
+        except Exception as e:
+            self.sig_error.emit(str(e))
+
+
+class DDADownloadDialog(QDialog):
+    """Interactive hardware download dialog with run selection and live progress."""
+    sig_load_file = Signal(str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Download from Ducati Data Analyzer Device")
+        self.resize(760, 560)
+        self.setMinimumSize(680, 480)
+
+        self.device = DDADevice()
+        self.worker = None
+        self.runs = []
+        self.downloaded_paths = []
+
+        self._build_ui()
+        self.setStyleSheet(parent.styleSheet() if parent else QSS_DARK)
+        self._refresh_device()
+
+    def _build_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
+
+        # 1. Device Info / Status Card
+        self.dev_box = QGroupBox(" DDA Hardware Status ", self)
+        dev_layout = QVBoxLayout(self.dev_box)
+        dev_layout.setContentsMargins(12, 12, 12, 12)
+
+        self.lbl_dev_status = QLabel("Scanning for DDA USB Stick...", self.dev_box)
+        self.lbl_dev_status.setStyleSheet("font-size: 14px; font-weight: bold; color: #ffffff;")
+        dev_layout.addWidget(self.lbl_dev_status)
+
+        # OEM Downloader Warning Banner
+        self.oem_banner = QFrame(self.dev_box)
+        self.oem_banner.setStyleSheet("background-color: #e65100; border-radius: 6px; padding: 6px;")
+        oem_layout = QHBoxLayout(self.oem_banner)
+        oem_layout.setContentsMargins(10, 4, 10, 4)
+
+        lbl_oem = QLabel("⚠️ OEM 'DDA Downloader' is active in system tray (holding exclusive lock).", self.oem_banner)
+        lbl_oem.setStyleSheet("color: #ffffff; font-weight: bold; background: transparent;")
+        oem_layout.addWidget(lbl_oem, 1)
+
+        btn_kill_oem = QPushButton("Close OEM Downloader", self.oem_banner)
+        btn_kill_oem.setStyleSheet("background-color: #11131a; color: #ffeb3b; font-weight: bold; border: 1px solid #ffeb3b;")
+        btn_kill_oem.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_kill_oem.clicked.connect(self._handle_kill_oem)
+        oem_layout.addWidget(btn_kill_oem)
+
+        dev_layout.addWidget(self.oem_banner)
+        self.oem_banner.setVisible(False)
+
+        layout.addWidget(self.dev_box)
+
+        # 2. Run Table & Selection Bar
+        table_box = QGroupBox(" Recorded Sessions on Stick (Select to Copy) ", self)
+        table_layout = QVBoxLayout(table_box)
+        table_layout.setContentsMargins(12, 12, 12, 12)
+
+        # Selection Toolbar
+        sel_layout = QHBoxLayout()
+        btn_sel_all = QPushButton("Select All", table_box)
+        btn_sel_all.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_sel_all.clicked.connect(self._select_all_runs)
+        sel_layout.addWidget(btn_sel_all)
+
+        btn_sel_none = QPushButton("Select None", table_box)
+        btn_sel_none.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_sel_none.clicked.connect(self._select_no_runs)
+        sel_layout.addWidget(btn_sel_none)
+
+        sel_layout.addStretch()
+
+        btn_refresh = QPushButton("🔄 Refresh Device", table_box)
+        btn_refresh.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_refresh.clicked.connect(self._refresh_device)
+        sel_layout.addWidget(btn_refresh)
+
+        table_layout.addLayout(sel_layout)
+
+        # Runs Table
+        cols = ("Copy", "Run #", "Date & Time", "Data Size", "Est. Duration")
+        self.tbl_runs = QTableWidget(table_box)
+        self.tbl_runs.setColumnCount(len(cols))
+        self.tbl_runs.setHorizontalHeaderLabels(cols)
+        self.tbl_runs.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.tbl_runs.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.tbl_runs.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        self.tbl_runs.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        self.tbl_runs.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
+        self.tbl_runs.setAlternatingRowColors(True)
+        self.tbl_runs.setStyleSheet("QTableWidget { alternate-background-color: #1a1e2b; }")
+        table_layout.addWidget(self.tbl_runs)
+
+        layout.addWidget(table_box, 1)
+
+        # 3. Destination Folder Selector
+        dest_box = QGroupBox(" Destination Folder ", self)
+        dest_layout = QHBoxLayout(dest_box)
+        dest_layout.setContentsMargins(12, 12, 12, 12)
+
+        self.txt_dest = QLineEdit(dest_box)
+        self.txt_dest.setText(os.path.abspath("downloads"))
+        dest_layout.addWidget(self.txt_dest, 1)
+
+        btn_browse_dest = QPushButton("Browse...", dest_box)
+        btn_browse_dest.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_browse_dest.clicked.connect(self._browse_dest)
+        dest_layout.addWidget(btn_browse_dest)
+
+        layout.addWidget(dest_box)
+
+        # 4. Progress & Action Bar
+        prog_layout = QVBoxLayout()
+        self.lbl_progress = QLabel("Ready.", self)
+        self.lbl_progress.setStyleSheet("color: #9aa4be; font-size: 12px;")
+        prog_layout.addWidget(self.lbl_progress)
+
+        self.pbar = QProgressBar(self)
+        self.pbar.setValue(0)
+        self.pbar.setTextVisible(True)
+        self.pbar.setStyleSheet("""
+            QProgressBar {
+                border: 1px solid #353c52;
+                border-radius: 5px;
+                text-align: center;
+                background-color: #141722;
+                color: #ffffff;
+                font-weight: bold;
+                height: 22px;
+            }
+            QProgressBar::chunk {
+                background-color: #00e5ff;
+                border-radius: 4px;
+            }
+        """)
+        prog_layout.addWidget(self.pbar)
+        layout.addLayout(prog_layout)
+
+        # Action Buttons
+        btn_box = QHBoxLayout()
+        btn_box.addStretch()
+
+        self.btn_download = QPushButton("⬇️ Download Selected Runs", self)
+        self.btn_download.setObjectName("AccentBtn")
+        self.btn_download.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_download.clicked.connect(self._start_download)
+        btn_box.addWidget(self.btn_download)
+
+        self.btn_close = QPushButton("Close", self)
+        self.btn_close.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_close.clicked.connect(self.close)
+        btn_box.addWidget(self.btn_close)
+
+        layout.addLayout(btn_box)
+
+    def _handle_kill_oem(self):
+        self.device.kill_oem_downloader()
+        self.oem_banner.setVisible(False)
+        self._refresh_device()
+
+    def _browse_dest(self):
+        d = QFileDialog.getExistingDirectory(self, "Select Download Directory", self.txt_dest.text())
+        if d:
+            self.txt_dest.setText(os.path.abspath(d))
+
+    def _refresh_device(self):
+        self.tbl_runs.setRowCount(0)
+        self.runs.clear()
+        self.pbar.setValue(0)
+
+        # Check OEM downloader
+        if self.device.is_oem_downloader_running():
+            self.oem_banner.setVisible(True)
+            self.lbl_dev_status.setText("⚠️ DDA Stick Found, but OEM Downloader is holding exclusive lock.")
+            self.btn_download.setEnabled(False)
+            return
+        else:
+            self.oem_banner.setVisible(False)
+
+        if not self.device.is_connected():
+            self.lbl_dev_status.setText("❌ No DDA Stick detected. Please insert the USB stick.")
+            self.lbl_dev_status.setStyleSheet("font-size: 14px; font-weight: bold; color: #ff5252;")
+            self.btn_download.setEnabled(False)
+            return
+
+        try:
+            self.device.connect()
+            serial = self.device.get_serial_number()
+            flash = self.device.get_flash_info()
+            self.runs = self.device.list_runs()
+            self.device.disconnect()
+
+            self.lbl_dev_status.setText(f"🟢 Connected: DDA Stick (SN: {serial}) — {len(self.runs)} Runs Stored")
+            self.lbl_dev_status.setStyleSheet("font-size: 14px; font-weight: bold; color: #69f0ae;")
+            self.lbl_progress.setText(f"Found {len(self.runs)} recording sessions on device.")
+
+            self.tbl_runs.setRowCount(len(self.runs))
+            for row, r in enumerate(self.runs):
+                # Checkbox
+                chk = QCheckBox()
+                chk.setChecked(True)
+                chk_widget = QWidget()
+                chk_layout = QHBoxLayout(chk_widget)
+                chk_layout.addWidget(chk)
+                chk_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                chk_layout.setContentsMargins(0, 0, 0, 0)
+                self.tbl_runs.setCellWidget(row, 0, chk_widget)
+
+                # Index
+                item_idx = QTableWidgetItem(f"Run #{r.index:02d}")
+                item_idx.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.tbl_runs.setItem(row, 1, item_idx)
+
+                # Date & Time
+                item_dt = QTableWidgetItem(r.datetime_str)
+                self.tbl_runs.setItem(row, 2, item_dt)
+
+                # Size
+                item_sz = QTableWidgetItem(f"{r.size_kb:.1f} KB")
+                item_sz.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+                self.tbl_runs.setItem(row, 3, item_sz)
+
+                # Duration
+                item_dur = QTableWidgetItem(r.duration_str)
+                item_dur.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+                self.tbl_runs.setItem(row, 4, item_dur)
+
+            self.btn_download.setEnabled(len(self.runs) > 0)
+        except Exception as e:
+            self.lbl_dev_status.setText(f"❌ Connection error: {e}")
+            self.lbl_dev_status.setStyleSheet("font-size: 13px; font-weight: bold; color: #ff5252;")
+            self.btn_download.setEnabled(False)
+
+    def _select_all_runs(self):
+        for row in range(self.tbl_runs.rowCount()):
+            widget = self.tbl_runs.cellWidget(row, 0)
+            if widget:
+                chk = widget.findChild(QCheckBox)
+                if chk:
+                    chk.setChecked(True)
+
+    def _select_no_runs(self):
+        for row in range(self.tbl_runs.rowCount()):
+            widget = self.tbl_runs.cellWidget(row, 0)
+            if widget:
+                chk = widget.findChild(QCheckBox)
+                if chk:
+                    chk.setChecked(False)
+
+    def _get_selected_runs(self) -> list:
+        selected = []
+        for row in range(self.tbl_runs.rowCount()):
+            widget = self.tbl_runs.cellWidget(row, 0)
+            if widget:
+                chk = widget.findChild(QCheckBox)
+                if chk and chk.isChecked():
+                    selected.append(self.runs[row])
+        return selected
+
+    def _start_download(self):
+        selected = self._get_selected_runs()
+        if not selected:
+            QMessageBox.warning(self, "No Runs Selected", "Please select at least one run to download.")
+            return
+
+        dest_dir = self.txt_dest.text().strip()
+        if not dest_dir:
+            dest_dir = "downloads"
+        os.makedirs(dest_dir, exist_ok=True)
+
+        self.btn_download.setEnabled(False)
+        self.btn_close.setText("Cancel")
+        self.pbar.setValue(0)
+        self.downloaded_paths.clear()
+
+        self.worker = DDADownloadWorker(self.device, selected, dest_dir)
+        self.worker.sig_progress.connect(self._on_worker_progress)
+        self.worker.sig_run_finished.connect(self._on_worker_run_finished)
+        self.worker.sig_all_done.connect(self._on_worker_all_done)
+        self.worker.sig_error.connect(self._on_worker_error)
+        self.worker.start()
+
+    def _on_worker_progress(self, cur, tot, spd, fname):
+        pct = int(round((cur / tot) * 100)) if tot > 0 else 0
+        self.pbar.setValue(pct)
+        self.lbl_progress.setText(f"Downloading {fname}: {cur/1024:.1f}/{tot/1024:.1f} KB ({spd:.1f} KB/s)")
+
+    def _on_worker_run_finished(self, r_idx, saved_path):
+        self.downloaded_paths.append(saved_path)
+
+    def _on_worker_all_done(self, filepaths):
+        self.pbar.setValue(100)
+        self.lbl_progress.setText(f"✅ Download Complete! Saved {len(filepaths)} files to: {self.txt_dest.text()}")
+        self.btn_download.setEnabled(True)
+        self.btn_close.setText("Close")
+
+        reply = QMessageBox.question(
+            self,
+            "Download Complete",
+            f"Successfully downloaded {len(filepaths)} native .dda session file(s)!\n\n"
+            f"Would you like to open and inspect the newest run in the reader now?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes
+        )
+
+        if reply == QMessageBox.StandardButton.Yes and filepaths:
+            latest = filepaths[-1]
+            self.sig_load_file.emit(latest)
+            self.accept()
+
+    def _on_worker_error(self, err_msg):
+        self.btn_download.setEnabled(True)
+        self.btn_close.setText("Close")
+        self.lbl_progress.setText(f"❌ Error during download: {err_msg}")
+        QMessageBox.critical(self, "Download Error", f"An error occurred while downloading from DDA device:\n\n{err_msg}")
+
+    def closeEvent(self, event):
+        if self.worker and self.worker.isRunning():
+            self.worker.cancel()
+            self.worker.wait(2000)
+        self.device.disconnect()
+        event.accept()
+
+
 class DDAConverterApp(QMainWindow):
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Ducati DDA Reader & Telemetry Exporter Pro")
@@ -231,10 +605,12 @@ class DDAConverterApp(QMainWindow):
         self.setStyleSheet(QSS_DARK)
 
         # Auto-load default file if available in directory
-        default_dda = "Run045-192535-00.14.dda"
-        if os.path.exists(default_dda):
-            self.file_entry.setText(os.path.abspath(default_dda))
-            self._parse_file()
+        for candidate in ["sample_run.dda", "Run045-192535-00.14.dda"]:
+            if os.path.exists(candidate):
+                self.file_entry.setText(os.path.abspath(candidate))
+                self._parse_file()
+                break
+
 
     def _build_ui(self):
         central_widget = QWidget(self)
@@ -259,6 +635,12 @@ class DDAConverterApp(QMainWindow):
         hdr_layout.addWidget(lbl_sub)
 
         hdr_layout.addStretch()
+
+        btn_download_top = QPushButton("⚡ Download from DDA Stick", hdr_frame)
+        btn_download_top.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_download_top.setStyleSheet("background-color: #11131a; color: #ffeb3b; border: 1px solid #ffeb3b; font-weight: bold; padding: 6px 14px; border-radius: 6px;")
+        btn_download_top.clicked.connect(self._open_device_downloader)
+        hdr_layout.addWidget(btn_download_top)
 
         btn_viewer_top = QPushButton("🚀 Open Interactive Viewer", hdr_frame)
         btn_viewer_top.setObjectName("ViewerBtn")
@@ -288,11 +670,17 @@ class DDAConverterApp(QMainWindow):
         btn_browse.clicked.connect(self._browse_file)
         file_layout.addWidget(btn_browse)
 
+        btn_device = QPushButton("⚡ Read Stick...", file_box)
+        btn_device.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_device.clicked.connect(self._open_device_downloader)
+        file_layout.addWidget(btn_device)
+
         btn_parse = QPushButton("Load & Decode", file_box)
         btn_parse.setObjectName("AccentBtn")
         btn_parse.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_parse.clicked.connect(self._parse_file)
         file_layout.addWidget(btn_parse)
+
 
         content_layout.addWidget(file_box)
 
@@ -496,6 +884,16 @@ class DDAConverterApp(QMainWindow):
         )
         if f:
             self.file_entry.setText(f)
+            self._parse_file()
+
+    def _open_device_downloader(self):
+        dlg = DDADownloadDialog(self)
+        dlg.sig_load_file.connect(self._on_device_file_downloaded)
+        dlg.exec()
+
+    def _on_device_file_downloaded(self, filepath: str):
+        if os.path.exists(filepath):
+            self.file_entry.setText(os.path.abspath(filepath))
             self._parse_file()
 
     def _parse_file(self):
