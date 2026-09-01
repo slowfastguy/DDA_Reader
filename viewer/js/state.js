@@ -21,7 +21,7 @@ const DEFAULT_SETTINGS = {
     playbackSpeed: 1.0,
     motogp: {
       showCard: true,
-      riderName: "M FISCHER",
+      riderName: "DUCATI RIDER",
       bikeName: "Panigale V4 R",
       riderNum: "14",
       tyreFront: "M",
@@ -179,7 +179,7 @@ const state = {
   bestSectors: [null, null, null],
   motogp: {
     showCard: true,
-    riderName: "M FISCHER",
+    riderName: "DUCATI RIDER",
     bikeName: "Panigale V4 R",
     riderNum: "14",
     tyreFront: "M",

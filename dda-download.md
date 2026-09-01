@@ -116,8 +116,6 @@ python dda_converter_gui.py
 4. Click **`⬇️ Download Selected Runs`** to begin high-speed extraction with a live progress bar and transfer speed indicator.
 5. On completion, click **Yes** on the prompt to immediately decode and open the latest run in the Telemetry Inspector and 3D Visualizer.
 
-![GUI Download Dialog](file:///C:/Users/maxim/.gemini/antigravity-ide/brain/cfd3a1c6-566a-41f3-ae14-1b5300f46b79/.user_uploaded/media_1788240689321.png)
-
 ---
 
 ### Method 2: Standalone Interactive CLI
@@ -159,15 +157,15 @@ Options:
 Select runs to download [default: all]: 0 1
 Enter destination directory [default: ./downloads]: downloads
 
-Downloading 2 run(s) to: C:\Users\maxim\Documents\DDA_Reader\downloads
+Downloading 2 run(s) to: ./downloads
 
 [1/2] Downloading Run #00 (2024-09-03 00:02, 118.4 KB)...
   [███████████████████████████████████] 100.0% (118.4/118.4 KB at 82.5 KB/s)
-      Saved: C:\Users\maxim\Documents\DDA_Reader\downloads\Run000_20240903_000200.dda
+      Saved: downloads/Run000_20240903_000200.dda
 
 [2/2] Downloading Run #01 (2024-09-03 00:07, 95.9 KB)...
   [███████████████████████████████████] 100.0% (95.9/95.9 KB at 81.3 KB/s)
-      Saved: C:\Users\maxim\Documents\DDA_Reader\downloads\Run001_20240903_000700.dda
+      Saved: downloads/Run001_20240903_000700.dda
 
 ======================================================================
 [✓] Successfully downloaded 2 native .dda file(s)!

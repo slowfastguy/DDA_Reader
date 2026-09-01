@@ -45,3 +45,9 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
 )
+app = BUNDLE(
+    exe,
+    name='Ducati DDA Reader.app',
+    icon=None,
+    bundle_identifier=None,
+)

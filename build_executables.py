@@ -53,6 +53,18 @@ def main():
     print("=" * 60)
     if sys.platform == "darwin":
         print("  macOS App Bundle : dist/Ducati DDA Reader.app")
+        app_path = os.path.join("dist", "Ducati DDA Reader.app")
+        zip_path = os.path.join("dist", "Ducati_DDA_Reader_macOS.zip")
+        if os.path.exists(app_path):
+            import zipfile
+            print(f"[*] Packaging release archive: {zip_path}...")
+            with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+                for root, dirs, files in os.walk(app_path):
+                    for file in files:
+                        full_path = os.path.join(root, file)
+                        rel_path = os.path.relpath(full_path, "dist")
+                        zipf.write(full_path, rel_path)
+            print(f"  macOS Release Zip: {zip_path} ({os.path.getsize(zip_path) / (1024*1024):.1f} MB)")
         print("  (You can double-click this .app in Finder or move it to /Applications)")
     elif sys.platform.startswith("win"):
         if mode_arg == "--onefile":
