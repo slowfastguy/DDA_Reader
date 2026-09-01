@@ -102,11 +102,16 @@ To completely eliminate chroma key fringing, edge bleeding, and green/blue halos
 ```
 DDA_Reader/
 ├── dda_core.py                 # Core binary parser, telemetry engine & all exporters
-├── dda_converter_gui.py        # Desktop Tkinter GUI & Batch CLI converter
+├── dda_converter_gui.py        # Desktop PyQt6/PySide6 GUI & Multi-Format Exporter
+├── build_executables.py        # Cross-platform PyInstaller app bundler (.app / .exe)
+├── launch_mac.command          # Double-clickable macOS Finder launcher script
 ├── dda_settings.json           # User preferences & circuit gate library storage
 ├── Run045-192535-00.14.dda     # Sample session binary dataset
 ├── Run045-192535-00.14_viewer.html # Generated self-contained HTML visualizer
 ├── pi.md                       # Complete Project Overview & Architecture Guide
+│
+├── dist/                       # Packaged Standalone Executables
+│   └── Ducati DDA Reader.app   # Double-clickable macOS Application Bundle
 │
 └── viewer/                     # Standalone Visualizer Source Assets
     ├── index.html              # Core visualizer DOM layout & modal dialogs
@@ -129,10 +134,11 @@ DDA_Reader/
 
 ## 🛠️ Technologies & Libraries Used
 
-### Backend & Core (Python)
-- **Python 3.8+**: Pure standard library implementation (no heavy C-extensions or external binary dependencies required).
+### Backend & Desktop GUI (Python)
+- **Python 3.8+**: Pure standard library engine for telemetry decoding (no external C-extension binary requirements).
+- **`PyQt6` / `PySide6`**: Modern desktop GUI framework delivering native macOS Dark Mode, high-DPI Retina display scaling, color-coded Export Hub, telemetry inspector `QTableWidget`, and console processing log.
+- **`PyInstaller`**: Native executable bundler producing zero-dependency `.app` bundles (macOS), `.exe` binaries (Windows), and Linux executables.
 - **`struct`**: High-performance binary unpacking for little-endian integer, float, and bitfield decoding.
-- **`tkinter` & `ttk`**: Native desktop graphical user interface supporting dark mode styling, drag-and-drop file queues, and batch conversions.
 - **`json`**, **`xml.etree`**, **`math`**: Structured metadata parsing, export generation, and trigonometric navigation math.
 
 ### Frontend Visualizer & Video Engine (Web Platform)
@@ -147,25 +153,49 @@ DDA_Reader/
 
 ## 🚀 How to Run & Use
 
-### 1. Launching the Desktop GUI
-```bash
-python dda_converter_gui.py
-```
-- Open any `.dda` file via the file dialog or drag-and-drop.
-- Click **"Convert & Launch Visualizer"** to generate all export files and immediately open the interactive dashboard.
+### 1. Launching the Desktop Application
 
-### 2. Command-Line Batch Conversion
+#### Option A: Running via Python
+```bash
+python3 dda_converter_gui.py
+```
+
+#### Option B: Double-Clicking Native macOS App / Launchers
+- **macOS App Bundle**: Double-click [`dist/Ducati DDA Reader.app`](file:///Users/maximilian/DDAPRO/DDA_Reader/dist) directly in macOS Finder (or drag it to `/Applications`).
+- **macOS Finder Launcher**: Double-click [`launch_mac.command`](file:///Users/maximilian/DDAPRO/DDA_Reader/launch_mac.command).
+- **Windows Executable**: Double-click `dist\Ducati DDA Reader.exe` in File Explorer.
+
+---
+
+### 2. Building Standalone Executables for Distribution
+
+Build zero-dependency native executables for any platform:
+```bash
+python3 build_executables.py
+```
+This generates the standalone binary inside `dist/` (`.app` on macOS, `.exe` on Windows, executable binary on Linux) bundling all browser visualizer assets from `viewer/`.
+
+---
+
+### 3. Command-Line Batch Conversion
+
 ```bash
 # Convert a single DDA file into the full export suite + standalone HTML
-python dda_converter_gui.py Run045-192535-00.14.dda
+python3 dda_converter_gui.py Run045-192535-00.14.dda
+
+# Batch convert all .dda files in a folder to specified formats
+python3 dda_converter_gui.py --batch /path/to/dda_folder --formats html,racechrono,rcz,csv
 
 # Run directly in automated headless scripts
-python -c "import dda_core; p = dda_core.DDAParser('Run045-192535-00.14.dda'); p.export_all('session_converted')"
+python3 -c "import dda_core; p = dda_core.DDAParser('Run045-192535-00.14.dda'); p.export_all('session_converted')"
 ```
 
-### 3. Video Overlay Export in the Browser
+---
+
+### 4. Video Overlay Export in the Browser
 1. In the visualizer, click **"🎬 Export Video Overlay"** in the top navigation bar.
 2. Customize Rider Name, Bike Model, Number Badge Color, and Tyres.
 3. Select your target Lap and adjust the **Lead In / Out** buffer slider ($0\text{s} \to 10\text{s}$).
 4. Select **`Color + Matching Alpha Matte (Dual Files)`** and click **"Render & Download Video Overlay"**.
 5. Import both `.webm` files into Premiere Pro or DaVinci Resolve, apply the Alpha Matte as a **Luma Matte**, and enjoy clean, artifact-free racing telemetry graphics over your GoPro footage!
+
