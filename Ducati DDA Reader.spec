@@ -1,12 +1,21 @@
 # -*- mode: python ; coding: utf-8 -*-
+from PyInstaller.utils.hooks import collect_all
+
+datas = [('viewer', 'viewer'), ('dda_settings.json', '.')]
+binaries = []
+hiddenimports = []
+tmp_ret = collect_all('libusb_package')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+tmp_ret = collect_all('usb')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
 
 a = Analysis(
     ['dda_converter_gui.py'],
     pathex=[],
-    binaries=[],
-    datas=[('viewer', 'viewer'), ('dda_settings.json', '.')],
-    hiddenimports=[],
+    binaries=binaries,
+    datas=datas,
+    hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -36,11 +45,3 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
 )
-
-if sys.platform == 'darwin':
-    app = BUNDLE(
-        exe,
-        name='Ducati DDA Reader.app',
-        icon=None,
-        bundle_identifier=None,
-    )
