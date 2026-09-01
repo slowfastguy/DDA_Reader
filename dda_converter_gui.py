@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 Ducati DDA (Ducati Data Analyzer) GUI & Multi-Format Exporter
+Modern Cross-Platform Desktop GUI powered by PyQt6 / PySide6.
 Full visual interface for decoding .dda files, inspecting telemetry channels,
 and exporting to Standalone Interactive HTML Visualizer, JSON, RaceChrono v3 CSV, RaceChrono Native .rcz,
 Standard CSV, GPX 1.1, and Google Earth 3D KML.
@@ -13,340 +14,490 @@ import argparse
 import importlib
 import webbrowser
 from pathlib import Path
-import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+
+# Dual Qt Library Import (PyQt6 preferred, PySide6 fallback)
+try:
+    from PyQt6.QtCore import Qt, QSize
+    from PyQt6.QtGui import QFont, QColor, QPalette, QIcon, QAction
+    from PyQt6.QtWidgets import (
+        QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+        QGridLayout, QLabel, QPushButton, QLineEdit, QGroupBox,
+        QTabWidget, QTableWidget, QTableWidgetItem, QHeaderView,
+        QCheckBox, QTextEdit, QFileDialog, QMessageBox, QFrame
+    )
+    QT_LIB = "PyQt6"
+except ImportError:
+    try:
+        from PySide6.QtCore import Qt, QSize
+        from PySide6.QtGui import QFont, QColor, QPalette, QIcon, QAction
+        from PySide6.QtWidgets import (
+            QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+            QGridLayout, QLabel, QPushButton, QLineEdit, QGroupBox,
+            QTabWidget, QTableWidget, QTableWidgetItem, QHeaderView,
+            QCheckBox, QTextEdit, QFileDialog, QMessageBox, QFrame
+        )
+        QT_LIB = "PySide6"
+    except ImportError:
+        print("Error: Neither PyQt6 nor PySide6 could be imported.")
+        print("Please install PyQt6 using: pip install PyQt6")
+        sys.exit(1)
+
 import dda_core
 from dda_core import DDAParser
-
 
 IS_MAC = sys.platform == "darwin"
 IS_WIN = sys.platform.startswith("win")
 
-# Cross-Platform High-DPI Typography
-FONT_NAME_SANS = "SF Pro Text" if IS_MAC else ("Segoe UI" if IS_WIN else "DejaVu Sans")
-FONT_NAME_TITLE = "SF Pro Display" if IS_MAC else ("Segoe UI" if IS_WIN else "DejaVu Sans")
-FONT_NAME_MONO = "Menlo" if IS_MAC else ("Consolas" if IS_WIN else "DejaVu Sans Mono")
+# QSS Theme Stylesheet for Modern Dark Interface
+QSS_DARK = """
+QMainWindow {
+    background-color: #1c1f2b;
+}
+QWidget {
+    background-color: #1c1f2b;
+    color: #f0f4fc;
+    font-family: -apple-system, system-ui, 'Segoe UI', sans-serif;
+    font-size: 13px;
+}
+QGroupBox {
+    background-color: #252a38;
+    border: 1px solid #353c52;
+    border-radius: 8px;
+    margin-top: 12px;
+    padding-top: 14px;
+    font-weight: bold;
+    font-size: 13px;
+    color: #ffffff;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    left: 12px;
+    padding: 0 6px;
+    background-color: #252a38;
+    color: #ffffff;
+}
+QLineEdit {
+    background-color: #141722;
+    color: #ffffff;
+    border: 1px solid #353c52;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 13px;
+    selection-background-color: #00e5ff;
+    selection-color: #000000;
+}
+QLineEdit:focus {
+    border: 1px solid #00e5ff;
+}
+QPushButton {
+    background-color: #353c52;
+    color: #ffffff;
+    border: 1px solid #48526e;
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-weight: bold;
+}
+QPushButton:hover {
+    background-color: #48526e;
+}
+QPushButton:pressed {
+    background-color: #252a38;
+}
+QPushButton#AccentBtn {
+    background-color: #d32f2f;
+    border: none;
+    color: #ffffff;
+}
+QPushButton#AccentBtn:hover {
+    background-color: #b71c1c;
+}
+QPushButton#ViewerBtn {
+    background-color: #11131a;
+    color: #00e5ff;
+    border: 1px solid #00e5ff;
+}
+QPushButton#ViewerBtn:hover {
+    background-color: #000000;
+}
+QPushButton#ExportHtml { background-color: #00695c; border: none; }
+QPushButton#ExportHtml:hover { background-color: #00897b; }
+QPushButton#ExportRc { background-color: #e65100; border: none; }
+QPushButton#ExportRc:hover { background-color: #f57c00; }
+QPushButton#ExportRcz { background-color: #2e7d32; border: none; }
+QPushButton#ExportRcz:hover { background-color: #388e3c; }
+QPushButton#ExportJson { background-color: #6a1b9a; border: none; }
+QPushButton#ExportJson:hover { background-color: #8e24aa; }
+QPushButton#ExportCsv { background-color: #37474f; border: none; }
+QPushButton#ExportCsv:hover { background-color: #455a64; }
 
-FONT_MAIN = (FONT_NAME_SANS, 10 if IS_MAC else 9)
-FONT_BOLD = (FONT_NAME_SANS, 10 if IS_MAC else 9, "bold")
-FONT_TITLE = (FONT_NAME_TITLE, 14, "bold")
-FONT_SUB = (FONT_NAME_SANS, 10, "italic")
-FONT_CARD_TITLE = (FONT_NAME_SANS, 10, "bold")
-FONT_MONO = (FONT_NAME_MONO, 10 if IS_MAC else 9)
+QTabWidget::pane {
+    border: 1px solid #353c52;
+    background-color: #252a38;
+    border-radius: 8px;
+}
+QTabBar::tab {
+    background-color: #252a38;
+    color: #9aa4be;
+    padding: 8px 18px;
+    font-weight: bold;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    margin-right: 4px;
+}
+QTabBar::tab:selected {
+    background-color: #d32f2f;
+    color: #ffffff;
+}
+QTabBar::tab:hover:!selected {
+    background-color: #353c52;
+    color: #ffffff;
+}
+QTableWidget {
+    background-color: #141722;
+    color: #f0f4fc;
+    gridline-color: #282d3c;
+    border: none;
+    border-radius: 6px;
+}
+QHeaderView::section {
+    background-color: #252a38;
+    color: #ffffff;
+    font-weight: bold;
+    border: 1px solid #353c52;
+    padding: 6px;
+}
+QTableWidget::item:selected {
+    background-color: #00695c;
+    color: #ffffff;
+}
+QCheckBox {
+    color: #ffffff;
+    spacing: 8px;
+    background-color: transparent;
+}
+QCheckBox::indicator {
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    border: 1px solid #353c52;
+    background-color: #141722;
+}
+QCheckBox::indicator:checked {
+    background-color: #00e5ff;
+    border-color: #00e5ff;
+}
+QTextEdit {
+    background-color: #141722;
+    color: #d4d4d4;
+    font-family: 'Menlo', 'Consolas', 'DejaVu Sans Mono', monospace;
+    font-size: 12px;
+    border: none;
+    border-radius: 6px;
+}
+QScrollBar:vertical {
+    border: none;
+    background: #1c1f2b;
+    width: 10px;
+    margin: 0px;
+}
+QScrollBar::handle:vertical {
+    background: #353c52;
+    min-height: 20px;
+    border-radius: 5px;
+}
+"""
 
 
-class DDAConverterApp(tk.Tk):
+class DDAConverterApp(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.title("Ducati DDA Reader & Telemetry Exporter Pro")
-        self.geometry("1120x720")
-        self.minsize(980, 600)
-
-        # macOS Window Stacking & Focus Management
-        if IS_MAC:
-            try:
-                self.lift()
-                self.attributes("-topmost", True)
-                self.after_idle(self.attributes, "-topmost", False)
-            except Exception:
-                pass
-
-        # Set app styling
-        self._setup_theme()
+        self.setWindowTitle("Ducati DDA Reader & Telemetry Exporter Pro")
+        self.resize(1120, 720)
+        self.setMinimumSize(980, 600)
 
         self.parser = None
         self.current_filepath = None
 
-        # Build UI Layout
         self._build_ui()
+        self.setStyleSheet(QSS_DARK)
 
-        # Platform Keyboard Shortcuts (Cmd on macOS, Ctrl on Win/Linux)
-        mod_key = "Command" if IS_MAC else "Control"
-        self.bind_all(f"<{mod_key}-o>", lambda e: self._browse_file())
-        self.bind_all(f"<{mod_key}-w>", lambda e: self.destroy())
-        self.bind_all(f"<{mod_key}-q>", lambda e: self.destroy())
-
-    def _setup_theme(self):
-        self.style = ttk.Style(self)
-        self.style.theme_use("clam")
-
-        # Color palette
-        self.bg_color = "#f4f6f9"
-        self.header_bg = "#d32f2f"  # Ducati Red
-        self.card_bg = "#ffffff"
-        self.accent_color = "#b71c1c"
-        self.text_color = "#212121"
-
-        self.configure(bg=self.bg_color)
-        self.style.configure(".", background=self.bg_color, foreground=self.text_color, font=FONT_MAIN)
-        self.style.configure("TFrame", background=self.bg_color)
-        self.style.configure("Card.TLabelframe", background=self.card_bg, relief=tk.SOLID, borderwidth=1)
-        self.style.configure("Card.TLabelframe.Label", background=self.card_bg, font=FONT_CARD_TITLE, foreground="#333333")
-        
-        self.style.configure("Accent.TButton", background=self.header_bg, foreground="#ffffff", font=FONT_BOLD, borderwidth=0)
-        self.style.map("Accent.TButton", background=[("active", self.accent_color), ("pressed", "#8e0000")])
-
-        self.style.configure("Viewer.TButton", background="#11131a", foreground="#00e5ff", font=FONT_BOLD, borderwidth=1)
-        self.style.map("Viewer.TButton", background=[("active", "#000000"), ("pressed", "#222634")])
-
-        self.style.configure("Action.TButton", font=FONT_BOLD)
-        self.style.configure("Treeview.Heading", font=FONT_BOLD, background="#e0e0e0")
-        self.style.configure("Treeview", rowheight=24, font=FONT_MAIN)
-
-        # Export Hub Button Styles
-        self.style.configure("HtmlExport.TButton", background="#b2dfdb", foreground="#004d40", font=FONT_BOLD, padding=8)
-        self.style.map("HtmlExport.TButton", background=[("active", "#80cbc4"), ("pressed", "#4db6ac")])
-
-        self.style.configure("RcExport.TButton", background="#ffecb3", foreground="#e65100", font=FONT_BOLD, padding=8)
-        self.style.map("RcExport.TButton", background=[("active", "#ffe082"), ("pressed", "#ffd54f")])
-
-        self.style.configure("RczExport.TButton", background="#c8e6c9", foreground="#1b5e20", font=FONT_BOLD, padding=8)
-        self.style.map("RczExport.TButton", background=[("active", "#a5d6a7"), ("pressed", "#81c784")])
-
-        self.style.configure("JsonExport.TButton", background="#e1bee7", foreground="#4a148c", font=FONT_BOLD, padding=8)
-        self.style.map("JsonExport.TButton", background=[("active", "#ce93d8"), ("pressed", "#ba68c8")])
-
-        self.style.configure("CsvExport.TButton", background="#e0e0e0", foreground="#212121", font=FONT_BOLD, padding=8)
-        self.style.map("CsvExport.TButton", background=[("active", "#d5d5d5"), ("pressed", "#bdbdbd")])
-
-    def _build_ui(self):
-        # 1. Header Banner
-        hdr_frame = tk.Frame(self, bg=self.header_bg, height=60, padx=20, pady=10)
-        hdr_frame.pack(fill=tk.X)
-        
-        lbl_title = tk.Label(hdr_frame, text="DUCATI DATA ANALYZER (.DDA) CONVERTER", font=FONT_TITLE, bg="#d32f2f", fg="#ffffff")
-        lbl_title.pack(side=tk.LEFT)
-        lbl_sub = tk.Label(hdr_frame, text="GPS & Chassis Dynamics Visualizer", font=FONT_SUB, bg="#d32f2f", fg="#ffcdd2")
-        lbl_sub.pack(side=tk.LEFT, padx=15)
-
-        # Header Action Button: Launch Interactive Viewer
-        btn_launch_top = ttk.Button(
-            hdr_frame,
-            text="🚀 Open Interactive Viewer",
-            style="Viewer.TButton",
-            cursor="hand2",
-            command=self._launch_viewer
-        )
-        btn_launch_top.pack(side=tk.RIGHT)
-
-        # Main Container Frame
-        container = ttk.Frame(self, padding=15)
-        container.pack(fill=tk.BOTH, expand=True)
-
-        # 2. File Selection Bar
-        file_frame = ttk.LabelFrame(container, text="DDA Telemetry File", style="Card.TLabelframe", padding=10)
-        file_frame.pack(fill=tk.X, pady=(0, 10))
-
-        self.file_var = tk.StringVar()
-        entry = ttk.Entry(file_frame, textvariable=self.file_var, font=FONT_MAIN)
-        entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
-
-        btn_browse = ttk.Button(file_frame, text="Browse DDA...", command=self._browse_file, style="Action.TButton")
-        btn_browse.pack(side=tk.LEFT, padx=5)
-
-        btn_parse = ttk.Button(file_frame, text="Load & Decode", command=self._parse_file, style="Accent.TButton")
-        btn_parse.pack(side=tk.LEFT, padx=5)
-
-        # 3. Session Overview Card Grid
-        self.stats_frame = ttk.LabelFrame(container, text="Session Summary & Dynamics", style="Card.TLabelframe", padding=10)
-        self.stats_frame.pack(fill=tk.X, pady=(0, 10))
-
-        # Metrics display labels
-        self.lbl_meta_track = ttk.Label(self.stats_frame, text="Track: --", font=FONT_BOLD)
-        self.lbl_meta_track.grid(row=0, column=0, sticky="w", padx=10, pady=3)
-
-        self.lbl_meta_rider = ttk.Label(self.stats_frame, text="Rider: --", font=FONT_BOLD)
-        self.lbl_meta_rider.grid(row=0, column=1, sticky="w", padx=10, pady=3)
-
-        self.lbl_meta_dur = ttk.Label(self.stats_frame, text="Duration: --", font=FONT_MAIN)
-        self.lbl_meta_dur.grid(row=0, column=2, sticky="w", padx=10, pady=3)
-
-        self.lbl_meta_gps_count = ttk.Label(self.stats_frame, text="GPS Fixes: --", font=FONT_MAIN)
-        self.lbl_meta_gps_count.grid(row=0, column=3, sticky="w", padx=10, pady=3)
-
-        self.lbl_stat_speed = ttk.Label(self.stats_frame, text="Max Speed: -- km/h (-- mph)", foreground="#c62828", font=FONT_BOLD)
-        self.lbl_stat_speed.grid(row=1, column=0, sticky="w", padx=10, pady=3)
-
-        self.lbl_stat_rpm = ttk.Label(self.stats_frame, text="Max RPM: --", font=FONT_BOLD)
-        self.lbl_stat_rpm.grid(row=1, column=1, sticky="w", padx=10, pady=3)
-
-        self.lbl_stat_lean = ttk.Label(self.stats_frame, text="Max Lean: L --° / R --°", font=FONT_BOLD)
-        self.lbl_stat_lean.grid(row=1, column=2, sticky="w", padx=10, pady=3)
-
-        self.lbl_stat_alt = ttk.Label(self.stats_frame, text="Elevation: -- m to -- m", font=FONT_MAIN)
-        self.lbl_stat_alt.grid(row=1, column=3, sticky="w", padx=10, pady=3)
-
-        # 4. Multi-Tabbed Workspace
-        tab_control = ttk.Notebook(container)
-        tab_control.pack(fill=tk.BOTH, expand=True)
-
-        # Tab 1: Telemetry Inspector (Treeview table)
-        tab_inspector = ttk.Frame(tab_control, padding=5)
-        tab_control.add(tab_inspector, text=" Telemetry Inspector ")
-
-        cols = ("Time_s", "Speed_kmh", "Speed_mph", "RPM", "TPS", "Gear", "Lean_deg", "DTC_Fast", "DTC_Slow", "GPS_Lat", "GPS_Lon", "GPS_Alt_m")
-        self.tree = ttk.Treeview(tab_inspector, columns=cols, show="headings", height=12)
-        
-        col_widths = {"Time_s": 65, "Speed_kmh": 80, "Speed_mph": 80, "RPM": 70, "TPS": 60, "Gear": 50, "Lean_deg": 75, "DTC_Fast": 65, "DTC_Slow": 65, "GPS_Lat": 105, "GPS_Lon": 105, "GPS_Alt_m": 75}
-        for c in cols:
-            self.tree.heading(c, text=c.replace("_", " "))
-            self.tree.column(c, width=col_widths.get(c, 70), anchor="center")
-
-        tree_scroll_y = ttk.Scrollbar(tab_inspector, orient=tk.VERTICAL, command=self.tree.yview)
-        self.tree.configure(yscroll=tree_scroll_y.set)
-        self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        tree_scroll_y.pack(side=tk.RIGHT, fill=tk.Y)
-
-        # Tab 2: Export Center
-        tab_export = ttk.Frame(tab_control, padding=15)
-        tab_control.add(tab_export, text=" Export Hub ")
-
-        lbl_exp_info = ttk.Label(tab_export, text="Export Decoded Session into Visualizers, Telemetry, and GPS Formats:", font=FONT_BOLD)
-        lbl_exp_info.pack(anchor="w", pady=(0, 10))
-
-        btn_grid = ttk.Frame(tab_export)
-        btn_grid.pack(fill=tk.X, pady=5)
-
-        # Row 0: Visualizers & Dashboards
-        btn_html = ttk.Button(btn_grid, text="🌐 Export Standalone HTML Visualizer\n(Self-Contained Interactive Dashboard)", style="HtmlExport.TButton", command=lambda: self._export("html"))
-        btn_html.grid(row=0, column=0, padx=5, pady=5, sticky="nsew")
-
-        btn_rc_csv = ttk.Button(btn_grid, text="🏁 Export RaceChrono CSV (v3)\n(Direct RaceChrono Pro Import)", style="RcExport.TButton", command=lambda: self._export("racechrono_csv"))
-        btn_rc_csv.grid(row=0, column=1, padx=5, pady=5, sticky="nsew")
-
-        btn_rcz = ttk.Button(btn_grid, text="📦 Export RaceChrono Native (.rcz)\n(Direct App Import Archive)", style="RczExport.TButton", command=lambda: self._export("racechrono_rcz"))
-        btn_rcz.grid(row=0, column=2, padx=5, pady=5, sticky="nsew")
-
-        # Row 1: Telemetry Data Formats
-        btn_json = ttk.Button(btn_grid, text="📊 Export Telemetry JSON\n(For Web Apps & Custom Code)", style="JsonExport.TButton", command=lambda: self._export("json"))
-        btn_json.grid(row=1, column=0, padx=5, pady=5, sticky="nsew")
-
-        btn_csv = ttk.Button(btn_grid, text="📄 Export Standard CSV\n(Full Telemetry & Dynamics)", style="CsvExport.TButton", command=lambda: self._export("csv"))
-        btn_csv.grid(row=1, column=1, padx=5, pady=5, sticky="nsew")
-
-        btn_gpx = ttk.Button(btn_grid, text="🗺️ Export GPX (1.1)\n(GPS Track & Telemetry Ext)", style="CsvExport.TButton", command=lambda: self._export("gpx"))
-        btn_gpx.grid(row=1, column=2, padx=5, pady=5, sticky="nsew")
-
-        btn_grid.grid_columnconfigure(0, weight=1)
-        btn_grid.grid_columnconfigure(1, weight=1)
-        btn_grid.grid_columnconfigure(2, weight=1)
-
-        # Batch Export Section with Output Type Selection
-        batch_frame = ttk.LabelFrame(tab_export, text="Batch Directory Conversion (Select Output Formats)", style="Card.TLabelframe", padding=12)
-        batch_frame.pack(fill=tk.X, pady=15)
-
-        ttk.Label(batch_frame, text="Choose which file formats to generate for each .dda file in the target folder:", font=FONT_BOLD).pack(anchor="w", pady=(0, 8))
-
-        # Checkbox format options
-        self.batch_opt_html = tk.BooleanVar(value=True)
-        self.batch_opt_rc_csv = tk.BooleanVar(value=True)
-        self.batch_opt_rcz = tk.BooleanVar(value=True)
-        self.batch_opt_json = tk.BooleanVar(value=False)
-        self.batch_opt_csv = tk.BooleanVar(value=True)
-        self.batch_opt_gpx = tk.BooleanVar(value=False)
-        self.batch_opt_kml = tk.BooleanVar(value=False)
-
-        chk_box_frame = ttk.Frame(batch_frame)
-        chk_box_frame.pack(fill=tk.X, pady=3)
-
-        cb0 = ttk.Checkbutton(chk_box_frame, text="🌐 Standalone HTML Visualizer (*_viewer.html)", variable=self.batch_opt_html)
-        cb0.grid(row=0, column=0, sticky="w", padx=8, pady=4)
-
-        cb1 = ttk.Checkbutton(chk_box_frame, text="🏁 RaceChrono v3 CSV (*_racechrono_v3.csv)", variable=self.batch_opt_rc_csv)
-        cb1.grid(row=0, column=1, sticky="w", padx=8, pady=4)
-
-        cb2 = ttk.Checkbutton(chk_box_frame, text="📦 RaceChrono Native Archive (*.rcz)", variable=self.batch_opt_rcz)
-        cb2.grid(row=0, column=2, sticky="w", padx=8, pady=4)
-
-        cb3 = ttk.Checkbutton(chk_box_frame, text="📄 Standard CSV (*.csv)", variable=self.batch_opt_csv)
-        cb3.grid(row=1, column=0, sticky="w", padx=8, pady=4)
-
-        cb4 = ttk.Checkbutton(chk_box_frame, text="📊 Telemetry JSON (*.json)", variable=self.batch_opt_json)
-        cb4.grid(row=1, column=1, sticky="w", padx=8, pady=4)
-
-        cb5 = ttk.Checkbutton(chk_box_frame, text="🗺️ GPX Track 1.1 (*.gpx)", variable=self.batch_opt_gpx)
-        cb5.grid(row=1, column=2, sticky="w", padx=8, pady=4)
-
-        # Batch Actions Toolbar
-        batch_act_frame = ttk.Frame(batch_frame)
-        batch_act_frame.pack(fill=tk.X, pady=(10, 0))
-
-        btn_batch_run = ttk.Button(batch_act_frame, text="📁 Select Folder & Convert All...", command=self._batch_convert, style="Action.TButton")
-        btn_batch_run.pack(side=tk.LEFT, padx=(0, 10))
-
-        btn_sel_all = ttk.Button(batch_act_frame, text="Select All", command=self._batch_select_all)
-        btn_sel_all.pack(side=tk.LEFT, padx=3)
-
-        btn_sel_rc = ttk.Button(batch_act_frame, text="RaceChrono & HTML Only", command=self._batch_select_racechrono_only)
-        btn_sel_rc.pack(side=tk.LEFT, padx=3)
-
-        btn_clear_all = ttk.Button(batch_act_frame, text="Clear All", command=self._batch_clear_all)
-        btn_clear_all.pack(side=tk.LEFT, padx=3)
-
-        # Tab 3: Console & Logs
-        tab_log = ttk.Frame(tab_control, padding=5)
-        tab_control.add(tab_log, text=" Processing Log ")
-
-        self.txt_log = tk.Text(tab_log, wrap=tk.WORD, font=FONT_MONO, bg="#1e1e1e", fg="#d4d4d4", insertbackground="white")
-        log_scroll = ttk.Scrollbar(tab_log, orient=tk.VERTICAL, command=self.txt_log.yview)
-        self.txt_log.configure(yscroll=log_scroll.set)
-        self.txt_log.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        log_scroll.pack(side=tk.RIGHT, fill=tk.Y)
-
-        # Auto-load if default DDA file exists in folder
+        # Auto-load default file if available in directory
         default_dda = "Run045-192535-00.14.dda"
         if os.path.exists(default_dda):
-            self.file_var.set(os.path.abspath(default_dda))
+            self.file_entry.setText(os.path.abspath(default_dda))
             self._parse_file()
 
-    def _batch_select_all(self):
-        self.batch_opt_html.set(True)
-        self.batch_opt_rc_csv.set(True)
-        self.batch_opt_rcz.set(True)
-        self.batch_opt_json.set(True)
-        self.batch_opt_csv.set(True)
-        self.batch_opt_gpx.set(True)
-        self.batch_opt_kml.set(True)
+    def _build_ui(self):
+        central_widget = QWidget(self)
+        self.setCentralWidget(central_widget)
 
-    def _batch_select_racechrono_only(self):
-        self.batch_opt_html.set(True)
-        self.batch_opt_rc_csv.set(True)
-        self.batch_opt_rcz.set(True)
-        self.batch_opt_json.set(False)
-        self.batch_opt_csv.set(False)
-        self.batch_opt_gpx.set(False)
-        self.batch_opt_kml.set(False)
+        main_layout = QVBoxLayout(central_widget)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
 
-    def _batch_clear_all(self):
-        self.batch_opt_html.set(False)
-        self.batch_opt_rc_csv.set(False)
-        self.batch_opt_rcz.set(False)
-        self.batch_opt_json.set(False)
-        self.batch_opt_csv.set(False)
-        self.batch_opt_gpx.set(False)
-        self.batch_opt_kml.set(False)
+        # 1. Header Banner Frame
+        hdr_frame = QFrame(central_widget)
+        hdr_frame.setStyleSheet("background-color: #d32f2f; max-height: 60px;")
+        hdr_layout = QHBoxLayout(hdr_frame)
+        hdr_layout.setContentsMargins(20, 10, 20, 10)
 
-    def _browse_file(self):
-        f = filedialog.askopenfilename(
-            title="Select Ducati DDA Telemetry File",
-            filetypes=[("Ducati DDA Files", "*.dda"), ("All Files", "*.*")]
-        )
-        if f:
-            self.file_var.set(f)
-            self._parse_file()
+        lbl_title = QLabel("DUCATI DATA ANALYZER (.DDA) CONVERTER", hdr_frame)
+        lbl_title.setStyleSheet("color: #ffffff; font-size: 17px; font-weight: bold; background: transparent;")
+        hdr_layout.addWidget(lbl_title)
+
+        lbl_sub = QLabel("GPS & Chassis Dynamics Visualizer", hdr_frame)
+        lbl_sub.setStyleSheet("color: #ffcdd2; font-size: 13px; font-style: italic; background: transparent;")
+        hdr_layout.addWidget(lbl_sub)
+
+        hdr_layout.addStretch()
+
+        btn_viewer_top = QPushButton("🚀 Open Interactive Viewer", hdr_frame)
+        btn_viewer_top.setObjectName("ViewerBtn")
+        btn_viewer_top.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_viewer_top.clicked.connect(self._launch_viewer)
+        hdr_layout.addWidget(btn_viewer_top)
+
+        main_layout.addWidget(hdr_frame)
+
+        # Content Container Layout
+        content_widget = QWidget(central_widget)
+        content_layout = QVBoxLayout(content_widget)
+        content_layout.setContentsMargins(15, 15, 15, 15)
+        content_layout.setSpacing(12)
+
+        # 2. File Selection Box
+        file_box = QGroupBox(" DDA Telemetry File ", content_widget)
+        file_layout = QHBoxLayout(file_box)
+        file_layout.setContentsMargins(12, 12, 12, 12)
+
+        self.file_entry = QLineEdit(file_box)
+        self.file_entry.setPlaceholderText("Select a .dda file or click Browse...")
+        file_layout.addWidget(self.file_entry, 1)
+
+        btn_browse = QPushButton("Browse DDA...", file_box)
+        btn_browse.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_browse.clicked.connect(self._browse_file)
+        file_layout.addWidget(btn_browse)
+
+        btn_parse = QPushButton("Load & Decode", file_box)
+        btn_parse.setObjectName("AccentBtn")
+        btn_parse.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_parse.clicked.connect(self._parse_file)
+        file_layout.addWidget(btn_parse)
+
+        content_layout.addWidget(file_box)
+
+        # 3. Session Summary Grid Card
+        stats_box = QGroupBox(" Session Summary & Dynamics ", content_widget)
+        stats_grid = QGridLayout(stats_box)
+        stats_grid.setContentsMargins(15, 12, 15, 12)
+        stats_grid.setVerticalSpacing(8)
+
+        self.lbl_meta_track = QLabel("Track: --", stats_box)
+        self.lbl_meta_track.setStyleSheet("font-weight: bold; color: #ffffff;")
+        stats_grid.addWidget(self.lbl_meta_track, 0, 0)
+
+        self.lbl_meta_rider = QLabel("Rider: --", stats_box)
+        self.lbl_meta_rider.setStyleSheet("font-weight: bold; color: #ffffff;")
+        stats_grid.addWidget(self.lbl_meta_rider, 0, 1)
+
+        self.lbl_meta_dur = QLabel("Duration: --", stats_box)
+        stats_grid.addWidget(self.lbl_meta_dur, 0, 2)
+
+        self.lbl_meta_gps = QLabel("GPS Fixes: --", stats_box)
+        stats_grid.addWidget(self.lbl_meta_gps, 0, 3)
+
+        self.lbl_stat_speed = QLabel("Max Speed: -- km/h (-- mph)", stats_box)
+        self.lbl_stat_speed.setStyleSheet("font-weight: bold; color: #ff5252;")
+        stats_grid.addWidget(self.lbl_stat_speed, 1, 0)
+
+        self.lbl_stat_rpm = QLabel("Max RPM: --", stats_box)
+        self.lbl_stat_rpm.setStyleSheet("font-weight: bold; color: #ffffff;")
+        stats_grid.addWidget(self.lbl_stat_rpm, 1, 1)
+
+        self.lbl_stat_lean = QLabel("Max Lean: L --° / R --°", stats_box)
+        self.lbl_stat_lean.setStyleSheet("font-weight: bold; color: #ffffff;")
+        stats_grid.addWidget(self.lbl_stat_lean, 1, 2)
+
+        self.lbl_stat_alt = QLabel("Elevation: -- m to -- m", stats_box)
+        stats_grid.addWidget(self.lbl_stat_alt, 1, 3)
+
+        content_layout.addWidget(stats_box)
+
+        # 4. Multi-Tabbed Workspace
+        self.tabs = QTabWidget(content_widget)
+
+        # Tab 1: Telemetry Inspector
+        tab_inspector = QWidget()
+        insp_layout = QVBoxLayout(tab_inspector)
+        insp_layout.setContentsMargins(8, 8, 8, 8)
+
+        cols = ("Time (s)", "Speed (km/h)", "Speed (mph)", "RPM", "TPS", "Gear", "Lean (°)", "DTC Fast", "DTC Slow", "Latitude", "Longitude", "Altitude (m)")
+        self.tree = QTableWidget(tab_inspector)
+        self.tree.setColumnCount(len(cols))
+        self.tree.setHorizontalHeaderLabels(cols)
+        self.tree.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.tree.setAlternatingRowColors(True)
+        self.tree.setStyleSheet("QTableWidget { alternate-background-color: #1a1e2b; }")
+        insp_layout.addWidget(self.tree)
+
+        self.tabs.addTab(tab_inspector, " Telemetry Inspector ")
+
+        # Tab 2: Export Hub
+        tab_export = QWidget()
+        exp_layout = QVBoxLayout(tab_export)
+        exp_layout.setContentsMargins(15, 15, 15, 15)
+        exp_layout.setSpacing(12)
+
+        lbl_exp_info = QLabel("Export Decoded Session into Visualizers, Telemetry, and GPS Formats:", tab_export)
+        lbl_exp_info.setStyleSheet("font-weight: bold; color: #ffffff;")
+        exp_layout.addWidget(lbl_exp_info)
+
+        # Button Grid
+        btn_grid = QGridLayout()
+        btn_grid.setSpacing(10)
+
+        btn_html = QPushButton("🌐 Export Standalone HTML Visualizer\n(Self-Contained Interactive Dashboard)", tab_export)
+        btn_html.setObjectName("ExportHtml")
+        btn_html.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_html.clicked.connect(lambda: self._export("html"))
+        btn_grid.addWidget(btn_html, 0, 0)
+
+        btn_rc = QPushButton("🏁 Export RaceChrono CSV (v3)\n(Direct RaceChrono Pro Import)", tab_export)
+        btn_rc.setObjectName("ExportRc")
+        btn_rc.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_rc.clicked.connect(lambda: self._export("racechrono_csv"))
+        btn_grid.addWidget(btn_rc, 0, 1)
+
+        btn_rcz = QPushButton("📦 Export RaceChrono Native (.rcz)\n(Direct App Import Archive)", tab_export)
+        btn_rcz.setObjectName("ExportRcz")
+        btn_rcz.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_rcz.clicked.connect(lambda: self._export("racechrono_rcz"))
+        btn_grid.addWidget(btn_rcz, 0, 2)
+
+        btn_json = QPushButton("📊 Export Telemetry JSON\n(For Web Apps & Custom Code)", tab_export)
+        btn_json.setObjectName("ExportJson")
+        btn_json.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_json.clicked.connect(lambda: self._export("json"))
+        btn_grid.addWidget(btn_json, 1, 0)
+
+        btn_csv = QPushButton("📄 Export Standard CSV\n(Full Telemetry & Dynamics)", tab_export)
+        btn_csv.setObjectName("ExportCsv")
+        btn_csv.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_csv.clicked.connect(lambda: self._export("csv"))
+        btn_grid.addWidget(btn_csv, 1, 1)
+
+        btn_gpx = QPushButton("🗺️ Export GPX (1.1)\n(GPS Track & Telemetry Ext)", tab_export)
+        btn_gpx.setObjectName("ExportCsv")
+        btn_gpx.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_gpx.clicked.connect(lambda: self._export("gpx"))
+        btn_grid.addWidget(btn_gpx, 1, 2)
+
+        exp_layout.addLayout(btn_grid)
+
+        # Batch Export Section
+        batch_box = QGroupBox(" Batch Directory Conversion (Select Output Formats) ", tab_export)
+        batch_layout = QVBoxLayout(batch_box)
+        batch_layout.setContentsMargins(12, 12, 12, 12)
+
+        lbl_batch = QLabel("Choose which file formats to generate for each .dda file in the target folder:", batch_box)
+        lbl_batch.setStyleSheet("font-weight: bold; color: #ffffff;")
+        batch_layout.addWidget(lbl_batch)
+
+        chk_grid = QGridLayout()
+        self.chk_html = QCheckBox("🌐 Standalone HTML Visualizer (*_viewer.html)", batch_box)
+        self.chk_html.setChecked(True)
+        chk_grid.addWidget(self.chk_html, 0, 0)
+
+        self.chk_rc_csv = QCheckBox("🏁 RaceChrono v3 CSV (*_racechrono_v3.csv)", batch_box)
+        self.chk_rc_csv.setChecked(True)
+        chk_grid.addWidget(self.chk_rc_csv, 0, 1)
+
+        self.chk_rcz = QCheckBox("📦 RaceChrono Native Archive (*.rcz)", batch_box)
+        self.chk_rcz.setChecked(True)
+        chk_grid.addWidget(self.chk_rcz, 0, 2)
+
+        self.chk_csv = QCheckBox("📄 Standard CSV (*.csv)", batch_box)
+        self.chk_csv.setChecked(True)
+        chk_grid.addWidget(self.chk_csv, 1, 0)
+
+        self.chk_json = QCheckBox("📊 Telemetry JSON (*.json)", batch_box)
+        self.chk_json.setChecked(False)
+        chk_grid.addWidget(self.chk_json, 1, 1)
+
+        self.chk_gpx = QCheckBox("🗺️ GPX Track 1.1 (*.gpx)", batch_box)
+        self.chk_gpx.setChecked(False)
+        chk_grid.addWidget(self.chk_gpx, 1, 2)
+
+        batch_layout.addLayout(chk_grid)
+
+        # Batch Action Toolbar
+        act_layout = QHBoxLayout()
+        btn_batch_run = QPushButton("📁 Select Folder & Convert All...", batch_box)
+        btn_batch_run.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_batch_run.clicked.connect(self._batch_convert)
+        act_layout.addWidget(btn_batch_run)
+
+        btn_sel_all = QPushButton("Select All", batch_box)
+        btn_sel_all.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_sel_all.clicked.connect(self._batch_select_all)
+        act_layout.addWidget(btn_sel_all)
+
+        btn_sel_rc = QPushButton("RaceChrono & HTML Only", batch_box)
+        btn_sel_rc.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_sel_rc.clicked.connect(self._batch_select_racechrono_only)
+        act_layout.addWidget(btn_sel_rc)
+
+        btn_clear = QPushButton("Clear All", batch_box)
+        btn_clear.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_clear.clicked.connect(self._batch_clear_all)
+        act_layout.addWidget(btn_clear)
+
+        act_layout.addStretch()
+        batch_layout.addLayout(act_layout)
+
+        exp_layout.addWidget(batch_box)
+        exp_layout.addStretch()
+
+        self.tabs.addTab(tab_export, " Export Hub ")
+
+        # Tab 3: Log Console
+        tab_log = QWidget()
+        log_layout = QVBoxLayout(tab_log)
+        log_layout.setContentsMargins(8, 8, 8, 8)
+
+        self.txt_log = QTextEdit(tab_log)
+        self.txt_log.setReadOnly(True)
+        log_layout.addWidget(self.txt_log)
+
+        self.tabs.addTab(tab_log, " Processing Log ")
+
+        content_layout.addWidget(self.tabs)
+        main_layout.addWidget(content_widget)
 
     def _log(self, msg):
-        self.txt_log.insert(tk.END, msg + "\n")
-        self.txt_log.see(tk.END)
+        self.txt_log.append(msg)
+
+    def _browse_file(self):
+        f, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Ducati DDA Telemetry File",
+            "",
+            "Ducati DDA Files (*.dda);;All Files (*)"
+        )
+        if f:
+            self.file_entry.setText(f)
+            self._parse_file()
 
     def _parse_file(self):
-        fpath = self.file_var.get()
+        fpath = self.file_entry.text().strip()
         if not fpath or not os.path.exists(fpath):
-            messagebox.showerror("File Error", "Please select a valid .dda file.")
+            QMessageBox.critical(self, "File Error", "Please select a valid .dda file.")
             return
 
         self.current_filepath = fpath
-        self.txt_log.delete("1.0", tk.END)
+        self.txt_log.clear()
         self._log(f"[*] Opening and analyzing DDA file: {fpath}")
 
         try:
@@ -356,32 +507,35 @@ class DDAConverterApp(tk.Tk):
             self._log(f"[+] Successfully decoded {count:,} telemetry frames.\n")
 
             # Update Metadata display
-            self.lbl_meta_track.config(text=f"Track: {self.parser.header.track_name or 'N/A'}")
-            self.lbl_meta_rider.config(text=f"Rider: {self.parser.header.rider_name or 'N/A'}")
-            self.lbl_meta_dur.config(text=f"Duration: {self.parser.stats.get('duration_min', 0):.2f} min ({self.parser.stats.get('duration_s', 0):.1f}s)")
-            self.lbl_meta_gps_count.config(text=f"GPS Fixes: {self.parser.stats.get('gps_fixes', 0):,}")
+            self.lbl_meta_track.setText(f"Track: {self.parser.header.track_name or 'N/A'}")
+            self.lbl_meta_rider.setText(f"Rider: {self.parser.header.rider_name or 'N/A'}")
+            self.lbl_meta_dur.setText(f"Duration: {self.parser.stats.get('duration_min', 0):.2f} min ({self.parser.stats.get('duration_s', 0):.1f}s)")
+            self.lbl_meta_gps.setText(f"GPS Fixes: {self.parser.stats.get('gps_fixes', 0):,}")
 
             # Update Dynamics display
             max_spd_k = self.parser.stats.get('max_speed_kmh', 0)
             max_spd_m = self.parser.stats.get('max_speed_mph', 0)
-            self.lbl_stat_speed.config(text=f"Max Speed: {max_spd_k:.1f} km/h ({max_spd_m:.1f} mph)")
-            self.lbl_stat_rpm.config(text=f"Max RPM: {self.parser.stats.get('max_rpm', 0):,}")
-            
+            self.lbl_stat_speed.setText(f"Max Speed: {max_spd_k:.1f} km/h ({max_spd_m:.1f} mph)")
+            self.lbl_stat_rpm.setText(f"Max RPM: {self.parser.stats.get('max_rpm', 0):,}")
+
             lean_l = self.parser.stats.get('max_lean_left_deg', 0)
             lean_r = self.parser.stats.get('max_lean_right_deg', 0)
-            self.lbl_stat_lean.config(text=f"Max Lean: L {lean_l:.1f}° / R {lean_r:.1f}°")
+            self.lbl_stat_lean.setText(f"Max Lean: L {lean_l:.1f}° / R {lean_r:.1f}°")
 
             alt_min = self.parser.stats.get('min_alt_m', 0)
             alt_max = self.parser.stats.get('max_alt_m', 0)
-            self.lbl_stat_alt.config(text=f"Elevation: {alt_min:.1f} m to {alt_max:.1f} m")
+            self.lbl_stat_alt.setText(f"Elevation: {alt_min:.1f} m to {alt_max:.1f} m")
 
-            # Populate Treeview with downsampled telemetry for fast UI rendering
-            self.tree.delete(*self.tree.get_children())
-            for r in self.records_sample(self.parser.records, max_rows=1500):
+            # Populate Table with Downsampled Records
+            sampled_records = self.records_sample(self.parser.records, max_rows=1500)
+            self.tree.setRowCount(len(sampled_records))
+
+            for row_idx, r in enumerate(sampled_records):
                 lat_str = f"{r.gps_lat:.6f}" if r.gps_lat is not None else "--"
                 lon_str = f"{r.gps_lon:.6f}" if r.gps_lon is not None else "--"
                 alt_str = f"{r.gps_alt_m:.1f}" if r.gps_lat is not None else "--"
-                self.tree.insert("", tk.END, values=(
+
+                vals = [
                     f"{r.time_s:.2f}",
                     f"{r.speed_kmh:.1f}",
                     f"{r.speed_mph:.1f}",
@@ -394,31 +548,39 @@ class DDAConverterApp(tk.Tk):
                     lat_str,
                     lon_str,
                     alt_str
-                ))
+                ]
+
+                for col_idx, val in enumerate(vals):
+                    item = QTableWidgetItem(val)
+                    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    self.tree.setItem(row_idx, col_idx, item)
 
             self._log("=" * 60)
             self._log("TELEMETRY SESSION OVERVIEW")
             self._log("=" * 60)
-            self._log(f"Track Name     : {self.parser.header.track_name}")
-            self._log(f"Rider Name     : {self.parser.header.rider_name}")
+            self._log(f"Track Name      : {self.parser.header.track_name}")
+            self._log(f"Rider Name      : {self.parser.header.rider_name}")
             self._log(f"Session Duration: {self.parser.stats.get('duration_s', 0):.1f} s ({self.parser.stats.get('duration_min', 0):.2f} min)")
-            self._log(f"Total Frames   : {len(self.parser.records):,}")
-            self._log(f"GPS Fixes      : {self.parser.stats.get('gps_fixes', 0):,}")
-            self._log(f"Max Speed      : {max_spd_k:.1f} km/h ({max_spd_m:.1f} mph)")
-            self._log(f"Max RPM        : {self.parser.stats.get('max_rpm', 0):,} RPM")
-            self._log(f"Max Lean Angle : Left {lean_l:.1f}° / Right {lean_r:.1f}°")
-            self._log(f"Max DTC Slow   : {self.parser.stats.get('max_dtc_slow_pct', 0)} %")
-            self._log(f"Max DTC Fast   : {self.parser.stats.get('max_dtc_fast_pct', 0)} %")
+            self._log(f"Total Frames    : {len(self.parser.records):,}")
+            self._log(f"GPS Fixes       : {self.parser.stats.get('gps_fixes', 0):,}")
+            self._log(f"Max Speed       : {max_spd_k:.1f} km/h ({max_spd_m:.1f} mph)")
+            self._log(f"Max RPM         : {self.parser.stats.get('max_rpm', 0):,} RPM")
+            self._log(f"Max Lean Angle  : Left {lean_l:.1f}° / Right {lean_r:.1f}°")
             self._log("=" * 60)
 
         except Exception as e:
             self._log(f"[-] Error loading file: {e}")
-            messagebox.showerror("Parsing Error", f"Failed to decode DDA file:\n{e}")
+            QMessageBox.critical(self, "Parsing Error", f"Failed to decode DDA file:\n{e}")
+
+    def records_sample(self, records, max_rows=1500):
+        if len(records) <= max_rows:
+            return records
+        step = max(1, len(records) // max_rows)
+        return records[::step]
 
     def _launch_viewer(self):
-        """Generates standalone interactive HTML visualizer and opens it in default web browser."""
         if not self.parser or not self.parser.records:
-            messagebox.showwarning("No Data", "Please load and decode a valid .dda file first.")
+            QMessageBox.warning(self, "No Data", "Please load and decode a valid .dda file first.")
             return
 
         base = os.path.splitext(self.current_filepath)[0]
@@ -426,27 +588,17 @@ class DDAConverterApp(tk.Tk):
         out_json = base + ".json"
 
         try:
-            # Export JSON and Standalone HTML
             self.parser.export_json(out_json)
             self.parser.export_html(out_html)
             self._log(f"[+] Generated Interactive Visualizer: {out_html}")
-            
-            # Open directly in browser via RFC-compliant file URI
             webbrowser.open(Path(out_html).resolve().as_uri())
         except Exception as e:
             self._log(f"[-] Error launching viewer: {e}")
-            messagebox.showerror("Viewer Error", f"Failed to launch visualizer:\n{e}")
-
-    def records_sample(self, records, max_rows=1500):
-        """Evenly downsamples records for smooth UI rendering."""
-        if len(records) <= max_rows:
-            return records
-        step = max(1, len(records) // max_rows)
-        return records[::step]
+            QMessageBox.critical(self, "Viewer Error", f"Failed to launch visualizer:\n{e}")
 
     def _export(self, fmt):
         if not self.parser or not self.parser.records:
-            messagebox.showwarning("No Data", "Please load and decode a valid .dda file first.")
+            QMessageBox.warning(self, "No Data", "Please load and decode a valid .dda file first.")
             return
 
         base_name = os.path.splitext(os.path.basename(self.current_filepath))[0]
@@ -455,16 +607,16 @@ class DDAConverterApp(tk.Tk):
             "json": ".json",
             "csv": ".csv",
             "gpx": ".gpx",
-            "kml": ".kml",
             "racechrono_csv": "_racechrono_v3.csv",
             "racechrono_rcz": ".rcz"
         }
         default_ext = ext_map.get(fmt, ".csv")
 
-        out_f = filedialog.asksaveasfilename(
-            initialfile=f"{base_name}{default_ext}",
-            defaultextension=default_ext,
-            filetypes=[(f"{fmt.upper()} File", f"*{default_ext}"), ("All Files", "*.*")]
+        out_f, _ = QFileDialog.getSaveFileName(
+            self,
+            f"Export {fmt.upper()} File",
+            f"{base_name}{default_ext}",
+            f"{fmt.upper()} Files (*{default_ext});;All Files (*)"
         )
         if not out_f:
             return
@@ -478,40 +630,60 @@ class DDAConverterApp(tk.Tk):
                 self.parser.export_csv(out_f)
             elif fmt == "gpx":
                 self.parser.export_gpx(out_f)
-            elif fmt == "kml":
-                self.parser.export_kml(out_f)
             elif fmt == "racechrono_csv":
                 self.parser.export_racechrono_csv(out_f)
             elif fmt == "racechrono_rcz":
                 self.parser.export_racechrono_rcz(out_f)
 
             self._log(f"[+] Exported {fmt.upper()} successfully to: {out_f}")
-            messagebox.showinfo("Export Success", f"Successfully exported file to:\n{out_f}")
+            QMessageBox.information(self, "Export Success", f"Successfully exported file to:\n{out_f}")
         except Exception as e:
             self._log(f"[-] Export failed: {e}")
-            messagebox.showerror("Export Failed", str(e))
+            QMessageBox.critical(self, "Export Failed", str(e))
+
+    def _batch_select_all(self):
+        self.chk_html.setChecked(True)
+        self.chk_rc_csv.setChecked(True)
+        self.chk_rcz.setChecked(True)
+        self.chk_json.setChecked(True)
+        self.chk_csv.setChecked(True)
+        self.chk_gpx.setChecked(True)
+
+    def _batch_select_racechrono_only(self):
+        self.chk_html.setChecked(True)
+        self.chk_rc_csv.setChecked(True)
+        self.chk_rcz.setChecked(True)
+        self.chk_json.setChecked(False)
+        self.chk_csv.setChecked(False)
+        self.chk_gpx.setChecked(False)
+
+    def _batch_clear_all(self):
+        self.chk_html.setChecked(False)
+        self.chk_rc_csv.setChecked(False)
+        self.chk_rcz.setChecked(False)
+        self.chk_json.setChecked(False)
+        self.chk_csv.setChecked(False)
+        self.chk_gpx.setChecked(False)
 
     def _batch_convert(self):
-        # Check active formats
-        do_html = self.batch_opt_html.get()
-        do_rc_csv = self.batch_opt_rc_csv.get()
-        do_rcz = self.batch_opt_rcz.get()
-        do_json = self.batch_opt_json.get()
-        do_csv = self.batch_opt_csv.get()
-        do_gpx = self.batch_opt_gpx.get()
-        do_kml = self.batch_opt_kml.get()
+        do_html = self.chk_html.isChecked()
+        do_rc_csv = self.chk_rc_csv.isChecked()
+        do_rcz = self.chk_rcz.isChecked()
+        do_json = self.chk_json.isChecked()
+        do_csv = self.chk_csv.isChecked()
+        do_gpx = self.chk_gpx.isChecked()
 
-        if not (do_html or do_rc_csv or do_rcz or do_json or do_csv or do_gpx or do_kml):
-            messagebox.showwarning("No Formats Selected", "Please select at least one output format checkbox before batch converting.")
+        if not (do_html or do_rc_csv or do_rcz or do_json or do_csv or do_gpx):
+            QMessageBox.warning(self, "No Formats Selected", "Please select at least one output format checkbox before batch converting.")
             return
 
-        folder = filedialog.askdirectory(title="Select Folder Containing .dda Files")
+        folder = QFileDialog.getExistingDirectory(self, "Select Folder Containing .dda Files")
         if not folder:
             return
 
         dda_files = [os.path.join(folder, f) for f in os.listdir(folder) if f.lower().endswith(".dda")]
         if not dda_files:
-            messagebox.showinfo("No Files", "No .dda files found in the selected folder.")
+            QMessageBox.information(self, "No Files", "No .dda files found in the selected folder.")
             return
 
         success_count = 0
@@ -522,31 +694,22 @@ class DDAConverterApp(tk.Tk):
         if do_json: formats_desc.append("JSON")
         if do_csv: formats_desc.append("Standard CSV")
         if do_gpx: formats_desc.append("GPX")
-        if do_kml: formats_desc.append("KML")
 
         self._log(f"\n[*] Starting Batch Conversion of {len(dda_files)} files in: {folder}")
         self._log(f"    Selected Formats: {', '.join(formats_desc)}")
-        
+
         for f in dda_files:
             try:
                 p = DDAParser(f)
                 p.parse()
                 base = os.path.splitext(f)[0]
-                
-                if do_html:
-                    p.export_html(base + "_viewer.html")
-                if do_rc_csv:
-                    p.export_racechrono_csv(base + "_racechrono_v3.csv")
-                if do_rcz:
-                    p.export_racechrono_rcz(base + ".rcz")
-                if do_json:
-                    p.export_json(base + ".json")
-                if do_csv:
-                    p.export_csv(base + ".csv")
-                if do_gpx:
-                    p.export_gpx(base + ".gpx")
-                if do_kml:
-                    p.export_kml(base + ".kml")
+
+                if do_html: p.export_html(base + "_viewer.html")
+                if do_rc_csv: p.export_racechrono_csv(base + "_racechrono_v3.csv")
+                if do_rcz: p.export_racechrono_rcz(base + ".rcz")
+                if do_json: p.export_json(base + ".json")
+                if do_csv: p.export_csv(base + ".csv")
+                if do_gpx: p.export_gpx(base + ".gpx")
 
                 self._log(f"  [+] Converted: {os.path.basename(f)}")
                 success_count += 1
@@ -554,7 +717,7 @@ class DDAConverterApp(tk.Tk):
                 self._log(f"  [-] Error converting {os.path.basename(f)}: {e}")
 
         self._log(f"[+] Batch conversion finished: {success_count}/{len(dda_files)} files converted successfully.\n")
-        messagebox.showinfo("Batch Complete", f"Successfully converted {success_count} of {len(dda_files)} files to selected formats:\n({', '.join(formats_desc)})")
+        QMessageBox.information(self, "Batch Complete", f"Successfully converted {success_count} of {len(dda_files)} files to selected formats:\n({', '.join(formats_desc)})")
 
 
 def cli_main():
@@ -567,8 +730,7 @@ def cli_main():
     arg_parser.add_argument("--racechrono", action="store_true", help="Export RaceChrono v3 CSV")
     arg_parser.add_argument("--rcz", action="store_true", help="Export RaceChrono native .rcz archive")
     arg_parser.add_argument("--gpx", action="store_true", help="Export GPX 1.1")
-    arg_parser.add_argument("--kml", action="store_true", help="Export Google Earth 3D KML")
-    arg_parser.add_argument("--formats", help="Comma-separated format list for batch conversion (e.g. 'html,racechrono,rcz,csv' or 'all')")
+    arg_parser.add_argument("--formats", help="Comma-separated format list for batch conversion")
     arg_parser.add_argument("--batch", help="Batch convert all .dda files in directory")
 
     args = arg_parser.parse_args()
@@ -584,12 +746,11 @@ def cli_main():
             print(f"No .dda files found in: {folder}")
             return
 
-        # Determine requested formats
         req_formats = set()
         if args.formats:
             fmt_tokens = [t.strip().lower() for t in args.formats.split(",")]
             if "all" in fmt_tokens:
-                req_formats = {"html", "racechrono", "rcz", "json", "csv", "gpx", "kml"}
+                req_formats = {"html", "racechrono", "rcz", "json", "csv", "gpx"}
             else:
                 for t in fmt_tokens:
                     if t in ("html", "viewer"): req_formats.add("html")
@@ -598,15 +759,13 @@ def cli_main():
                     elif t in ("json",): req_formats.add("json")
                     elif t in ("csv", "std_csv"): req_formats.add("csv")
                     elif t in ("gpx",): req_formats.add("gpx")
-                    elif t in ("kml",): req_formats.add("kml")
-        
+
         if args.html: req_formats.add("html")
         if args.racechrono: req_formats.add("racechrono")
         if args.rcz: req_formats.add("rcz")
         if args.json: req_formats.add("json")
         if args.csv: req_formats.add("csv")
         if args.gpx: req_formats.add("gpx")
-        if args.kml: req_formats.add("kml")
 
         if not req_formats:
             req_formats = {"html", "racechrono", "rcz", "csv"}
@@ -620,20 +779,12 @@ def cli_main():
                 p = DDAParser(f)
                 p.parse()
                 base = os.path.splitext(f)[0]
-                if "html" in req_formats:
-                    p.export_html(base + "_viewer.html")
-                if "racechrono" in req_formats:
-                    p.export_racechrono_csv(base + "_racechrono_v3.csv")
-                if "rcz" in req_formats:
-                    p.export_racechrono_rcz(base + ".rcz")
-                if "json" in req_formats:
-                    p.export_json(base + ".json")
-                if "csv" in req_formats:
-                    p.export_csv(base + ".csv")
-                if "gpx" in req_formats:
-                    p.export_gpx(base + ".gpx")
-                if "kml" in req_formats:
-                    p.export_kml(base + ".kml")
+                if "html" in req_formats: p.export_html(base + "_viewer.html")
+                if "racechrono" in req_formats: p.export_racechrono_csv(base + "_racechrono_v3.csv")
+                if "rcz" in req_formats: p.export_racechrono_rcz(base + ".rcz")
+                if "json" in req_formats: p.export_json(base + ".json")
+                if "csv" in req_formats: p.export_csv(base + ".csv")
+                if "gpx" in req_formats: p.export_gpx(base + ".gpx")
                 print(f"  [+] Converted: {os.path.basename(f)}")
             except Exception as e:
                 print(f"  [-] Error converting {os.path.basename(f)}: {e}")
@@ -651,8 +802,6 @@ def cli_main():
         print(f"[+] Loaded '{args.file}': {count:,} telemetry frames.")
         print(f"    Track: {p.header.track_name} | Rider: {p.header.rider_name}")
         print(f"    Max Speed: {p.stats.get('max_speed_kmh', 0):.1f} km/h ({p.stats.get('max_speed_mph', 0):.1f} mph)")
-        print(f"    Max RPM: {p.stats.get('max_rpm', 0):,} RPM | Max Lean: L {p.stats.get('max_lean_left_deg', 0):.1f} deg / R {p.stats.get('max_lean_right_deg', 0):.1f} deg")
-        print(f"    GPS Fixes: {p.stats.get('gps_fixes', 0):,}")
 
         base = os.path.splitext(args.file)[0]
         p.export_json(base + ".json")
@@ -661,18 +810,18 @@ def cli_main():
         p.export_racechrono_rcz(base + ".rcz")
         p.export_csv(base + ".csv")
         p.export_gpx(base + ".gpx")
-        p.export_kml(base + ".kml")
-        print(f"  [+] Generated interactive viewer: {base}_viewer.html")
-        print(f"  [+] Generated export suite (.json, _racechrono_v3.csv, .rcz, .csv, .gpx, .kml)")
+        print(f"  [+] Generated export suite for: {args.file}")
 
         if args.viewer:
             print("  [*] Launching interactive telemetry viewer in browser...")
             webbrowser.open(Path(base + "_viewer.html").resolve().as_uri())
         return
 
-    # Otherwise launch GUI
-    app = DDAConverterApp()
-    app.mainloop()
+    # Otherwise launch Qt Application
+    qt_app = QApplication(sys.argv)
+    window = DDAConverterApp()
+    window.show()
+    sys.exit(qt_app.exec())
 
 
 if __name__ == "__main__":
