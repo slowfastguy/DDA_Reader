@@ -1801,14 +1801,15 @@ body.dark-theme {
   display: flex;
   flex-direction: column;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
+  z-index: 15;
 }
 
 .chart-legend-row {
   display: flex;
   align-items: center;
   gap: 6px;
-  overflow-x: auto;
+  overflow: visible;
 }
 
 .channel-toggle-btn {
@@ -1874,6 +1875,22 @@ body.dark-theme {
 }
 .dropdown-item.channel-toggle-btn:hover {
   background: var(--bg-card-hover);
+}
+
+#dropdown-channels-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+#dropdown-channels-wrap .dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 230px;
+  max-height: 340px;
+  overflow-y: auto;
+  z-index: 2000;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.85), 0 0 1px rgba(255, 255, 255, 0.2);
 }
 
 .btn-xs {
