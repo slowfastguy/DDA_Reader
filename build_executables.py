@@ -27,6 +27,7 @@ def main():
     sep = ";" if sys.platform.startswith("win") else ":"
     data_viewer = f"viewer{sep}viewer"
     data_settings = f"dda_settings.json{sep}."
+    data_driver = f"driver{sep}driver"
 
     mode_arg = "--onefile" if "--onefile" in sys.argv else ("--onedir" if "--onedir" in sys.argv else "--onefile")
 
@@ -42,6 +43,7 @@ def main():
         "--collect-all=usb",
         f"--add-data={data_viewer}",
         f"--add-data={data_settings}",
+        f"--add-data={data_driver}",
         "dda_converter_gui.py"
     ]
 
@@ -67,14 +69,26 @@ def main():
             print(f"  macOS Release Zip: {zip_path} ({os.path.getsize(zip_path) / (1024*1024):.1f} MB)")
         print("  (You can double-click this .app in Finder or move it to /Applications)")
     elif sys.platform.startswith("win"):
+        exe_path = os.path.join("dist", "Ducati DDA Reader.exe")
+        zip_path = os.path.join("dist", "Ducati_DDA_Reader_Windows.zip")
         if mode_arg == "--onefile":
-            print("  Windows Portable Executable: dist\\Ducati DDA Reader.exe")
+            print(f"  Windows Portable Executable: {exe_path}")
+            if os.path.exists(exe_path):
+                import zipfile
+                print(f"[*] Packaging release archive: {zip_path}...")
+                with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+                    zipf.write(exe_path, os.path.basename(exe_path))
+                    driver_inf = os.path.join("driver", "dda_winusb.inf")
+                    if os.path.exists(driver_inf):
+                        zipf.write(driver_inf, os.path.join("driver", "dda_winusb.inf"))
+                print(f"  Windows Release Zip: {zip_path} ({os.path.getsize(zip_path) / (1024*1024):.1f} MB)")
         else:
             print("  Windows Directory Bundle   : dist\\Ducati DDA Reader\\Ducati DDA Reader.exe")
         print("  (Double-click in File Explorer to launch)")
     else:
         print("  Linux Executable  : dist/Ducati DDA Reader")
     print("=" * 60)
+
 
 if __name__ == "__main__":
     main()
