@@ -13,7 +13,7 @@ Standalone binaries and application bundles are included directly in this reposi
 | Platform | Download / Location | How to Run |
 | :--- | :--- | :--- |
 | 🍏 **macOS** | [**`dist/Ducati_DDA_Reader_macOS.zip`**](dist/Ducati_DDA_Reader_macOS.zip) | Download & unzip, then double-click **`Ducati DDA Reader.app`** (or execute `./launch_mac.command`). |
-| 🪟 **Windows** | [**`dist/Ducati DDA Reader.exe`**](dist/) *(or build via `python build_executables.py`)* | Double-click **`Ducati DDA Reader.exe`**. |
+| 🪟 **Windows** | [**`dist/Ducati_DDA_Reader_Windows.zip`**](dist/Ducati_DDA_Reader_Windows.zip) | Download & unzip, then double-click **`Ducati DDA Reader.exe`**. |
 | 🐍 **Python Source** | All Platforms | Run `pip install -r requirements.txt` then `python dda_converter_gui.py`. |
 
 ---

@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_all
 
-datas = [('viewer', 'viewer'), ('dda_settings.json', '.')]
+datas = [('viewer', 'viewer'), ('dda_settings.json', '.'), ('driver', 'driver')]
 binaries = []
 hiddenimports = []
 tmp_ret = collect_all('libusb_package')
@@ -44,10 +44,4 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-)
-app = BUNDLE(
-    exe,
-    name='Ducati DDA Reader.app',
-    icon=None,
-    bundle_identifier=None,
 )
