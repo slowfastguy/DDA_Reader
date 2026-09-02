@@ -239,15 +239,22 @@ class DDADownloadWorker(QThread):
         self._is_cancelled = True
 
     def run(self):
+        import time
         saved_files = []
         try:
+            self.device.connect()
             for idx, r in enumerate(self.runs):
                 if self._is_cancelled:
                     break
                 fname = r.default_filename()
 
+                last_emit_time = 0.0
+
                 def on_chunk(cur, tot, spd):
-                    if not self._is_cancelled:
+                    nonlocal last_emit_time
+                    now = time.time()
+                    if not self._is_cancelled and (now - last_emit_time >= 0.05 or cur >= tot):
+                        last_emit_time = now
                         self.sig_progress.emit(cur, tot, spd, fname)
 
                 saved_path = self.device.download_run_to_file(
@@ -263,6 +270,8 @@ class DDADownloadWorker(QThread):
                 self.sig_all_done.emit(saved_files)
         except Exception as e:
             self.sig_error.emit(str(e))
+        finally:
+            self.device.disconnect()
 
 
 class DDADownloadDialog(QDialog):
@@ -366,8 +375,9 @@ class DDADownloadDialog(QDialog):
         dest_layout = QHBoxLayout(dest_box)
         dest_layout.setContentsMargins(12, 12, 12, 12)
 
+        default_dest = os.path.join(os.path.expanduser("~/Downloads"), "DDA_Runs")
         self.txt_dest = QLineEdit(dest_box)
-        self.txt_dest.setText(os.path.abspath("downloads"))
+        self.txt_dest.setText(os.path.abspath(default_dest))
         dest_layout.addWidget(self.txt_dest, 1)
 
         btn_browse_dest = QPushButton("Browse...", dest_box)
@@ -427,7 +437,8 @@ class DDADownloadDialog(QDialog):
         self._refresh_device()
 
     def _browse_dest(self):
-        d = QFileDialog.getExistingDirectory(self, "Select Download Directory", self.txt_dest.text())
+        curr = self.txt_dest.text().strip() or os.path.join(os.path.expanduser("~/Downloads"), "DDA_Runs")
+        d = QFileDialog.getExistingDirectory(self, "Select Download Directory", curr)
         if d:
             self.txt_dest.setText(os.path.abspath(d))
 
@@ -531,10 +542,17 @@ class DDADownloadDialog(QDialog):
             QMessageBox.warning(self, "No Runs Selected", "Please select at least one run to download.")
             return
 
-        dest_dir = self.txt_dest.text().strip()
-        if not dest_dir:
-            dest_dir = "downloads"
-        os.makedirs(dest_dir, exist_ok=True)
+        raw_dest = self.txt_dest.text().strip()
+        if not raw_dest or raw_dest == "downloads" or raw_dest == "/downloads":
+            dest_dir = os.path.join(os.path.expanduser("~/Downloads"), "DDA_Runs")
+        else:
+            dest_dir = os.path.abspath(os.path.expanduser(raw_dest))
+
+        try:
+            os.makedirs(dest_dir, exist_ok=True)
+        except Exception as e:
+            QMessageBox.critical(self, "Invalid Destination Directory", f"Cannot create download folder:\n{dest_dir}\n\nError: {e}")
+            return
 
         self.btn_download.setEnabled(False)
         self.btn_close.setText("Cancel")

@@ -200,7 +200,7 @@ class WinUsbTransport:
 
 
 class PyUsbTransport:
-    """Cross-platform PyUSB + libusb transport."""
+    """Cross-platform PyUSB + libusb transport with endpoint stall recovery."""
     def __init__(self):
         self.dev = None
 
@@ -213,6 +213,17 @@ class PyUsbTransport:
         except Exception:
             return False
 
+    def _clear_stalls(self):
+        if self.dev is not None:
+            try:
+                self.dev.clear_halt(EP_OUT)
+            except Exception:
+                pass
+            try:
+                self.dev.clear_halt(EP_IN)
+            except Exception:
+                pass
+
     def open(self):
         if self.dev is not None:
             return
@@ -223,13 +234,16 @@ class PyUsbTransport:
             raise ConnectionError("No DDA USB device found.")
         try:
             usb.util.claim_interface(self.dev, 0)
+            self._clear_stalls()
         except Exception as e:
             raise ConnectionError(f"Failed to claim USB interface: {e}") from e
 
     def close(self):
         if self.dev is not None:
             try:
+                self._clear_stalls()
                 usb.util.release_interface(self.dev, 0)
+                usb.util.dispose_resources(self.dev)
             except Exception:
                 pass
             self.dev = None
@@ -237,12 +251,28 @@ class PyUsbTransport:
     def write(self, endpoint: int, data: bytes, timeout_ms: int = USB_TIMEOUT_MS) -> int:
         if self.dev is None:
             self.open()
-        return self.dev.write(endpoint, data, timeout=timeout_ms)
+        try:
+            return self.dev.write(endpoint, data, timeout=timeout_ms)
+        except Exception:
+            # Recover from Pipe Error [Errno 32] or endpoint stall and retry once
+            self._clear_stalls()
+            try:
+                return self.dev.write(endpoint, data, timeout=timeout_ms)
+            except Exception as e:
+                raise IOError(f"USB Write Error on endpoint {hex(endpoint)}: {e}") from e
 
     def read(self, endpoint: int, max_len: int = 512, timeout_ms: int = USB_TIMEOUT_MS) -> bytes:
         if self.dev is None:
             self.open()
-        return bytes(self.dev.read(endpoint, max_len, timeout=timeout_ms))
+        try:
+            return bytes(self.dev.read(endpoint, max_len, timeout=timeout_ms))
+        except Exception:
+            # Recover from Pipe Error [Errno 32] or endpoint stall and retry once
+            self._clear_stalls()
+            try:
+                return bytes(self.dev.read(endpoint, max_len, timeout=timeout_ms))
+            except Exception as e:
+                raise IOError(f"USB Read Error on endpoint {hex(endpoint)}: {e}") from e
 
 
 class DDADevice:
@@ -314,12 +344,20 @@ class DDADevice:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.disconnect()
 
+    def _ensure_connected(self) -> bool:
+        """Ensures transport is connected. Returns True if this method opened the transport."""
+        is_open = (getattr(self.transport, 'h_winusb', None) is not None) if HAS_WINUSB else (getattr(self.transport, 'dev', None) is not None)
+        if not is_open:
+            self.connect()
+            return True
+        return False
+
     def get_serial_number(self) -> str:
         """Retrieves the hardware serial number of the DDA device."""
         if self._serial_number:
             return self._serial_number
 
-        self.connect()
+        we_opened = self._ensure_connected()
         try:
             cmd = bytes([0x03, 0x00, CMD_SERIAL])
             self.transport.write(EP_OUT, cmd, timeout_ms=USB_TIMEOUT_MS)
@@ -337,13 +375,14 @@ class DDADevice:
                 self._serial_number = raw_bytes.decode('latin1', errors='ignore').strip('\x00').strip()
                 return self._serial_number
         finally:
-            self.disconnect()
+            if we_opened:
+                self.disconnect()
 
         return "Unknown"
 
     def get_flash_info(self) -> Dict[str, Any]:
         """Queries the hardware flash chip ID and geometry."""
-        self.connect()
+        we_opened = self._ensure_connected()
         try:
             cmd = bytes([0x03, 0x00, CMD_FLASH_ID])
             self.transport.write(EP_OUT, cmd, timeout_ms=USB_TIMEOUT_MS)
@@ -357,7 +396,8 @@ class DDADevice:
                     "device_id": hex(resp[2]) if len(resp) > 2 else "Unknown"
                 }
         finally:
-            self.disconnect()
+            if we_opened:
+                self.disconnect()
         return {"raw_id": "Unknown"}
 
     def list_runs(self) -> List[DDARunInfo]:
@@ -365,7 +405,7 @@ class DDADevice:
         Scans all recording runs stored on the stick (strictly read-only).
         Returns a list of DDARunInfo instances.
         """
-        self.connect()
+        we_opened = self._ensure_connected()
         runs: List[DDARunInfo] = []
 
         try:
@@ -413,7 +453,8 @@ class DDADevice:
 
                 runs.append(DDARunInfo(r_idx, start_addr, byte_size, dt))
         finally:
-            self.disconnect()
+            if we_opened:
+                self.disconnect()
 
         return runs
 
@@ -424,7 +465,7 @@ class DDADevice:
         if self._daq_table_cache:
             return self._daq_table_cache
 
-        self.connect()
+        we_opened = self._ensure_connected()
         try:
             cmd = bytes([0x03, 0x00, CMD_DACQ_INFO])
             self.transport.write(EP_OUT, cmd, timeout_ms=USB_TIMEOUT_MS)
@@ -453,7 +494,8 @@ class DDADevice:
             self._daq_table_cache = bytes(buffer[:dacq_size])
             return self._daq_table_cache
         finally:
-            self.disconnect()
+            if we_opened:
+                self.disconnect()
 
     def download_raw_run_data(
         self,
@@ -464,7 +506,7 @@ class DDADevice:
         Reads raw flash data for a given run block by block using command 0xC1.
         Progress callback receives: (downloaded_bytes, total_bytes, speed_kb_s).
         """
-        self.connect()
+        we_opened = self._ensure_connected()
         total_len = run_info.byte_size
         buffer = bytearray()
         start_time = time.time()
@@ -493,7 +535,8 @@ class DDADevice:
 
             return bytes(buffer[:total_len])
         finally:
-            self.disconnect()
+            if we_opened:
+                self.disconnect()
 
     def assemble_dda_file(
         self,
@@ -556,6 +599,10 @@ class DDADevice:
         Downloads the specified run and writes the native .dda file to disk.
         Returns the absolute filepath of the saved file.
         """
+        if not destination_folder or destination_folder == "downloads" or destination_folder == "/downloads":
+            destination_folder = os.path.join(os.path.expanduser("~/Downloads"), "DDA_Runs")
+        else:
+            destination_folder = os.path.abspath(os.path.expanduser(destination_folder))
         os.makedirs(destination_folder, exist_ok=True)
         if not filename:
             filename = run_info.default_filename()
