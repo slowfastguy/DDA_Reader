@@ -50,7 +50,7 @@ Standalone binaries and application bundles are included directly in this reposi
 #### Option B: From Source (Python 3.9+)
 ```bash
 # 1. Clone the repository
-git clone https://github.com/mfisch707/DDA_Reader.git
+git clone https://github.com/slowfastguy/DDA_Reader.git
 cd DDA_Reader
 
 # 2. Install dependencies
