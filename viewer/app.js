@@ -420,6 +420,55 @@ function initSplitterEngine() {
     });
   }
 
+  // Compare Resizer (Map vs Telemetry in Side-by-Side / Turn Comparison Mode)
+  if (dom.resizerCompare) {
+    let isDraggingCompare = false;
+
+    dom.resizerCompare.addEventListener('pointerdown', (e) => {
+      isDraggingCompare = true;
+      dom.resizerCompare.classList.add('resizing');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      dom.resizerCompare.setPointerCapture(e.pointerId);
+    });
+
+    dom.resizerCompare.addEventListener('pointermove', (e) => {
+      if (!isDraggingCompare) return;
+      const leftArea = dom.workspaceLeft;
+      if (!leftArea) return;
+      const rect = leftArea.getBoundingClientRect();
+      if (rect.width <= 0) return;
+      let pct = ((e.clientX - rect.left) / rect.width) * 100;
+      const minPct = Math.max(15, (250 / rect.width) * 100);
+      const maxPct = Math.min(85, ((rect.width - 280) / rect.width) * 100);
+      pct = Math.max(minPct, Math.min(maxPct, Math.round(pct)));
+      state.layout.compareSplitPct = pct;
+      document.documentElement.style.setProperty('--compare-split-pct', `${pct}%`);
+      triggerLayoutResize();
+    });
+
+    const stopDragCompare = (e) => {
+      if (!isDraggingCompare) return;
+      isDraggingCompare = false;
+      dom.resizerCompare.classList.remove('resizing');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      try { dom.resizerCompare.releasePointerCapture(e.pointerId); } catch (_) {}
+      saveLayoutState();
+      triggerLayoutResize();
+    };
+
+    dom.resizerCompare.addEventListener('pointerup', stopDragCompare);
+    dom.resizerCompare.addEventListener('pointercancel', stopDragCompare);
+
+    dom.resizerCompare.addEventListener('dblclick', () => {
+      state.layout.compareSplitPct = 48;
+      document.documentElement.style.setProperty('--compare-split-pct', '48%');
+      saveLayoutState();
+      triggerLayoutResize();
+    });
+  }
+
   // Window Resize Observer
   window.addEventListener('resize', () => {
     triggerLayoutResize();
@@ -479,6 +528,7 @@ function applyLayoutPreset(presetName) {
     state.layout.sidebarWidth = 420;
     state.layout.chartsHeight = 280;
     state.layout.topSplitPct = 50;
+    state.layout.compareSplitPct = 48;
     state.layout.sidebarCollapsed = false;
     state.layout.chartsCollapsed = false;
     state.layout.maximizedPanel = null;
@@ -508,6 +558,7 @@ function applyLayoutPreset(presetName) {
   document.documentElement.style.setProperty('--sidebar-width', `${state.layout.sidebarWidth}px`);
   document.documentElement.style.setProperty('--charts-height', `${state.layout.chartsHeight}px`);
   document.documentElement.style.setProperty('--top-split-pct', `${state.layout.topSplitPct}%`);
+  document.documentElement.style.setProperty('--compare-split-pct', `${state.layout.compareSplitPct || 48}%`);
 
   // Apply Workspace Layout Classes
   if (dom.mainWorkspace) {
@@ -546,6 +597,7 @@ function saveLayoutState() {
       sidebarWidth: state.layout.sidebarWidth,
       chartsHeight: state.layout.chartsHeight,
       topSplitPct: state.layout.topSplitPct,
+      compareSplitPct: state.layout.compareSplitPct,
       sidebarCollapsed: state.layout.sidebarCollapsed,
       chartsCollapsed: state.layout.chartsCollapsed
     }));
@@ -572,6 +624,10 @@ function loadLayoutState() {
       if (parsed.topSplitPct) {
         state.layout.topSplitPct = Math.max(20, Math.min(80, parsed.topSplitPct));
         document.documentElement.style.setProperty('--top-split-pct', `${state.layout.topSplitPct}%`);
+      }
+      if (parsed.compareSplitPct) {
+        state.layout.compareSplitPct = Math.max(15, Math.min(85, parsed.compareSplitPct));
+        document.documentElement.style.setProperty('--compare-split-pct', `${state.layout.compareSplitPct}%`);
       }
       if (parsed.sidebarCollapsed !== undefined) {
         state.layout.sidebarCollapsed = !!parsed.sidebarCollapsed;

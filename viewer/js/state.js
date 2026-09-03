@@ -246,6 +246,7 @@ const state = {
     sidebarWidth: 420,
     chartsHeight: 280,
     topSplitPct: 50,
+    compareSplitPct: 48,
     sidebarCollapsed: false,
     chartsCollapsed: false,
     maximizedPanel: null
@@ -283,6 +284,7 @@ const dom = {
   resizerSidebar: document.getElementById('resizer-sidebar'),
   resizerCharts: document.getElementById('resizer-charts'),
   resizerTopSplit: document.getElementById('resizer-top-split'),
+  resizerCompare: document.getElementById('resizer-compare'),
   btnMaximizeMap: document.getElementById('btn-maximize-map'),
   btnMaximizeCharts: document.getElementById('btn-maximize-charts'),
   btnCollapseCharts: document.getElementById('btn-collapse-charts'),
@@ -844,7 +846,7 @@ function updateWorkspaceLayout(forceState = null) {
 
   const isComparing = forceState !== null
     ? forceState
-    : (state.threeColLayout || state.isCompareMode);
+    : (state.threeColLayout || state.isCompareMode || (state.sectionSelection && state.sectionSelection.active));
 
   grid.classList.toggle('compare-layout-active', isComparing);
   if (dom.btnToggleLayout) dom.btnToggleLayout.classList.toggle('active', isComparing);
@@ -855,7 +857,14 @@ function updateWorkspaceLayout(forceState = null) {
     if (typeof renderCharts === 'function') renderCharts();
     if (state.map) {
       state.map.invalidateSize();
-      if (state.trackPolylineGroup && state.trackPolylineGroup.getLayers().length > 0) {
+      if (state.sectionSelection && state.sectionSelection.active && state.sectionSelection.startPoint && state.sectionSelection.endPoint && typeof getTrackLatLngsBetween === 'function') {
+        const pts = getTrackLatLngsBetween(state.sectionSelection.startPoint, state.sectionSelection.endPoint);
+        if (pts.length > 1) {
+          state.map.fitBounds(L.latLngBounds(pts), { padding: [40, 40] });
+        } else if (state.trackPolylineGroup && state.trackPolylineGroup.getLayers().length > 0) {
+          state.map.fitBounds(state.trackPolylineGroup.getBounds(), { padding: [25, 25] });
+        }
+      } else if (state.trackPolylineGroup && state.trackPolylineGroup.getLayers().length > 0) {
         state.map.fitBounds(state.trackPolylineGroup.getBounds(), { padding: [25, 25] });
       }
     }
