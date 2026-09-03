@@ -72,13 +72,46 @@ function applySmoothingToRecords() {
   if (typeof renderSpeedExtremaMarkers === 'function') renderSpeedExtremaMarkers();
 }
 
+/**
+ * Binary search to map a continuous timestamp (seconds) to a fractional record index
+ */
+function findFractionalIndexForTime(records, targetTime) {
+  if (!records || records.length === 0) return 0;
+  const n = records.length;
+  if (targetTime <= (records[0].time_s || 0)) return 0;
+  if (targetTime >= (records[n - 1].time_s || 0)) return n - 1;
+
+  let low = 0;
+  let high = n - 1;
+
+  while (low <= high) {
+    const mid = (low + high) >> 1;
+    const tMid = records[mid].time_s || 0;
+    if (tMid === targetTime) {
+      return mid;
+    } else if (tMid < targetTime) {
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+
+  const i0 = Math.max(0, high);
+  const i1 = Math.min(n - 1, low);
+  const t0 = records[i0].time_s || 0;
+  const t1 = records[i1].time_s || 0;
+  const dt = t1 - t0;
+  const frac = dt > 0.00001 ? (targetTime - t0) / dt : 0;
+  return i0 + Math.max(0, Math.min(1, frac));
+}
+
 function seekToIndex(index) {
   if (!state.activeRecords || state.activeRecords.length === 0) return;
   state.currentIndex = Math.max(0, Math.min(state.activeRecords.length - 1, index));
-  updateUI();
+  updateUI(false);
 }
 
-function updateUI() {
+function updateUI(isFromVideoMasterClock = false) {
   if (!state.activeRecords || state.activeRecords.length === 0) return;
   const len = state.activeRecords.length;
   const idx0 = Math.floor(state.currentIndex);
@@ -263,12 +296,15 @@ function updateUI() {
       }
     }
 
-    // Highlight corresponding lap row in DATA table if playing full session
-    if (state.selectedLapNum === -1) {
-      document.querySelectorAll('#lap-table-body tr').forEach(row => {
-        const lNum = parseInt(row.dataset.lap, 10);
-        row.classList.toggle('active-lap-row', lNum === currentLapObj.lap_number);
-      });
+    // Highlight corresponding lap row in DATA table if playing full session (cached to avoid 60/120Hz DOM thrashing)
+    if (state.selectedLapNum === -1 && currentLapObj) {
+      if (state.lastActiveLapRow !== currentLapObj.lap_number) {
+        state.lastActiveLapRow = currentLapObj.lap_number;
+        document.querySelectorAll('#lap-table-body tr').forEach(row => {
+          const lNum = parseInt(row.dataset.lap, 10);
+          row.classList.toggle('active-lap-row', lNum === currentLapObj.lap_number);
+        });
+      }
     }
 
     // 10. Update Authentic MotoGP Broadcast Live Card
@@ -333,9 +369,9 @@ function updateUI() {
 
   // 14. Video Player Frame-Accurate Synchronization & Live HUD Overlay
   if (typeof syncVideoPlayback === 'function' && r0) {
-    syncVideoPlayback(interpTime || r0.time_s || 0, state.isPlaying, state.playbackSpeed);
+    syncVideoPlayback(interpTime || r0.time_s || 0, state.isPlaying, state.playbackSpeed, isFromVideoMasterClock);
   }
-  if (typeof drawLiveVideoOverlay === 'function' && state.video && state.video.overlayEnabled !== false) {
+  if (typeof drawLiveVideoOverlay === 'function' && state.video && state.video.overlayEnabled !== false && state.video.hasVideo && state.video.viewMode !== 'map-only') {
     drawLiveVideoOverlay(r0, spd, interpRpm, interpTps, interpLean, interpGlong, interpGlat);
   }
 }
@@ -357,14 +393,33 @@ function startPlayback() {
     const curTelTime = curR ? curR.time_s : 0;
     const targetVideoTime = curTelTime + state.video.offsetSeconds;
     if (isFinite(targetVideoTime) && targetVideoTime >= 0) {
-      dom.videoPlayer.currentTime = targetVideoTime;
+      if (Math.abs(dom.videoPlayer.currentTime - targetVideoTime) > 0.05) {
+        dom.videoPlayer.currentTime = targetVideoTime;
+      }
       dom.videoPlayer.playbackRate = state.playbackSpeed;
       dom.videoPlayer.play().catch(() => {});
     }
   }
 
+  if (state.isCompareMode && dom.videoLapBPlayer && state.video && state.video.videoLapB && state.video.videoLapB.hasVideo) {
+    const curR = state.activeRecords[Math.floor(state.currentIndex)];
+    const curTelTime = curR ? curR.time_s : 0;
+    const targetB = curTelTime + state.video.videoLapB.offsetSeconds;
+    if (isFinite(targetB) && targetB >= 0) {
+      if (Math.abs(dom.videoLapBPlayer.currentTime - targetB) > 0.05) {
+        dom.videoLapBPlayer.currentTime = targetB;
+      }
+      dom.videoLapBPlayer.playbackRate = state.playbackSpeed;
+      dom.videoLapBPlayer.play().catch(() => {});
+    }
+  }
+
   state.lastFrameTime = performance.now();
-  playbackLoop(state.lastFrameTime);
+  if (state.animationFrameId) {
+    cancelAnimationFrame(state.animationFrameId);
+    state.animationFrameId = null;
+  }
+  state.animationFrameId = requestAnimationFrame(playbackLoop);
 }
 
 function pausePlayback() {
@@ -391,22 +446,49 @@ function playbackLoop(timestamp) {
   const dt = (timestamp - state.lastFrameTime) / 1000.0;
   state.lastFrameTime = timestamp;
 
-  const frameIncrement = (dt * state.playbackSpeed) / 0.10;
-  state.currentIndex += frameIncrement;
+  const hasMasterVideo = !!(state.video && state.video.hasVideo && dom.videoPlayer && !dom.videoPlayer.paused && dom.videoPlayer.readyState >= 2);
 
-  if (state.currentIndex >= state.activeRecords.length - 1) {
-    state.currentIndex = state.activeRecords.length - 1;
-    updateUI();
-    pausePlayback();
-    return;
+  if (hasMasterVideo) {
+    // Hardware Video is the master clock
+    const curTelTime = dom.videoPlayer.currentTime - state.video.offsetSeconds;
+    const targetIdx = findFractionalIndexForTime(state.activeRecords, curTelTime);
+    state.currentIndex = targetIdx;
+
+    const maxTime = state.activeRecords[state.activeRecords.length - 1]?.time_s || 0;
+    if (curTelTime >= maxTime || dom.videoPlayer.ended) {
+      state.currentIndex = state.activeRecords.length - 1;
+      updateUI(true);
+      pausePlayback();
+      return;
+    }
+
+    updateUI(true);
+  } else {
+    // Telemetry wall-clock time progression
+    const curR0 = state.activeRecords[Math.floor(state.currentIndex)];
+    const curR1 = state.activeRecords[Math.min(state.activeRecords.length - 1, Math.floor(state.currentIndex) + 1)];
+    const frac = state.currentIndex - Math.floor(state.currentIndex);
+    const curTime = curR0 ? (curR0.time_s + ((curR1 ? curR1.time_s : curR0.time_s) - curR0.time_s) * frac) : 0;
+    const nextTime = curTime + (dt * state.playbackSpeed);
+
+    state.currentIndex = findFractionalIndexForTime(state.activeRecords, nextTime);
+
+    if (state.currentIndex >= state.activeRecords.length - 1) {
+      state.currentIndex = state.activeRecords.length - 1;
+      updateUI(false);
+      pausePlayback();
+      return;
+    }
+
+    updateUI(false);
   }
 
-  updateUI();
   state.animationFrameId = requestAnimationFrame(playbackLoop);
 }
 
 function selectLap(lapNum, shouldFit = false) {
   state.selectedLapNum = lapNum;
+  state.lastActiveLapRow = null;
   pausePlayback();
 
   document.querySelectorAll('#lap-table-body tr').forEach(row => {

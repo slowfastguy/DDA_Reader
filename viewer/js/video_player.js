@@ -152,6 +152,27 @@ function initVideoPlayer() {
     });
     resizeObserver.observe(dom.videoPlayer);
   }
+
+  // Synchronize visualizer state when video natively plays/pauses/ends
+  if (vPlayer) {
+    vPlayer.addEventListener('play', () => {
+      if (!state.isPlaying && typeof startPlayback === 'function') {
+        startPlayback();
+      }
+    });
+
+    vPlayer.addEventListener('pause', () => {
+      if (state.isPlaying && typeof pausePlayback === 'function') {
+        pausePlayback();
+      }
+    });
+
+    vPlayer.addEventListener('ended', () => {
+      if (state.isPlaying && typeof pausePlayback === 'function') {
+        pausePlayback();
+      }
+    });
+  }
 }
 
 function loadVideoFile(file, isLapB = false) {
@@ -262,7 +283,8 @@ function setVideoOffset(newOffset) {
   updateOffsetDisplay();
 
   // Force video seek to updated position
-  const curTelTime = state.records[state.currentIndex]?.time_s || 0;
+  const activeRecs = (state.activeRecords && state.activeRecords.length > 0) ? state.activeRecords : state.records;
+  const curTelTime = (activeRecs && activeRecs[Math.floor(state.currentIndex)]) ? (activeRecs[Math.floor(state.currentIndex)].time_s || 0) : 0;
   const targetVideoTime = curTelTime + state.video.offsetSeconds;
   if (dom.videoPlayer && isFinite(targetVideoTime) && targetVideoTime >= 0) {
     dom.videoPlayer.currentTime = targetVideoTime;
@@ -297,7 +319,7 @@ function updateOffsetDisplay() {
 
 let lastVideoSyncSeekTime = 0;
 
-function syncVideoPlayback(currentTimeS, isPlaying, playbackSpeed) {
+function syncVideoPlayback(currentTimeS, isPlaying, playbackSpeed, isFromVideoMasterClock = false) {
   if (!state.video.hasVideo || !dom.videoPlayer) return;
 
   const vPlayer = dom.videoPlayer;
@@ -305,25 +327,28 @@ function syncVideoPlayback(currentTimeS, isPlaying, playbackSpeed) {
 
   if (isFinite(targetTime) && targetTime >= 0 && vPlayer.duration && targetTime <= vPlayer.duration) {
     if (isPlaying) {
-      if (vPlayer.paused) {
-        vPlayer.currentTime = targetTime;
-        vPlayer.playbackRate = playbackSpeed;
-        vPlayer.play().catch(() => {});
-      } else {
-        const drift = targetTime - vPlayer.currentTime;
-        // If huge drift (e.g. user jumped lap), hard seek once with throttle
-        if (Math.abs(drift) > 0.8) {
-          const now = performance.now();
-          if (now - lastVideoSyncSeekTime > 400) {
-            vPlayer.currentTime = targetTime;
-            lastVideoSyncSeekTime = now;
-          }
-        } else if (Math.abs(drift) > 0.08) {
-          // Soft rate micro-adjustment to smoothly catch up without seeking
-          const nudgeRate = drift > 0 ? 1.06 : 0.94;
-          vPlayer.playbackRate = playbackSpeed * nudgeRate;
-        } else {
+      if (!isFromVideoMasterClock) {
+        // Video is not driving clock (e.g. fallback mode or just starting)
+        if (vPlayer.paused) {
+          vPlayer.currentTime = targetTime;
           vPlayer.playbackRate = playbackSpeed;
+          vPlayer.play().catch(() => {});
+        } else {
+          const drift = targetTime - vPlayer.currentTime;
+          // Only seek if severe drift (>1.5s) to protect hardware decoder pipeline
+          if (Math.abs(drift) > 1.5) {
+            const now = performance.now();
+            if (now - lastVideoSyncSeekTime > 1200) {
+              vPlayer.currentTime = targetTime;
+              lastVideoSyncSeekTime = now;
+            }
+          } else if (Math.abs(drift) > 0.12) {
+            // Gentle rate micro-adjustment
+            const nudgeRate = drift > 0 ? 1.05 : 0.95;
+            vPlayer.playbackRate = playbackSpeed * nudgeRate;
+          } else {
+            vPlayer.playbackRate = playbackSpeed;
+          }
         }
       }
     } else {
@@ -331,16 +356,13 @@ function syncVideoPlayback(currentTimeS, isPlaying, playbackSpeed) {
         vPlayer.pause();
       }
       // When paused or scrubbing, update currentTime cleanly
-      if (Math.abs(vPlayer.currentTime - targetTime) > 0.033) {
+      if (Math.abs(vPlayer.currentTime - targetTime) > 0.02) {
         vPlayer.currentTime = targetTime;
       }
     }
   }
 
-  // Draw Live HUD Canvas Overlay
-  if (state.video.overlayEnabled) {
-    drawLiveVideoOverlay();
-  }
+  // Live HUD Canvas Overlay is rendered once in updateUI() - do not redraw here
 
   // Compare Mode Dual Video Sync
   if (state.isCompareMode && state.video.videoLapB.hasVideo && dom.videoLapBPlayer) {
@@ -354,17 +376,17 @@ function syncVideoPlayback(currentTimeS, isPlaying, playbackSpeed) {
           vLapB.play().catch(() => {});
         } else {
           const driftB = targetB - vLapB.currentTime;
-          if (Math.abs(driftB) > 0.8) {
+          if (Math.abs(driftB) > 1.5) {
             vLapB.currentTime = targetB;
-          } else if (Math.abs(driftB) > 0.08) {
-            vLapB.playbackRate = playbackSpeed * (driftB > 0 ? 1.06 : 0.94);
+          } else if (Math.abs(driftB) > 0.15) {
+            vLapB.playbackRate = playbackSpeed * (driftB > 0 ? 1.05 : 0.95);
           } else {
             vLapB.playbackRate = playbackSpeed;
           }
         }
       } else {
         if (!vLapB.paused) vLapB.pause();
-        if (Math.abs(vLapB.currentTime - targetB) > 0.033) {
+        if (Math.abs(vLapB.currentTime - targetB) > 0.02) {
           vLapB.currentTime = targetB;
         }
       }
