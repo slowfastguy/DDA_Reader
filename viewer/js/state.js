@@ -34,6 +34,7 @@ const DEFAULT_SETTINGS = {
     channels: {
       speedA: true,
       speedB: true,
+      speedGps: true,
       rpm: true,
       tps: true,
       lean: true,
@@ -192,6 +193,7 @@ const state = {
   channels: {
     speedA: true,
     speedB: true,
+    speedGps: true,
     rpm: true,
     tps: true,
     lean: true,

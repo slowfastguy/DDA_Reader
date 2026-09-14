@@ -26,6 +26,7 @@
     "channels": {
       "speedA": true,
       "speedB": true,
+      "speedGps": true,
       "rpm": true,
       "tps": true,
       "lean": true,

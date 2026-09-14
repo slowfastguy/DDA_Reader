@@ -238,7 +238,7 @@ class DDAHeader:
 class DDARecord:
     """A synchronized telemetry record aligned directly with GPS sample time."""
     __slots__ = (
-        'time_s', 'speed_kmh', 'rpm', 'tps_pct', 'gear',
+        'time_s', 'speed_kmh', 'gps_speed_kmh', 'rpm', 'tps_pct', 'gear',
         'lean_angle_deg', 'torque_fast_pct', 'torque_slow_pct',
         'distance_m', 'gps_lat', 'gps_lon', 'gps_alt_m',
         'raw_lat', 'raw_lon',
@@ -248,6 +248,7 @@ class DDARecord:
     def __init__(self, time_s=0.0):
         self.time_s = time_s
         self.speed_kmh = 0.0
+        self.gps_speed_kmh = 0.0
         self.rpm = 0
         self.tps_pct = 0.0
         self.gear = 0
@@ -279,6 +280,14 @@ class DDARecord:
         return self.speed_kmh / 3.6
 
     @property
+    def gps_speed_mph(self):
+        return self.gps_speed_kmh * 0.621371
+
+    @property
+    def gps_speed_ms(self):
+        return self.gps_speed_kmh / 3.6
+
+    @property
     def gps_alt_ft(self):
         return self.gps_alt_m * 3.28084
 
@@ -287,6 +296,8 @@ class DDARecord:
             "time_s": round(self.time_s, 2),
             "speed_kmh": round(self.speed_kmh, 1),
             "speed_mph": round(self.speed_mph, 1),
+            "gps_speed_kmh": round(self.gps_speed_kmh, 1),
+            "gps_speed_mph": round(self.gps_speed_mph, 1),
             "rpm": self.rpm,
             "tps_pct": round(self.tps_pct, 1),
             "gear": self.gear,
@@ -548,6 +559,45 @@ class DDAParser:
             prev_lon = s_lon
             self.gps_records.append(rec)
 
+        # 4a. Calculate Robust Filtered GPS Ground Speed
+        n_gps = len(gps_rec_list)
+        if n_gps >= 2:
+            raw_gps_speeds = []
+            for i in range(n_gps):
+                if i == 0:
+                    d = haversine_distance_m(smooth_lats[0], smooth_lons[0], smooth_lats[1], smooth_lons[1])
+                    dt = gps_rec_list[1].time_s - gps_rec_list[0].time_s
+                elif i == n_gps - 1:
+                    d = haversine_distance_m(smooth_lats[-2], smooth_lons[-2], smooth_lats[-1], smooth_lons[-1])
+                    dt = gps_rec_list[-1].time_s - gps_rec_list[-2].time_s
+                else:
+                    d = haversine_distance_m(smooth_lats[i - 1], smooth_lons[i - 1], smooth_lats[i + 1], smooth_lons[i + 1])
+                    dt = gps_rec_list[i + 1].time_s - gps_rec_list[i - 1].time_s
+                spd = (d / dt) * 3.6 if dt > 0 else 0.0
+                raw_gps_speeds.append(spd)
+
+            # Outlier rejection for GNSS receiver position jumps / coordinate repeats
+            clean_gps_speeds = []
+            last_valid = raw_gps_speeds[0] if raw_gps_speeds[0] < 200.0 else gps_rec_list[0].speed_kmh
+            for i in range(n_gps):
+                v = raw_gps_speeds[i]
+                wheel = gps_rec_list[i].speed_kmh
+                if v > 300.0 or (v > 160.0 and (v - wheel) > 70.0 and abs(v - last_valid) > 50.0):
+                    v = last_valid
+                else:
+                    last_valid = v
+                clean_gps_speeds.append(v)
+
+            # 3-point moving average to smooth quantization noise
+            for i in range(n_gps):
+                if i == 0:
+                    filtered_v = clean_gps_speeds[0]
+                elif i == n_gps - 1:
+                    filtered_v = clean_gps_speeds[-1]
+                else:
+                    filtered_v = 0.25 * clean_gps_speeds[i - 1] + 0.50 * clean_gps_speeds[i] + 0.25 * clean_gps_speeds[i + 1]
+                gps_rec_list[i].gps_speed_kmh = max(0.0, filtered_v)
+
         # 4b. Derive Acceleration Kinematics & Wheel Slip
         n_recs = len(self.records)
         for i in range(n_recs):
@@ -575,11 +625,12 @@ class DDAParser:
             # Total G (Friction / Traction Demand)
             rec.accel_total_g = math.sqrt(rec.accel_long_g ** 2 + rec.accel_lat_g ** 2)
             
-            # Wheel Slip & Wheelie Heuristic
-            slip_base = (rec.torque_slow_pct * 0.25) + (rec.torque_fast_pct * 0.35)
-            if rec.tps_pct > 50.0 and rec.accel_long_g > 0.35 and abs(rec.lean_angle_deg) > 15.0:
-                slip_base += (abs(rec.lean_angle_deg) / 45.0) * 5.0
-            rec.wheel_slip_pct = min(40.0, slip_base)
+            # Physical Longitudinal Wheel Slip & Wheelie Heuristic
+            if rec.gps_speed_kmh > 5.0:
+                raw_slip = ((rec.speed_kmh - rec.gps_speed_kmh) / rec.gps_speed_kmh) * 100.0
+                rec.wheel_slip_pct = max(-50.0, min(100.0, raw_slip))
+            else:
+                rec.wheel_slip_pct = 0.0
             rec.wheelie = (rec.tps_pct > 75.0 and rec.accel_long_g > 0.45 and rec.gear in (1, 2, 3) and abs(rec.lean_angle_deg) < 12.0)
 
         # 5. Automatic Lap & Split Timing Gate Detection
@@ -665,6 +716,7 @@ class DDAParser:
             "end_index": idx_first,
             "distance_m": first_cross.distance_m,
             "max_speed_kmh": max((r.speed_kmh for r in self.records[0:idx_first]), default=0),
+            "max_gps_speed_kmh": max((r.gps_speed_kmh for r in self.records[0:idx_first]), default=0),
             "is_best": False
         })
 
@@ -692,6 +744,7 @@ class DDAParser:
                 "end_index": idx2,
                 "distance_m": dist,
                 "max_speed_kmh": max((r.speed_kmh for r in lap_recs), default=0),
+                "max_gps_speed_kmh": max((r.gps_speed_kmh for r in lap_recs), default=0),
                 "is_best": False
             })
 
@@ -713,6 +766,7 @@ class DDAParser:
             "end_index": len(self.records) - 1,
             "distance_m": self.records[-1].distance_m - last_cross.distance_m,
             "max_speed_kmh": max((r.speed_kmh for r in in_lap_recs), default=0),
+            "max_gps_speed_kmh": max((r.gps_speed_kmh for r in in_lap_recs), default=0),
             "is_best": False
         })
 
@@ -731,6 +785,7 @@ class DDAParser:
             return
 
         speeds = [r.speed_kmh for r in self.records]
+        gps_speeds = [r.gps_speed_kmh for r in self.gps_records if r.gps_speed_kmh > 0.0]
         rpms = [r.rpm for r in self.records]
         leans_left = [abs(r.lean_angle_deg) for r in self.records if r.lean_angle_deg < -0.5]
         leans_right = [r.lean_angle_deg for r in self.records if r.lean_angle_deg > 0.5]
@@ -749,6 +804,8 @@ class DDAParser:
             "best_lap_time_s": best_lap_obj["duration_s"] if best_lap_obj else None,
             "max_speed_kmh": max(speeds) if speeds else 0.0,
             "max_speed_mph": (max(speeds) * 0.621371) if speeds else 0.0,
+            "max_gps_speed_kmh": max(gps_speeds) if gps_speeds else 0.0,
+            "max_gps_speed_mph": (max(gps_speeds) * 0.621371) if gps_speeds else 0.0,
             "max_rpm": max(rpms) if rpms else 0,
             "max_lean_left_deg": max(leans_left) if leans_left else 0.0,
             "max_lean_right_deg": max(leans_right) if leans_right else 0.0,
@@ -929,14 +986,15 @@ class DDAParser:
     def export_csv(self, out_path: str):
         """Export telemetry to standard CSV format."""
         with open(out_path, "w", encoding="utf-8") as f:
-            f.write("Time_s,Speed_kmh,Speed_mph,RPM,TPS_pct,Gear,LeanAngle_deg,DTC_Fast_pct,DTC_Slow_pct,Distance_m,GPS_Lat,GPS_Lon,GPS_Alt_m,GPS_Alt_ft,Lap,Split1,Split2\n")
+            f.write("Time_s,Speed_kmh,Speed_mph,GPS_Speed_kmh,GPS_Speed_mph,Wheel_Slip_pct,RPM,TPS_pct,Gear,LeanAngle_deg,DTC_Fast_pct,DTC_Slow_pct,Distance_m,GPS_Lat,GPS_Lon,GPS_Alt_m,GPS_Alt_ft,Lap,Split1,Split2\n")
             for r in self.records:
                 lat_str = f"{r.gps_lat:.7f}" if r.gps_lat is not None else ""
                 lon_str = f"{r.gps_lon:.7f}" if r.gps_lon is not None else ""
                 alt_m_str = f"{r.gps_alt_m:.1f}" if r.gps_lat is not None else ""
                 alt_ft_str = f"{r.gps_alt_ft:.1f}" if r.gps_lat is not None else ""
                 f.write(
-                    f"{r.time_s:.2f},{r.speed_kmh:.1f},{r.speed_mph:.1f},{r.rpm},"
+                    f"{r.time_s:.2f},{r.speed_kmh:.1f},{r.speed_mph:.1f},{r.gps_speed_kmh:.1f},{r.gps_speed_mph:.1f},"
+                    f"{r.wheel_slip_pct:.1f},{r.rpm},"
                     f"{r.tps_pct:.1f},{r.gear},{r.lean_angle_deg:.1f},{r.torque_fast_pct},"
                     f"{r.torque_slow_pct},{r.distance_m:.1f},{lat_str},{lon_str},{alt_m_str},"
                     f"{alt_ft_str},{r.lap},{r.int_lap1},{r.int_lap2}\n"
@@ -966,18 +1024,21 @@ class DDAParser:
         cols = [
             "timestamp", "fragment_id", "lap_number", "elapsed_time", "distance_traveled",
             "altitude", "bearing", "latitude", "longitude", "speed",
+            "wheel_speed", "wheel_slip",
             "engine_rpm", "throttle_position", "gear", "lean_angle",
             "torque_reduction_fast", "torque_reduction_slow"
         ]
         units = [
             "unix time", "", "", "s", "m",
             "m", "deg", "deg", "deg", "m/s",
+            "km/h", "%",
             "rpm", "%", "#", "deg",
             "%", "%"
         ]
         sources = [
             "", "", "", "", "",
             "100: gps", "100: gps", "100: gps", "100: gps", "100: gps",
+            "100: can", "100: calc",
             "100: can", "100: can", "100: can", "100: can",
             "100: can", "100: can"
         ]
@@ -993,7 +1054,7 @@ class DDAParser:
             bearing_str = f"{r.bearing_deg:.1f}" if r.gps_lat is not None else ""
 
             timestamp_s = base_unix_ts + r.time_s
-            speed_ms = r.speed_kmh / 3.6
+            speed_ms = (r.gps_speed_kmh / 3.6) if r.gps_speed_kmh > 0 else (r.speed_kmh / 3.6)
 
             row = [
                 f"{timestamp_s:.2f}",
@@ -1006,6 +1067,8 @@ class DDAParser:
                 lat_str,
                 lon_str,
                 f"{speed_ms:.3f}",
+                f"{r.speed_kmh:.1f}",
+                f"{r.wheel_slip_pct:.1f}",
                 f"{r.rpm}",
                 f"{r.tps_pct:.1f}",
                 f"{r.gear}",
@@ -1149,7 +1212,8 @@ class DDAParser:
                     f.write(f'      <trkpt lat="{r.gps_lat:.7f}" lon="{r.gps_lon:.7f}">\n')
                     f.write(f'        <ele>{r.gps_alt_m:.1f}</ele>\n')
                     f.write(f'        <time>{pt_time}</time>\n')
-                    f.write(f'        <speed>{(r.speed_kmh / 3.6):.2f}</speed>\n')
+                    spd_ms = (r.gps_speed_kmh / 3.6) if r.gps_speed_kmh > 0 else (r.speed_kmh / 3.6)
+                    f.write(f'        <speed>{spd_ms:.2f}</speed>\n')
                     f.write('        <extensions>\n')
                     f.write(f'          <tp:TrackPointExtension>\n')
                     f.write(f'            <tp:hr>{r.rpm}</tp:hr>\n')

@@ -954,6 +954,7 @@ function recalculateLapsAndSectors() {
     const lapRecs = state.records.slice(c1.index, c2.index + 1);
     const sectors = [];
     const maxLapSpeed = lapRecs.reduce((max, r) => (r.speed_kmh || 0) > max ? (r.speed_kmh || 0) : max, 0);
+    const maxLapGpsSpeed = lapRecs.reduce((max, r) => (r.gps_speed_kmh || 0) > max ? (r.gps_speed_kmh || 0) : max, 0);
 
     if (splitGates.length >= 2) {
       let splitCrossings = [];
@@ -1011,6 +1012,7 @@ function recalculateLapsAndSectors() {
       distance_m: dist,
       sectors: sectors,
       max_speed_kmh: maxLapSpeed,
+      max_gps_speed_kmh: maxLapGpsSpeed,
       is_best: false
     });
   }
@@ -1019,6 +1021,7 @@ function recalculateLapsAndSectors() {
   const lastCross = crossings[crossings.length - 1];
   const inLapRecs = state.records.slice(lastCross.index);
   const maxInLapSpeed = inLapRecs.reduce((max, r) => (r.speed_kmh || 0) > max ? (r.speed_kmh || 0) : max, 0);
+  const maxInLapGpsSpeed = inLapRecs.reduce((max, r) => (r.gps_speed_kmh || 0) > max ? (r.gps_speed_kmh || 0) : max, 0);
   newLaps.push({
     lap_number: crossings.length,
     name: `Lap ${crossings.length} (In-Lap)`,
@@ -1030,6 +1033,7 @@ function recalculateLapsAndSectors() {
     distance_m: state.records[state.records.length - 1].distance_m - lastCross.distance_m,
     sectors: [null, null, null],
     max_speed_kmh: maxInLapSpeed,
+    max_gps_speed_kmh: maxInLapGpsSpeed,
     is_best: false
   });
 

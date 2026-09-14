@@ -98,6 +98,21 @@ function renderCharts() {
     ctx.stroke();
   }
 
+  if (state.channels.speedGps) {
+    ctx.strokeStyle = '#b388ff';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    for (let i = 0; i < count; i++) {
+      const r = viewRecords[i];
+      const spd = ((r.gps_speed_kmh !== undefined && r.gps_speed_kmh > 0) ? r.gps_speed_kmh : (r.speed_kmh || 0)) * (state.unitMph ? 0.621371 : 1.0);
+      const x = (i / (count - 1)) * w;
+      const y = laneHeight - pad - (spd / maxSpd) * (laneHeight - pad * 2);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
   if (state.channels.rpm) {
     ctx.strokeStyle = '#ff9100';
     ctx.lineWidth = 1.4;
@@ -488,6 +503,22 @@ function renderCompareCharts(ctx, w, h) {
       const relDist = r.distance_m - recsA[0].distance_m;
       const x = (relDist / maxDist) * w;
       const spd = (r.speed_kmh || 0) * (state.unitMph ? 0.621371 : 1.0);
+      const y = laneHeight - pad - (spd / maxSpd) * (laneHeight - pad * 2);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  if (state.channels.speedGps) {
+    ctx.strokeStyle = '#b388ff';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    for (let i = 0; i < recsA.length; i++) {
+      const r = recsA[i];
+      const relDist = r.distance_m - recsA[0].distance_m;
+      const x = (relDist / maxDist) * w;
+      const spd = ((r.gps_speed_kmh !== undefined && r.gps_speed_kmh > 0) ? r.gps_speed_kmh : (r.speed_kmh || 0)) * (state.unitMph ? 0.621371 : 1.0);
       const y = laneHeight - pad - (spd / maxSpd) * (laneHeight - pad * 2);
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
@@ -1057,7 +1088,9 @@ function showChartTooltip(idx, mouseX, mouseY) {
   if (!r) return;
 
   const spd = state.unitMph ? ((r.speed_kmh || 0) * 0.621371) : (r.speed_kmh || 0);
+  const gpsSpd = state.unitMph ? (((r.gps_speed_kmh !== undefined && r.gps_speed_kmh > 0) ? r.gps_speed_kmh : (r.speed_kmh || 0)) * 0.621371) : ((r.gps_speed_kmh !== undefined && r.gps_speed_kmh > 0) ? r.gps_speed_kmh : (r.speed_kmh || 0));
   const spdUnit = state.unitMph ? 'mph' : 'km/h';
+  const slip = r.wheel_slip_pct !== undefined ? r.wheel_slip_pct : 0.0;
   const glong = r.accel_long_g !== undefined ? r.accel_long_g.toFixed(2) : '0.00';
   const glat = r.accel_lat_g !== undefined ? r.accel_lat_g.toFixed(2) : '0.00';
   const gtot = r.accel_total_g !== undefined ? r.accel_total_g.toFixed(2) : '0.00';
@@ -1081,13 +1114,13 @@ function showChartTooltip(idx, mouseX, mouseY) {
   dom.chartTooltip.innerHTML = `
     ${turnNearHtml}
     <strong>Time: ${formatTime(r.time_s)} | Dist: ${r.distance_m ? r.distance_m.toFixed(0) : 0}m</strong><br>
-    Speed: <span style="color:#00e5ff">${spd.toFixed(1)} ${spdUnit}</span> | RPM: <span style="color:#ff9100">${r.rpm || 0}</span><br>
-    TPS: <span style="color:#00e676">${(r.tps_pct || 0).toFixed(0)}%</span> | Gear: <span style="color:#d500f9">${r.gear || 'N'}</span> | Lean: <span style="color:#ff0055">${(r.lean_angle_deg || 0).toFixed(1)}°</span><br>
+    Speed: <span style="color:#00e5ff">${spd.toFixed(1)}</span> (Wheel) | <span style="color:#b388ff">${gpsSpd.toFixed(1)} ${spdUnit}</span> (GPS) | Slip: <span style="color:${Math.abs(slip) > 6 ? '#ffd600' : '#00e676'}">${slip >= 0 ? '+' : ''}${slip.toFixed(1)}%</span><br>
+    RPM: <span style="color:#ff9100">${r.rpm || 0}</span> | TPS: <span style="color:#00e676">${(r.tps_pct || 0).toFixed(0)}%</span> | Gear: <span style="color:#d500f9">${r.gear || 'N'}</span> | Lean: <span style="color:#ff0055">${(r.lean_angle_deg || 0).toFixed(1)}°</span><br>
     G-Force: <span style="color:#ff1744">${glong >= 0 ? '+' : ''}${glong}g</span> long | <span style="color:#2979ff">${glat >= 0 ? '+' : ''}${glat}g</span> lat | <span style="color:#ffd600">${gtot}G</span> sum<br>
     DTC: <span style="color:#ffd600">${r.torque_slow_pct || 0}%</span> | Alt: ${r.gps_alt_m ? r.gps_alt_m.toFixed(1) : '0.0'}m
   `;
   dom.chartTooltip.style.display = 'block';
-  dom.chartTooltip.style.left = `${Math.min(canvasWidth - 230, Math.max(10, mouseX + 15))}px`;
+  dom.chartTooltip.style.left = `${Math.min(canvasWidth - 250, Math.max(10, mouseX + 15))}px`;
 }
 
 function updateShiftLights(rpm) {

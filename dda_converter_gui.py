@@ -722,8 +722,8 @@ class DDAConverterApp(QMainWindow):
         self.lbl_meta_gps = QLabel("GPS Fixes: --", stats_box)
         stats_grid.addWidget(self.lbl_meta_gps, 0, 3)
 
-        self.lbl_stat_speed = QLabel("Max Speed: -- km/h (-- mph)", stats_box)
-        self.lbl_stat_speed.setStyleSheet("font-weight: bold; color: #ff5252;")
+        self.lbl_stat_speed = QLabel("Max Wheel Speed: -- km/h (-- mph)", stats_box)
+        self.lbl_stat_speed.setStyleSheet("font-weight: bold; color: #00e5ff;")
         stats_grid.addWidget(self.lbl_stat_speed, 1, 0)
 
         self.lbl_stat_rpm = QLabel("Max RPM: --", stats_box)
@@ -737,6 +737,14 @@ class DDAConverterApp(QMainWindow):
         self.lbl_stat_alt = QLabel("Elevation: -- m to -- m", stats_box)
         stats_grid.addWidget(self.lbl_stat_alt, 1, 3)
 
+        self.lbl_stat_gps_speed = QLabel("Max GPS Speed: -- km/h (-- mph)", stats_box)
+        self.lbl_stat_gps_speed.setStyleSheet("font-weight: bold; color: #b388ff;")
+        stats_grid.addWidget(self.lbl_stat_gps_speed, 2, 0)
+
+        self.lbl_stat_slip = QLabel("Peak Wheel Slip: -- %", stats_box)
+        self.lbl_stat_slip.setStyleSheet("font-weight: bold; color: #ffd600;")
+        stats_grid.addWidget(self.lbl_stat_slip, 2, 1)
+
         content_layout.addWidget(stats_box)
 
         # 4. Multi-Tabbed Workspace
@@ -747,7 +755,7 @@ class DDAConverterApp(QMainWindow):
         insp_layout = QVBoxLayout(tab_inspector)
         insp_layout.setContentsMargins(8, 8, 8, 8)
 
-        cols = ("Time (s)", "Speed (km/h)", "Speed (mph)", "RPM", "TPS", "Gear", "Lean (°)", "DTC Fast", "DTC Slow", "Latitude", "Longitude", "Altitude (m)")
+        cols = ("Time (s)", "Speed (Wheel)", "Speed (GPS)", "Wheel Slip", "RPM", "TPS", "Gear", "Lean (°)", "DTC Fast", "DTC Slow", "Latitude", "Longitude", "Altitude (m)")
         self.tree = QTableWidget(tab_inspector)
         self.tree.setColumnCount(len(cols))
         self.tree.setHorizontalHeaderLabels(cols)
@@ -939,7 +947,13 @@ class DDAConverterApp(QMainWindow):
             # Update Dynamics display
             max_spd_k = self.parser.stats.get('max_speed_kmh', 0)
             max_spd_m = self.parser.stats.get('max_speed_mph', 0)
-            self.lbl_stat_speed.setText(f"Max Speed: {max_spd_k:.1f} km/h ({max_spd_m:.1f} mph)")
+            max_gps_k = self.parser.stats.get('max_gps_speed_kmh', 0)
+            max_gps_m = self.parser.stats.get('max_gps_speed_mph', 0)
+            max_slip = max((r.wheel_slip_pct for r in self.parser.records), default=0.0)
+
+            self.lbl_stat_speed.setText(f"Wheel Speed: {max_spd_k:.1f} km/h ({max_spd_m:.1f} mph)")
+            self.lbl_stat_gps_speed.setText(f"GPS Speed: {max_gps_k:.1f} km/h ({max_gps_m:.1f} mph)")
+            self.lbl_stat_slip.setText(f"Peak Wheel Slip: +{max_slip:.1f}%")
             self.lbl_stat_rpm.setText(f"Max RPM: {self.parser.stats.get('max_rpm', 0):,}")
 
             lean_l = self.parser.stats.get('max_lean_left_deg', 0)
@@ -958,11 +972,14 @@ class DDAConverterApp(QMainWindow):
                 lat_str = f"{r.gps_lat:.6f}" if r.gps_lat is not None else "--"
                 lon_str = f"{r.gps_lon:.6f}" if r.gps_lon is not None else "--"
                 alt_str = f"{r.gps_alt_m:.1f}" if r.gps_lat is not None else "--"
+                gps_spd_str = f"{r.gps_speed_kmh:.1f}" if r.gps_speed_kmh > 0 else "--"
+                slip_str = f"{r.wheel_slip_pct:+.1f}%" if r.gps_speed_kmh > 5.0 else "--"
 
                 vals = [
                     f"{r.time_s:.2f}",
                     f"{r.speed_kmh:.1f}",
-                    f"{r.speed_mph:.1f}",
+                    gps_spd_str,
+                    slip_str,
                     f"{r.rpm:,}",
                     f"{r.tps_pct:.1f}%",
                     f"{r.gear}",
@@ -987,7 +1004,9 @@ class DDAConverterApp(QMainWindow):
             self._log(f"Session Duration: {self.parser.stats.get('duration_s', 0):.1f} s ({self.parser.stats.get('duration_min', 0):.2f} min)")
             self._log(f"Total Frames    : {len(self.parser.records):,}")
             self._log(f"GPS Fixes       : {self.parser.stats.get('gps_fixes', 0):,}")
-            self._log(f"Max Speed       : {max_spd_k:.1f} km/h ({max_spd_m:.1f} mph)")
+            self._log(f"Max Wheel Speed : {max_spd_k:.1f} km/h ({max_spd_m:.1f} mph)")
+            self._log(f"Max GPS Speed   : {max_gps_k:.1f} km/h ({max_gps_m:.1f} mph)")
+            self._log(f"Peak Wheel Slip : +{max_slip:.1f}%")
             self._log(f"Max RPM         : {self.parser.stats.get('max_rpm', 0):,} RPM")
             self._log(f"Max Lean Angle  : Left {lean_l:.1f}° / Right {lean_r:.1f}°")
             self._log("=" * 60)
