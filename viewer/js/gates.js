@@ -437,73 +437,6 @@ function renderMapGates() {
       zIndexOffset: 800
     });
 
-    const popupContent = document.createElement('div');
-    popupContent.className = 'gate-popup-card';
-    popupContent.innerHTML = `
-      <div class="gate-popup-header">
-        <strong class="gate-popup-title">${isSF ? '🏁 Start / Finish Gate' : `⏱️ ${gate.name || 'Sector Split'}`}</strong>
-        <span class="gate-heading-text">${Math.round(brg)}°</span>
-      </div>
-      <div class="gate-popup-buttons">
-        <button class="btn-popup-action btn-rotate-flip">🔄 Flip 180°</button>
-        <button class="btn-popup-action btn-rotate-left">⟲ -10°</button>
-        <button class="btn-popup-action btn-rotate-right">⟳ +10°</button>
-        <button class="btn-popup-action btn-snap-tangent">📐 Auto-Align</button>
-        ${!isSF ? '<button class="btn-popup-action btn-popup-danger btn-delete-gate">🗑️ Delete Split</button>' : ''}
-      </div>
-    `;
-
-    popupContent.querySelector('.btn-rotate-flip').onclick = () => {
-      gate.bearing = (gate.bearing + 180) % 360;
-      recalculateLapsAndSectors();
-      saveSettingsToStorage();
-    };
-    popupContent.querySelector('.btn-rotate-left').onclick = () => {
-      gate.bearing = (gate.bearing - 10 + 360) % 360;
-      recalculateLapsAndSectors();
-      saveSettingsToStorage();
-    };
-    popupContent.querySelector('.btn-rotate-right').onclick = () => {
-      gate.bearing = (gate.bearing + 10) % 360;
-      recalculateLapsAndSectors();
-      saveSettingsToStorage();
-    };
-    popupContent.querySelector('.btn-snap-tangent').onclick = () => {
-      const closest = findClosestTrackPoint(gate.lat, gate.lon);
-      if (closest && closest.tangentBearing !== undefined) {
-        gate.bearing = closest.tangentBearing;
-        recalculateLapsAndSectors();
-        saveSettingsToStorage();
-      }
-    };
-    if (!isSF) {
-      popupContent.querySelector('.btn-delete-gate').onclick = () => {
-        state.gates = state.gates.filter(g => g !== gate);
-        recalculateLapsAndSectors();
-        saveSettingsToStorage();
-      };
-    }
-
-    marker.bindPopup(popupContent);
-
-    marker.on('dragend', (e) => {
-      const newPos = e.target.getLatLng();
-      const closest = findClosestTrackPoint(newPos.lat, newPos.lng);
-      if (closest) {
-        gate.lat = closest.record.gps_lat;
-        gate.lon = closest.record.gps_lon;
-        if (closest.tangentBearing !== undefined) {
-          gate.bearing = closest.tangentBearing;
-        }
-        marker.setLatLng([gate.lat, gate.lon]);
-      } else {
-        gate.lat = newPos.lat;
-        gate.lon = newPos.lng;
-      }
-      recalculateLapsAndSectors();
-      saveSettingsToStorage();
-    });
-
     const perpBrg1 = (brg + 90) % 360;
     const perpBrg2 = (brg - 90 + 360) % 360;
     const p1 = moveCoordinate(gate.lat, gate.lon, perpBrg1, 16);
@@ -523,6 +456,143 @@ function renderMapGates() {
       opacity: 0.9
     });
 
+    function updateGateVisuals(lat, lon, bearing) {
+      const pPerp1 = moveCoordinate(lat, lon, (bearing + 90) % 360, 16);
+      const pPerp2 = moveCoordinate(lat, lon, (bearing - 90 + 360) % 360, 16);
+      gateLine.setLatLngs([[pPerp1.lat, pPerp1.lon], [pPerp2.lat, pPerp2.lon]]);
+      const pAhead = moveCoordinate(lat, lon, bearing, 10);
+      dirVector.setLatLngs([[lat, lon], [pAhead.lat, pAhead.lon]]);
+      const el = marker.getElement();
+      if (el) {
+        const svg = el.querySelector('svg');
+        if (svg) svg.style.transform = `rotate(${bearing}deg)`;
+      }
+    }
+
+    function syncActiveTrack() {
+      const trk = typeof getActiveTrackProfile === 'function' ? getActiveTrackProfile() : null;
+      if (trk && trk.gates) {
+        const trkGate = trk.gates.find(g => g.id === gate.id || (g.type === gate.type && g.name === gate.name));
+        if (trkGate) {
+          trkGate.lat = gate.lat;
+          trkGate.lon = gate.lon;
+          trkGate.bearing = gate.bearing;
+        }
+      }
+    }
+
+    const popupContent = document.createElement('div');
+    popupContent.className = 'gate-popup-card';
+    popupContent.innerHTML = `
+      <div class="gate-popup-header">
+        <strong class="gate-popup-title">${isSF ? '🏁 Start / Finish Gate' : `⏱️ ${gate.name || 'Sector Split'}`}</strong>
+        <span class="gate-heading-text">${Math.round(brg)}°</span>
+      </div>
+      <div class="gate-popup-buttons">
+        <button class="btn-popup-action btn-rotate-flip">🔄 Flip 180°</button>
+        <button class="btn-popup-action btn-rotate-left">⟲ -10°</button>
+        <button class="btn-popup-action btn-rotate-right">⟳ +10°</button>
+        <button class="btn-popup-action btn-snap-tangent">📐 Auto-Align</button>
+        ${!isSF ? '<button class="btn-popup-action btn-popup-danger btn-delete-gate">🗑️ Delete Split</button>' : ''}
+      </div>
+    `;
+
+    popupContent.querySelector('.btn-rotate-flip').onclick = () => {
+      gate.bearing = (gate.bearing + 180) % 360;
+      syncActiveTrack();
+      saveSettingsToStorage();
+      recalculateLapsAndSectors();
+      renderMapGates();
+      if (typeof renderTrackLibrary === 'function') renderTrackLibrary();
+    };
+    popupContent.querySelector('.btn-rotate-left').onclick = () => {
+      gate.bearing = (gate.bearing - 10 + 360) % 360;
+      syncActiveTrack();
+      saveSettingsToStorage();
+      recalculateLapsAndSectors();
+      renderMapGates();
+      if (typeof renderTrackLibrary === 'function') renderTrackLibrary();
+    };
+    popupContent.querySelector('.btn-rotate-right').onclick = () => {
+      gate.bearing = (gate.bearing + 10) % 360;
+      syncActiveTrack();
+      saveSettingsToStorage();
+      recalculateLapsAndSectors();
+      renderMapGates();
+      if (typeof renderTrackLibrary === 'function') renderTrackLibrary();
+    };
+    popupContent.querySelector('.btn-snap-tangent').onclick = () => {
+      let tb = typeof getTrackTangentBearing === 'function' ? getTrackTangentBearing(gate.lat, gate.lon) : null;
+      if (tb === null || tb === undefined || isNaN(tb) || tb === 0) {
+        const closest = typeof findClosestTrackPoint === 'function' ? findClosestTrackPoint(gate.lat, gate.lon) : null;
+        if (closest && closest.tangentBearing !== undefined) tb = closest.tangentBearing;
+      }
+      if (tb !== null && tb !== undefined && !isNaN(tb)) {
+        gate.bearing = tb;
+        syncActiveTrack();
+        saveSettingsToStorage();
+        recalculateLapsAndSectors();
+        renderMapGates();
+        if (typeof renderTrackLibrary === 'function') renderTrackLibrary();
+      }
+    };
+    if (!isSF) {
+      popupContent.querySelector('.btn-delete-gate').onclick = () => {
+        state.gates = state.gates.filter(g => g !== gate);
+        const trk = typeof getActiveTrackProfile === 'function' ? getActiveTrackProfile() : null;
+        if (trk && trk.gates) {
+          trk.gates = trk.gates.filter(g => g !== gate && g.id !== gate.id && !(g.type === gate.type && g.name === gate.name));
+        }
+        saveSettingsToStorage();
+        recalculateLapsAndSectors();
+        renderMapGates();
+        if (typeof renderTrackLibrary === 'function') renderTrackLibrary();
+      };
+    }
+
+    marker.bindPopup(popupContent);
+    gateLine.bindPopup(popupContent);
+    dirVector.bindPopup(popupContent);
+
+    // Live dynamic visual update while dragging
+    marker.on('drag', (e) => {
+      const curPos = e.target.getLatLng();
+      const closest = typeof findClosestTrackPoint === 'function' ? findClosestTrackPoint(curPos.lat, curPos.lng) : null;
+      const snapLat = (closest && closest.lat !== undefined) ? closest.lat : curPos.lat;
+      const snapLon = (closest && closest.lon !== undefined) ? closest.lon : curPos.lng;
+      let snapBrg = (closest && closest.tangentBearing !== undefined) ? closest.tangentBearing : gate.bearing;
+      if (typeof getTrackTangentBearing === 'function') {
+        const tb = getTrackTangentBearing(snapLat, snapLon);
+        if (tb !== undefined && !isNaN(tb) && tb !== 0) snapBrg = tb;
+      }
+      updateGateVisuals(snapLat, snapLon, snapBrg);
+    });
+
+    // Snap to track and recalculate on drag end
+    marker.on('dragend', (e) => {
+      const newPos = e.target.getLatLng();
+      const closest = typeof findClosestTrackPoint === 'function' ? findClosestTrackPoint(newPos.lat, newPos.lng) : null;
+      if (closest && (closest.lat !== undefined || closest.record)) {
+        gate.lat = closest.lat !== undefined ? closest.lat : closest.record.gps_lat;
+        gate.lon = closest.lon !== undefined ? closest.lon : closest.record.gps_lon;
+        const tb = typeof getTrackTangentBearing === 'function'
+          ? getTrackTangentBearing(gate.lat, gate.lon)
+          : ((closest.tangentBearing !== undefined) ? closest.tangentBearing : gate.bearing);
+        if (tb !== undefined && !isNaN(tb) && tb !== 0) {
+          gate.bearing = tb;
+        }
+      } else {
+        gate.lat = newPos.lat;
+        gate.lon = newPos.lng;
+      }
+      marker.setLatLng([gate.lat, gate.lon]);
+      syncActiveTrack();
+      saveSettingsToStorage();
+      recalculateLapsAndSectors();
+      renderMapGates();
+      if (typeof renderTrackLibrary === 'function') renderTrackLibrary();
+    });
+
     state.gatesLayerGroup.addLayer(marker);
     state.gatesLayerGroup.addLayer(gateLine);
     state.gatesLayerGroup.addLayer(dirVector);
@@ -530,19 +600,23 @@ function renderMapGates() {
 }
 
 function handleGateMapClick(latlng) {
-  const closest = findClosestTrackPoint(latlng.lat, latlng.lng);
+  const closest = typeof findClosestTrackPoint === 'function' ? findClosestTrackPoint(latlng.lat, latlng.lng) : null;
   if (!closest) return;
 
-  const brg = closest.tangentBearing !== undefined ? closest.tangentBearing : 0;
+  const snapLat = closest.lat !== undefined ? closest.lat : (closest.record ? closest.record.gps_lat : latlng.lat);
+  const snapLon = closest.lon !== undefined ? closest.lon : (closest.record ? closest.record.gps_lon : latlng.lng);
+  let brg = typeof getTrackTangentBearing === 'function' ? getTrackTangentBearing(snapLat, snapLon) : 0;
+  if (!brg && closest.tangentBearing !== undefined) brg = closest.tangentBearing;
+  if (!brg) brg = 0;
 
   if (state.gateEditMode === 'sf') {
     let sfGate = state.gates.find(g => g.type === 'sf');
     if (!sfGate) {
-      sfGate = { id: 'sf', name: 'Start / Finish', type: 'sf', lat: closest.record.gps_lat, lon: closest.record.gps_lon, bearing: brg };
+      sfGate = { id: 'sf', name: 'Start / Finish', type: 'sf', lat: snapLat, lon: snapLon, bearing: brg };
       state.gates.unshift(sfGate);
     } else {
-      sfGate.lat = closest.record.gps_lat;
-      sfGate.lon = closest.record.gps_lon;
+      sfGate.lat = snapLat;
+      sfGate.lon = snapLon;
       sfGate.bearing = brg;
     }
   } else if (state.gateEditMode === 'split') {
@@ -551,16 +625,23 @@ function handleGateMapClick(latlng) {
       id: `s${splitCount + 1}`,
       name: `Sector ${splitCount + 1}`,
       type: 'split',
-      lat: closest.record.gps_lat,
-      lon: closest.record.gps_lon,
+      lat: snapLat,
+      lon: snapLon,
       bearing: brg
     };
     state.gates.push(newSplit);
   }
 
+  const trk = typeof getActiveTrackProfile === 'function' ? getActiveTrackProfile() : null;
+  if (trk) {
+    trk.gates = JSON.parse(JSON.stringify(state.gates));
+  }
+
   cancelGateEdit();
   recalculateLapsAndSectors();
   saveSettingsToStorage();
+  renderMapGates();
+  if (typeof renderTrackLibrary === 'function') renderTrackLibrary();
 }
 
 function cancelGateEdit() {
@@ -570,6 +651,9 @@ function cancelGateEdit() {
   if (dom.gateInstructionToast) dom.gateInstructionToast.style.display = 'none';
   const m = document.getElementById('map-container');
   if (m) m.style.cursor = '';
+}
+if (typeof window !== 'undefined') {
+  window.cancelGatePlacement = cancelGateEdit;
 }
 
 function enterTurnEditMode() {

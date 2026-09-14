@@ -63,12 +63,15 @@ function initMap() {
 
 function getTrackTangentBearing(lat, lon) {
   const closest = findClosestTrackPoint(lat, lon);
-  if (closest && state.records && closest.orig_index !== undefined) {
-    const i = closest.orig_index;
-    const pPrev = state.records[Math.max(0, i - 2)];
-    const pNext = state.records[Math.min(state.records.length - 1, i + 2)];
-    if (pPrev && pNext && pPrev.gps_lat !== null && pNext.gps_lat !== null) {
-      return calculateBearing(pPrev.gps_lat, pPrev.gps_lon, pNext.gps_lat, pNext.gps_lon);
+  if (closest) {
+    if (closest.tangentBearing !== undefined) return closest.tangentBearing;
+    if (state.records && closest.orig_index !== undefined) {
+      const i = closest.orig_index;
+      const pPrev = state.records[Math.max(0, i - 2)];
+      const pNext = state.records[Math.min(state.records.length - 1, i + 2)];
+      if (pPrev && pNext && pPrev.gps_lat !== null && pNext.gps_lat !== null) {
+        return calculateBearing(pPrev.gps_lat, pPrev.gps_lon, pNext.gps_lat, pNext.gps_lon);
+      }
     }
   }
   return 0;
@@ -596,10 +599,21 @@ function findClosestTrackPoint(lat, lon) {
         speed_kmh: r.speed_kmh || 0,
         active_index: i,
         orig_index: r.orig_index !== undefined ? r.orig_index : i,
-        distToClick: d
+        distToClick: d,
+        record: r
       };
     }
   }
+
+  if (best && state.records && best.orig_index !== undefined) {
+    const idx = best.orig_index;
+    const pPrev = state.records[Math.max(0, idx - 2)];
+    const pNext = state.records[Math.min(state.records.length - 1, idx + 2)];
+    if (pPrev && pNext && pPrev.gps_lat !== null && pNext.gps_lat !== null) {
+      best.tangentBearing = calculateBearing(pPrev.gps_lat, pPrev.gps_lon, pNext.gps_lat, pNext.gps_lon);
+    }
+  }
+
   return best;
 }
 
