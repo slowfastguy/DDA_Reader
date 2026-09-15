@@ -190,6 +190,27 @@ const state = {
     fps: 60,
     scale: 1.5
   },
+  seamBar: {
+    activeTab: 'seambar',
+    width: 190,
+    glassOpacity: 0.68,
+    dotColor: '#e10600', // Ducati Red default
+    exportGeometry: 'discrete', // 'discrete' or 'full_16_9'
+    timeframeMode: 'lap', // 'lap', 'session', 'custom'
+    customStartS: 0,
+    customEndS: 60,
+    bitrate: 40000000, // 40 Mbps Ultra Pro
+    intro: 'cascade', // 'cascade' or 'none'
+    order: ['motogp', 'map', 'turn', 'gmeter', 'pedals'],
+    enabled: {
+      motogp: true,
+      timing: true,
+      map: true,
+      turn: true,
+      gmeter: true,
+      pedals: true
+    }
+  },
   channels: {
     speedA: true,
     speedB: true,
@@ -587,7 +608,40 @@ const dom = {
   renderProgressFill: document.getElementById('render-progress-fill'),
   renderProgressText: document.getElementById('render-progress-text'),
   btnRenderVideo: document.getElementById('btn-render-video'),
-  prefShowApexMarkers: document.getElementById('pref-show-apex-markers')
+  prefShowApexMarkers: document.getElementById('pref-show-apex-markers'),
+
+  // Seam Bar Modal & Customizer Elements
+  tabExportMotogp: document.getElementById('tab-export-motogp'),
+  tabExportSeambar: document.getElementById('tab-export-seambar'),
+  exportPaneMotogp: document.getElementById('export-pane-motogp'),
+  exportPaneSeambar: document.getElementById('export-pane-seambar'),
+  seamBarPreviewCanvas: document.getElementById('seam-bar-preview-canvas'),
+  btnPreviewSeamIntro: document.getElementById('btn-preview-seam-intro'),
+  btnPreviewSeamLive: document.getElementById('btn-preview-seam-live'),
+  selectSeamGeometry: document.getElementById('select-seam-geometry'),
+  selectSeamTimeframe: document.getElementById('select-seam-timeframe'),
+  selectSeamLap: document.getElementById('select-seam-lap'),
+  rowSeamLapSelect: document.getElementById('row-seam-lap-select'),
+  rowSeamCustomTime: document.getElementById('row-seam-custom-time'),
+  inputSeamStart: document.getElementById('input-seam-start'),
+  inputSeamEnd: document.getElementById('input-seam-end'),
+  btnSeamCurrentRange: document.getElementById('btn-seam-current-range'),
+  inputSeamWidth: document.getElementById('input-seam-width'),
+  valSeamWidth: document.getElementById('val-seam-width'),
+  inputSeamOpacity: document.getElementById('input-seam-opacity'),
+  valSeamOpacity: document.getElementById('val-seam-opacity'),
+  selectSeamBitrate: document.getElementById('select-seam-bitrate'),
+  selectSeamIntro: document.getElementById('select-seam-intro'),
+  selectSeamBg: document.getElementById('select-seam-bg'),
+  btnRenderSeamVideo: document.getElementById('btn-render-seam-video'),
+  chkModRider: document.getElementById('chk-mod-rider'),
+  chkModTiming: document.getElementById('chk-mod-timing'),
+  chkModMap: document.getElementById('chk-mod-map'),
+  chkModTurn: document.getElementById('chk-mod-turn'),
+  chkModGmeter: document.getElementById('chk-mod-gmeter'),
+  chkModLean: document.getElementById('chk-mod-lean'),
+  chkModPedals: document.getElementById('chk-mod-pedals'),
+  inputDotColor: document.getElementById('input-dot-color')
 };
 
 // Settings Initialization & Sync

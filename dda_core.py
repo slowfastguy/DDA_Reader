@@ -651,35 +651,130 @@ class DDAParser:
             return
 
         track_name = (self.header.track_name or "").lower()
-        if "sonoma" in track_name:
-            sf_lat, sf_lon, sf_brg = 38.161580, -122.454640, 310.0
-            # Sonoma Standard Sector Splits
-            self.gates = [
-                {"id": "sf", "name": "Start / Finish", "type": "sf", "lat": sf_lat, "lon": sf_lon, "bearing": sf_brg},
-                {"id": "s1", "name": "Sector 1", "type": "split", "lat": 38.164320, "lon": -122.458900, "bearing": 265.0},
-                {"id": "s2", "name": "Sector 2", "type": "split", "lat": 38.158210, "lon": -122.457800, "bearing": 180.0}
-            ]
+
+        # 1. Built-in known circuit database (fallback if dda_settings.json not found)
+        known_tracks = {
+            "sonoma_raceway": {
+                "id": "sonoma_raceway",
+                "name": "Sonoma Raceway",
+                "center_lat": 38.161580,
+                "center_lon": -122.454640,
+                "radius_m": 3500,
+                "gates": [
+                    {"id": "sf", "name": "Start / Finish", "type": "sf", "lat": 38.161580, "lon": -122.454640, "bearing": 310.0},
+                    {"id": "s1", "name": "Sector 1 (Carousel)", "type": "split", "lat": 38.164320, "lon": -122.458900, "bearing": 265.0},
+                    {"id": "s2", "name": "Sector 2 (Esses)", "type": "split", "lat": 38.158210, "lon": -122.457800, "bearing": 180.0}
+                ]
+            },
+            "laguna_seca": {
+                "id": "laguna_seca",
+                "name": "WeatherTech Raceway Laguna Seca",
+                "center_lat": 36.584444,
+                "center_lon": -121.753611,
+                "radius_m": 3500,
+                "gates": [
+                    {"id": "sf", "name": "Start / Finish", "type": "sf", "lat": 36.585500, "lon": -121.754000, "bearing": 240.0},
+                    {"id": "s1", "name": "Sector 1 (Andretti Hairpin)", "type": "split", "lat": 36.586200, "lon": -121.758500, "bearing": 135.0},
+                    {"id": "s2", "name": "Sector 2 (Corkscrew)", "type": "split", "lat": 36.582800, "lon": -121.751200, "bearing": 210.0}
+                ]
+            },
+            "thunderhill_east": {
+                "id": "thunderhill_east",
+                "name": "Thunderhill Raceway Park (East 3-Mile)",
+                "center_lat": 39.539700,
+                "center_lon": -122.332500,
+                "radius_m": 4000,
+                "gates": [
+                    {"id": "sf", "name": "Start / Finish", "type": "sf", "lat": 39.537200, "lon": -122.331500, "bearing": 355.0},
+                    {"id": "s1", "name": "Sector 1 (The Cyclone)", "type": "split", "lat": 39.544100, "lon": -122.336200, "bearing": 270.0},
+                    {"id": "s2", "name": "Sector 2 (Turn 9/10)", "type": "split", "lat": 39.538500, "lon": -122.337800, "bearing": 160.0}
+                ]
+            }
+        }
+
+        # Merge custom tracks from dda_settings.json if present
+        settings_data = self._load_settings_json()
+        if settings_data and isinstance(settings_data.get("tracks"), dict):
+            for t_id, t_obj in settings_data["tracks"].items():
+                if isinstance(t_obj, dict) and t_obj.get("gates"):
+                    known_tracks[t_id] = t_obj
+
+        # 2. Check if session GPS matches a known circuit
+        valid_gps = [r for r in self.gps_records if r.gps_lat is not None and r.gps_lon is not None and abs(r.gps_lat) > 1.0]
+        avg_lat = sum(r.gps_lat for r in valid_gps) / len(valid_gps) if valid_gps else 0.0
+        avg_lon = sum(r.gps_lon for r in valid_gps) / len(valid_gps) if valid_gps else 0.0
+
+        matched_track = None
+        for t_id, t_def in known_tracks.items():
+            c_lat = t_def.get("center_lat")
+            c_lon = t_def.get("center_lon")
+            rad = t_def.get("radius_m", 3500)
+            if c_lat is not None and c_lon is not None and valid_gps:
+                d = haversine_distance_m(c_lat, c_lon, avg_lat, avg_lon)
+                if d <= rad:
+                    matched_track = t_def
+                    break
+            # Name match fallback
+            t_name = (t_def.get("name") or "").lower()
+            if track_name and (track_name in t_name or t_name in track_name):
+                matched_track = t_def
+                break
+
+        if matched_track and matched_track.get("gates"):
+            self.gates = [dict(g) for g in matched_track["gates"]]
+            sf_gate = next((g for g in self.gates if g.get("type") == "sf"), self.gates[0])
+            sf_lat = sf_gate["lat"]
+            sf_lon = sf_gate["lon"]
+            sf_brg = sf_gate.get("bearing", 0.0)
+            if not self.header.track_name:
+                self.header.track_name = matched_track.get("name", "")
         else:
-            best_lat, best_lon, best_brg, max_p = None, None, None, 0
-            for cand in fast_pts[::25]:
-                passes = 0
+            # 3. Auto-detection for unknown tracks
+            # S/F lines are located on straightaways with high speed and low lean angle, never slow corner apexes.
+            max_spd = max((r.speed_kmh for r in fast_pts), default=100.0)
+            spd_thresh = max(55.0, max_spd * 0.40)
+
+            # Filter candidates to straightaway points (|lean| < 12 deg)
+            straight_cands = [r for r in fast_pts if abs(r.lean_angle_deg) < 12.0 and r.speed_kmh >= spd_thresh]
+            if not straight_cands:
+                straight_cands = [r for r in fast_pts if abs(r.lean_angle_deg) < 20.0]
+            if not straight_cands:
+                straight_cands = fast_pts
+
+            best_lat, best_lon, best_brg, best_score = None, None, None, -1.0
+            sample_step = max(1, len(straight_cands) // 60)
+            for cand in straight_cands[::sample_step]:
+                passes = []
                 last_t = -999.0
                 for r in fast_pts:
-                    if (r.time_s - last_t) > 50.0:
+                    if (r.time_s - last_t) > 35.0:
                         d = haversine_distance_m(cand.gps_lat, cand.gps_lon, r.gps_lat, r.gps_lon)
-                        if d < 22.0:
+                        if d < 25.0:
                             d_brg = abs(cand.bearing_deg - r.bearing_deg) % 360
                             if d_brg > 180: d_brg = 360 - d_brg
-                            if d_brg < 50.0:
-                                passes += 1
+                            if d_brg < 55.0:
+                                passes.append(r.time_s)
                                 last_t = r.time_s
-                if passes > max_p:
-                    max_p = passes
-                    best_lat, best_lon, best_brg = cand.gps_lat, cand.gps_lon, cand.bearing_deg
 
-            sf_lat = best_lat if best_lat is not None else fast_pts[0].gps_lat
-            sf_lon = best_lon if best_lon is not None else fast_pts[0].gps_lon
-            sf_brg = best_brg if best_brg is not None else fast_pts[0].bearing_deg
+                if len(passes) >= 2:
+                    lap_durs = [passes[k+1] - passes[k] for k in range(len(passes)-1)]
+                    valid_laps = [d for d in lap_durs if 30.0 < d < 600.0]
+                    num_valid = len(valid_laps)
+                    if num_valid > 0:
+                        avg_dur = sum(valid_laps) / num_valid
+                        variance = sum((d - avg_dur) ** 2 for d in valid_laps) / num_valid
+                        std_dev = math.sqrt(variance)
+                        consistency = max(0.0, 1.0 - (std_dev / max(1.0, avg_dur)))
+                        spd_factor = min(1.5, cand.speed_kmh / max(1.0, spd_thresh))
+                        lean_factor = max(0.2, 1.0 - (abs(cand.lean_angle_deg) / 25.0))
+                        score = (num_valid * 10.0) + (consistency * 15.0) + (spd_factor * 5.0) + (lean_factor * 5.0)
+                        if score > best_score:
+                            best_score = score
+                            best_lat, best_lon, best_brg = cand.gps_lat, cand.gps_lon, cand.bearing_deg
+
+            sf_lat = best_lat if best_lat is not None else straight_cands[0].gps_lat
+            sf_lon = best_lon if best_lon is not None else straight_cands[0].gps_lon
+            sf_brg = best_brg if best_brg is not None else straight_cands[0].bearing_deg
             self.gates = [
                 {"id": "sf", "name": "Start / Finish", "type": "sf", "lat": sf_lat, "lon": sf_lon, "bearing": sf_brg}
             ]
@@ -688,7 +783,7 @@ class DDAParser:
         crossings = []
         last_t = -999.0
         for r in self.gps_records:
-            if r.speed_kmh > 30.0 and (r.time_s - last_t) > 50.0:
+            if r.speed_kmh > 30.0 and (r.time_s - last_t) > 35.0:
                 d = haversine_distance_m(sf_lat, sf_lon, r.gps_lat, r.gps_lon)
                 if d < 28.0:
                     d_brg = abs(sf_brg - r.bearing_deg) % 360
@@ -911,6 +1006,7 @@ class DDAParser:
         js_modules = [
             "state.js",
             "motogp_card.js",
+            "seam_bar.js",
             "video_export.js",
             "video_player.js",
             "map.js",

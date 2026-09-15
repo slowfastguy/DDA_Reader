@@ -245,7 +245,11 @@ function renderTrackLibrary() {
             alert('Load telemetry data first to detect turn apexes.');
             return;
           }
-          const detected = typeof analyzeLapCorners === 'function' ? analyzeLapCorners(state.records, null, 1) : [];
+          const flyingLap = state.laps && state.laps.find(l => l.lap_number >= 1 && !l.is_optimal && l.duration_s > 30);
+          const recs = flyingLap
+            ? state.records.slice(flyingLap.start_index, flyingLap.end_index + 1)
+            : state.records;
+          const detected = typeof analyzeLapCorners === 'function' ? analyzeLapCorners(recs, null, flyingLap ? flyingLap.lap_number : 1) : [];
           if (!detected || detected.length === 0) {
             alert('No distinct turn apexes could be detected from telemetry.');
             return;
@@ -277,7 +281,11 @@ function renderTrackLibrary() {
           alert('Load telemetry data into visualizer first to detect turn apexes.');
           return;
         }
-        const detected = analyzeLapCorners(state.records, null, 1);
+        const flyingLap = state.laps && state.laps.find(l => l.lap_number >= 1 && !l.is_optimal && l.duration_s > 30);
+        const recs = flyingLap
+          ? state.records.slice(flyingLap.start_index, flyingLap.end_index + 1)
+          : state.records;
+        const detected = typeof analyzeLapCorners === 'function' ? analyzeLapCorners(recs, null, flyingLap ? flyingLap.lap_number : 1) : [];
         if (!detected || detected.length === 0) {
           alert('No distinct turn apexes could be detected from telemetry.');
           return;
@@ -330,12 +338,20 @@ function renderTrackLibrary() {
 }
 
 function autoDetectTrackFromGps() {
-  if (!state.records || state.records.length === 0) return;
-  const valid = state.records.filter(r => r.gps_lat !== null && r.gps_lon !== null).slice(0, 50);
-  if (valid.length === 0) return;
+  if (!state.records || state.records.length === 0) return false;
+  const valid = state.records.filter(r => r.gps_lat !== null && r.gps_lon !== null && Math.abs(r.gps_lat) > 1.0);
+  if (valid.length === 0) return false;
 
-  const avgLat = valid.reduce((acc, r) => acc + r.gps_lat, 0) / valid.length;
-  const avgLon = valid.reduce((acc, r) => acc + r.gps_lon, 0) / valid.length;
+  // Subsample up to 200 points distributed evenly across entire session
+  const step = Math.max(1, Math.floor(valid.length / 200));
+  let latSum = 0, lonSum = 0, count = 0;
+  for (let i = 0; i < valid.length; i += step) {
+    latSum += valid[i].gps_lat;
+    lonSum += valid[i].gps_lon;
+    count++;
+  }
+  const avgLat = latSum / count;
+  const avgLon = lonSum / count;
 
   for (const id in state.tracks) {
     const trk = state.tracks[id];
@@ -372,7 +388,11 @@ function saveCurrentMapAsNewTrack() {
   // Auto-generate turn apexes if telemetry exists
   let autoTurns = [];
   if (state.records && state.records.length > 50 && typeof analyzeLapCorners === 'function') {
-    const detected = analyzeLapCorners(state.records, null, 1);
+    const flyingLap = state.laps && state.laps.find(l => l.lap_number >= 1 && !l.is_optimal && l.duration_s > 30);
+    const recs = flyingLap
+      ? state.records.slice(flyingLap.start_index, flyingLap.end_index + 1)
+      : state.records;
+    const detected = analyzeLapCorners(recs, null, flyingLap ? flyingLap.lap_number : 1);
     if (detected && detected.length > 0) {
       autoTurns = detected.map((d, dIdx) => ({
         id: `t${dIdx + 1}`,
@@ -679,15 +699,36 @@ function cancelTurnEdit() {
 function getCircuitDistanceForCoord(lat, lon, trk) {
   if (!state.records || state.records.length === 0) return 0;
 
-  // If we have timed laps, use a clean flying lap slice
-  const flyingLap = state.laps && state.laps.find(l => l.lap_number >= 1 && !l.is_optimal && l.duration_s > 40);
-  const recSlice = flyingLap
-    ? state.records.slice(flyingLap.start_index, flyingLap.end_index + 1)
-    : (state.activeRecords && state.activeRecords.length > 20 ? state.activeRecords : state.records);
+  // If we have timed laps, use a clean flying lap slice (anchored to S/F)
+  const flyingLap = state.laps && state.laps.find(l => l.lap_number >= 1 && !l.is_optimal && l.duration_s > 30);
+  let recSlice;
+  let baseDist = 0;
+
+  if (flyingLap) {
+    recSlice = state.records.slice(flyingLap.start_index, flyingLap.end_index + 1);
+    baseDist = recSlice[0]?.distance_m || 0;
+  } else {
+    // If no flying lap, anchor from S/F gate crossing so baseDist is 0m at S/F
+    const sfGate = (state.gates && state.gates.find(g => g.type === 'sf')) || (trk && trk.gates && trk.gates.find(g => g.type === 'sf'));
+    let sfIdx = 0;
+    if (sfGate) {
+      let minSfDist = Infinity;
+      for (let i = 0; i < state.records.length; i++) {
+        const r = state.records[i];
+        if (r.gps_lat === null) continue;
+        const d = haversineDistanceM(sfGate.lat, sfGate.lon, r.gps_lat, r.gps_lon);
+        if (d < minSfDist) {
+          minSfDist = d;
+          sfIdx = i;
+        }
+      }
+    }
+    recSlice = state.records.slice(sfIdx);
+    baseDist = recSlice[0]?.distance_m || 0;
+  }
 
   let minD = Infinity;
   let bestRelDist = 0;
-  const baseDist = recSlice[0]?.distance_m || 0;
 
   for (let i = 0; i < recSlice.length; i++) {
     const r = recSlice[i];

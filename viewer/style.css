@@ -1324,6 +1324,7 @@ body.dark-theme {
   line-height: 1;
   display: flex;
   align-items: center;
+  white-space: nowrap;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -1334,6 +1335,7 @@ body.dark-theme {
   line-height: 1;
   display: flex;
   align-items: center;
+  white-space: nowrap;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -1497,6 +1499,7 @@ body.dark-theme {
 .motogp-sec-red { background: #ff1744; box-shadow: 0 0 8px #ff1744; }
 .motogp-sec-orange { background: #ff8c00; box-shadow: 0 0 8px #ff8c00; }
 .motogp-sec-grey { background: #8e94a5; }
+.motogp-sec-white { background: #ffffff; box-shadow: 0 0 6px #ffffff; }
 
 .motogp-tic-indicator {
   position: absolute;
@@ -4560,6 +4563,125 @@ kbd {
   .compare-controls-bar .delta-stat-pill:last-child {
     display: none;
   }
+}
+
+/* =========================================================
+   Vertical Seam Data Bar Customizer & Preview Layout
+   ========================================================= */
+
+.overlay-tabs-nav {
+  display: flex;
+  background: rgba(0, 0, 0, 0.4);
+  border-bottom: 1px solid var(--border-color);
+  padding: 0 16px;
+  gap: 8px;
+}
+
+.overlay-tab-pane {
+  display: none;
+  width: 100%;
+}
+.overlay-tab-pane.active {
+  display: block;
+}
+
+.seambar-modal-layout {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.seambar-preview-col {
+  width: 230px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.seambar-preview-wrap {
+  width: 100%;
+  height: 520px;
+  background: radial-gradient(circle at center, #141923 0%, #080a0f 100%);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  justify-content: center;
+  padding: 10px 0;
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.7);
+}
+
+.seambar-preview-wrap::-webkit-scrollbar {
+  width: 4px;
+}
+.seambar-preview-wrap::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+}
+
+.seambar-canvas {
+  display: block;
+  border-radius: 4px;
+}
+
+.preview-btn-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.seambar-config-col {
+  flex: 1;
+  max-height: 570px;
+  overflow-y: auto;
+  padding-right: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.seambar-config-col::-webkit-scrollbar {
+  width: 5px;
+}
+.seambar-config-col::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.module-toggles-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.module-check-pill {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xs);
+  padding: 6px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #c0c6d8;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s ease;
+}
+
+.module-check-pill:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+}
+
+.module-check-pill input[type="checkbox"] {
+  accent-color: #e10600;
+  cursor: pointer;
 }
 
 

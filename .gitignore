@@ -56,3 +56,5 @@ sample_run_racechrono_v3.csv
 *.dmg
 *.pkg
 
+# Scratch / temporary test files
+scratch/

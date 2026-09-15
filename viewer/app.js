@@ -651,6 +651,7 @@ function renderLapListTable() {
   if (dom.selectLapA) dom.selectLapA.innerHTML = '';
   if (dom.selectLapB) dom.selectLapB.innerHTML = '';
   if (dom.selectExportLap) dom.selectExportLap.innerHTML = '';
+  if (dom.selectSeamLap) dom.selectSeamLap.innerHTML = '';
   if (dom.selectMatrixLap) dom.selectMatrixLap.innerHTML = '<option value="-1">All Laps (Full Session)</option>';
   if (dom.selectScorecardLap) dom.selectScorecardLap.innerHTML = '<option value="-1">All Laps (Session Averages & Consistency)</option>';
 
@@ -699,6 +700,7 @@ function renderLapListTable() {
     if (dom.selectLapA) dom.selectLapA.appendChild(opt.cloneNode(true));
     if (dom.selectLapB) dom.selectLapB.appendChild(opt.cloneNode(true));
     if (dom.selectExportLap) dom.selectExportLap.appendChild(opt.cloneNode(true));
+    if (dom.selectSeamLap) dom.selectSeamLap.appendChild(opt.cloneNode(true));
     if (dom.selectMatrixLap) dom.selectMatrixLap.appendChild(opt.cloneNode(true));
     if (dom.selectScorecardLap) dom.selectScorecardLap.appendChild(opt.cloneNode(true));
   });
@@ -719,6 +721,7 @@ function renderLapListTable() {
     state.compareLapA = bestLap.lap_number;
     if (dom.selectLapA) dom.selectLapA.value = bestLap.lap_number;
     if (dom.selectExportLap) dom.selectExportLap.value = bestLap.lap_number;
+    if (dom.selectSeamLap) dom.selectSeamLap.value = bestLap.lap_number;
   }
 }
 
@@ -1063,12 +1066,136 @@ function bindEvents() {
     dom.btnOpenVideoExport.addEventListener('click', () => {
       syncMotoGPConfigToUI();
       if (dom.modalVideoExport) dom.modalVideoExport.style.display = 'flex';
-      setTimeout(() => playIntroPreviewAnimation(), 150);
+      
+      // Default to Seam Bar tab if active or first open
+      if (state.seamBar.activeTab === 'seambar') {
+        if (dom.tabExportSeambar) dom.tabExportSeambar.classList.add('active');
+        if (dom.tabExportMotogp) dom.tabExportMotogp.classList.remove('active');
+        if (dom.exportPaneSeambar) dom.exportPaneSeambar.style.display = 'block';
+        if (dom.exportPaneMotogp) dom.exportPaneMotogp.style.display = 'none';
+        setTimeout(() => {
+          if (typeof renderSeamBarStaticPreview === 'function') renderSeamBarStaticPreview();
+        }, 120);
+      } else {
+        if (dom.tabExportMotogp) dom.tabExportMotogp.classList.add('active');
+        if (dom.tabExportSeambar) dom.tabExportSeambar.classList.remove('active');
+        if (dom.exportPaneMotogp) dom.exportPaneMotogp.style.display = 'block';
+        if (dom.exportPaneSeambar) dom.exportPaneSeambar.style.display = 'none';
+        setTimeout(() => playIntroPreviewAnimation(), 120);
+      }
     });
   }
   if (dom.btnCloseVideoModal) {
     dom.btnCloseVideoModal.addEventListener('click', () => {
       if (dom.modalVideoExport) dom.modalVideoExport.style.display = 'none';
+    });
+  }
+
+  // Export Tab Switcher
+  if (dom.tabExportSeambar) {
+    dom.tabExportSeambar.addEventListener('click', () => {
+      state.seamBar.activeTab = 'seambar';
+      dom.tabExportSeambar.classList.add('active');
+      if (dom.tabExportMotogp) dom.tabExportMotogp.classList.remove('active');
+      if (dom.exportPaneSeambar) dom.exportPaneSeambar.style.display = 'block';
+      if (dom.exportPaneMotogp) dom.exportPaneMotogp.style.display = 'none';
+      if (typeof renderSeamBarStaticPreview === 'function') renderSeamBarStaticPreview();
+    });
+  }
+
+  if (dom.tabExportMotogp) {
+    dom.tabExportMotogp.addEventListener('click', () => {
+      state.seamBar.activeTab = 'motogp';
+      dom.tabExportMotogp.classList.add('active');
+      if (dom.tabExportSeambar) dom.tabExportSeambar.classList.remove('active');
+      if (dom.exportPaneMotogp) dom.exportPaneMotogp.style.display = 'block';
+      if (dom.exportPaneSeambar) dom.exportPaneSeambar.style.display = 'none';
+      if (typeof playIntroPreviewAnimation === 'function') playIntroPreviewAnimation();
+    });
+  }
+
+  // Seam Bar Controls
+  if (dom.inputSeamWidth && dom.valSeamWidth) {
+    dom.inputSeamWidth.addEventListener('input', (e) => {
+      const w = parseInt(e.target.value, 10) || 190;
+      dom.valSeamWidth.textContent = `${w}px`;
+      state.seamBar.width = w;
+      if (typeof renderSeamBarStaticPreview === 'function') renderSeamBarStaticPreview();
+    });
+  }
+
+  if (dom.inputSeamOpacity && dom.valSeamOpacity) {
+    dom.inputSeamOpacity.addEventListener('input', (e) => {
+      const op = parseInt(e.target.value, 10) || 68;
+      dom.valSeamOpacity.textContent = `${op}%`;
+      state.seamBar.glassOpacity = op / 100;
+      if (typeof renderSeamBarStaticPreview === 'function') renderSeamBarStaticPreview();
+    });
+  }
+
+  if (dom.inputDotColor) {
+    dom.inputDotColor.addEventListener('input', (e) => {
+      state.seamBar.dotColor = e.target.value;
+      if (typeof renderSeamBarStaticPreview === 'function') renderSeamBarStaticPreview();
+    });
+  }
+
+  document.querySelectorAll('.palette-presets .color-dot[data-dot]').forEach(dot => {
+    dot.addEventListener('click', () => {
+      const c = dot.getAttribute('data-dot');
+      if (dom.inputDotColor) dom.inputDotColor.value = c;
+      state.seamBar.dotColor = c;
+      if (typeof renderSeamBarStaticPreview === 'function') renderSeamBarStaticPreview();
+    });
+  });
+
+  // Module Toggles
+  [
+    dom.chkModRider, dom.chkModTiming, dom.chkModMap,
+    dom.chkModTurn, dom.chkModGmeter, dom.chkModLean, dom.chkModPedals
+  ].forEach(chk => {
+    if (chk) {
+      chk.addEventListener('change', () => {
+        if (typeof renderSeamBarStaticPreview === 'function') renderSeamBarStaticPreview();
+      });
+    }
+  });
+
+  // Timeframe Mode Switcher
+  if (dom.selectSeamTimeframe) {
+    dom.selectSeamTimeframe.addEventListener('change', (e) => {
+      const mode = e.target.value;
+      state.seamBar.timeframeMode = mode;
+      if (dom.rowSeamLapSelect) dom.rowSeamLapSelect.style.display = mode === 'lap' ? 'flex' : 'none';
+      if (dom.rowSeamCustomTime) dom.rowSeamCustomTime.style.display = mode === 'custom' ? 'flex' : 'none';
+    });
+  }
+
+  if (dom.btnSeamCurrentRange) {
+    dom.btnSeamCurrentRange.addEventListener('click', () => {
+      const recs = (state.activeRecords && state.activeRecords.length > 0) ? state.activeRecords : state.records;
+      if (recs && recs.length > 0) {
+        if (dom.inputSeamStart) dom.inputSeamStart.value = Math.floor(recs[0].time_s);
+        if (dom.inputSeamEnd) dom.inputSeamEnd.value = Math.ceil(recs[recs.length - 1].time_s);
+      }
+    });
+  }
+
+  if (dom.btnPreviewSeamIntro) {
+    dom.btnPreviewSeamIntro.addEventListener('click', () => {
+      if (typeof playSeamBarPreviewAnimation === 'function') playSeamBarPreviewAnimation('intro');
+    });
+  }
+
+  if (dom.btnPreviewSeamLive) {
+    dom.btnPreviewSeamLive.addEventListener('click', () => {
+      if (typeof playSeamBarPreviewAnimation === 'function') playSeamBarPreviewAnimation('live');
+    });
+  }
+
+  if (dom.btnRenderSeamVideo) {
+    dom.btnRenderSeamVideo.addEventListener('click', () => {
+      if (typeof exportSeamBarVideo === 'function') exportSeamBarVideo();
     });
   }
 
@@ -1078,6 +1205,7 @@ function bindEvents() {
       state.motogp.riderName = e.target.value.toUpperCase();
       syncMotoGPConfigToUI();
       saveSettingsToStorage();
+      if (typeof renderSeamBarStaticPreview === 'function') renderSeamBarStaticPreview();
     });
   }
   if (dom.inputBikeName) {
@@ -1085,6 +1213,7 @@ function bindEvents() {
       state.motogp.bikeName = e.target.value;
       syncMotoGPConfigToUI();
       saveSettingsToStorage();
+      if (typeof renderSeamBarStaticPreview === 'function') renderSeamBarStaticPreview();
     });
   }
   if (dom.inputRiderNum) {
@@ -1092,6 +1221,7 @@ function bindEvents() {
       state.motogp.riderNum = e.target.value;
       syncMotoGPConfigToUI();
       saveSettingsToStorage();
+      if (typeof renderSeamBarStaticPreview === 'function') renderSeamBarStaticPreview();
     });
   }
   if (dom.inputTyreFront) {
@@ -1113,6 +1243,7 @@ function bindEvents() {
       state.motogp.badgeColor = e.target.value;
       syncMotoGPConfigToUI();
       saveSettingsToStorage();
+      if (typeof renderSeamBarStaticPreview === 'function') renderSeamBarStaticPreview();
     });
   }
 
@@ -1123,6 +1254,7 @@ function bindEvents() {
       syncMotoGPConfigToUI();
       saveSettingsToStorage();
       playIntroPreviewAnimation();
+      if (typeof renderSeamBarStaticPreview === 'function') renderSeamBarStaticPreview();
     });
   });
 
