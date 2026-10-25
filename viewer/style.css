@@ -4915,4 +4915,416 @@ kbd {
   cursor: pointer;
 }
 
+/* =========================================================
+   Multi-Session Filter Bar, Reference Lap Badges & Progression Modal
+   ========================================================= */
+
+.session-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 5px 8px;
+  background: rgba(11, 13, 20, 0.75);
+  border-bottom: 1px solid var(--border-color);
+  flex-wrap: wrap;
+}
+
+.session-filter-pills {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.session-filter-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.session-pill {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  color: var(--text-dim);
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 9.5px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.session-pill:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border-color: var(--border-light);
+}
+
+.session-pill.active {
+  background: rgba(0, 229, 255, 0.14);
+  border-color: var(--accent-cyan);
+  color: #00e5ff;
+}
+
+.sess-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.btn-prog-pill {
+  background: rgba(0, 229, 255, 0.1) !important;
+  border-color: rgba(0, 229, 255, 0.35) !important;
+  color: #00e5ff !important;
+  font-size: 9.5px !important;
+  padding: 2px 7px !important;
+}
+.btn-prog-pill:hover {
+  background: rgba(0, 229, 255, 0.22) !important;
+  border-color: #00e5ff !important;
+  color: #ffffff !important;
+}
+
+.btn-ref-pill {
+  background: rgba(255, 214, 0, 0.1) !important;
+  border-color: rgba(255, 214, 0, 0.35) !important;
+  color: #ffd600 !important;
+  font-size: 9.5px !important;
+  padding: 2px 7px !important;
+}
+.btn-ref-pill:hover {
+  background: rgba(255, 214, 0, 0.22) !important;
+  border-color: #ffd600 !important;
+  color: #ffffff !important;
+}
+
+.lap-sess-tag {
+  display: inline-block;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 8.5px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  margin-right: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  vertical-align: middle;
+}
+
+.lap-sess-tag.ref-tag {
+  background: rgba(255, 214, 0, 0.16);
+  color: #ffd600;
+  border-color: rgba(255, 214, 0, 0.45);
+}
+
+.btn-star-ref {
+  background: transparent;
+  border: none;
+  color: #646b82;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0 3px;
+  margin-left: 3px;
+  line-height: 1;
+  opacity: 0.55;
+  transition: all 0.15s ease;
+  vertical-align: middle;
+}
+
+.lap-table tbody tr:hover .btn-star-ref,
+.btn-star-ref:hover {
+  opacity: 1;
+  color: #ffd600;
+  transform: scale(1.15);
+}
+
+.progression-mode-tabs .btn-prog-mode.active {
+  background: var(--ducati-red);
+  border-color: var(--ducati-red);
+  color: #ffffff;
+}
+
+.lap-include-chk {
+  accent-color: #00e676;
+  width: 12px;
+  height: 12px;
+  margin: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.lap-table tbody tr.lap-row-excluded {
+  opacity: 0.42;
+}
+
+.lap-qfilter-pill {
+  background: rgba(0, 230, 118, 0.08);
+  border-color: rgba(0, 230, 118, 0.35);
+  color: #00e676;
+}
+.lap-qfilter-pill.active {
+  background: rgba(0, 230, 118, 0.22);
+  border-color: #00e676;
+  color: #ffffff;
+}
+
+/* =========================================================
+   Nested Session Group Headers & Indented Lap Tree Rows
+   ========================================================= */
+
+.btn-fold-all-sessions {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-color);
+  color: var(--text-dim);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 8.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  white-space: nowrap;
+}
+.btn-fold-all-sessions:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  border-color: var(--border-light);
+}
+
+.lap-table tbody tr.session-group-header {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.05) 0%, rgba(18, 22, 33, 0.95) 100%);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  user-select: none;
+}
+
+.lap-table tbody tr.session-group-header:hover {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.09) 0%, rgba(26, 31, 45, 0.98) 100%);
+}
+
+.lap-table td.session-group-cell {
+  padding: 5px 6px !important;
+  border-left: 3px solid var(--sess-color, #ff1801);
+}
+
+.session-group-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+}
+
+.session-group-left {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.session-group-caret {
+  font-size: 10px;
+  color: var(--text-main);
+  width: 11px;
+  text-align: center;
+  flex-shrink: 0;
+  transition: transform 0.12s ease;
+}
+
+.session-group-chk {
+  accent-color: #00e676;
+  width: 12px;
+  height: 12px;
+  margin: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.session-group-title {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 700;
+  color: #e6edf3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-group-right {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.session-group-count {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 3px;
+  padding: 1px 5px;
+  white-space: nowrap;
+}
+
+.session-group-best-btn {
+  background: rgba(255, 214, 0, 0.12);
+  border: 1px solid rgba(255, 214, 0, 0.38);
+  color: #ffd600;
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  white-space: nowrap;
+}
+.session-group-best-btn:hover {
+  background: rgba(255, 214, 0, 0.25);
+  border-color: #ffd600;
+  color: #ffffff;
+}
+
+/* Indented Nested Lap Rows under Session Header */
+.lap-table tbody tr.lap-nested-row td.lap-nested-first-cell {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding-left: 10px !important;
+  box-shadow: inset 2px 0 0 var(--sess-color, rgba(255, 24, 1, 0.5));
+}
+
+.lap-nested-left-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lap-tree-branch {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1;
+  opacity: 0.7;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.lap-nested-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* =========================================================
+   Full-Height & Resizable Lap Times & Session Log Card
+   ========================================================= */
+
+.btn-card-expand-full {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
+  color: var(--text-dim);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-xs);
+  transition: all var(--transition-fast);
+}
+.btn-card-expand-full:hover {
+  background: var(--bg-card-hover);
+  color: #ffffff;
+  border-color: var(--border-light);
+}
+.btn-card-expand-full.active {
+  background: rgba(0, 229, 255, 0.18);
+  color: var(--accent-cyan);
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.35);
+}
+
+/* Bottom Drag Handle for Custom Lap Table Height */
+.laptimes-resize-handle {
+  height: 7px;
+  margin-top: 3px;
+  cursor: ns-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  transition: background 0.15s ease;
+}
+.laptimes-resize-handle:hover,
+.laptimes-resize-handle.resizing {
+  background: rgba(0, 229, 255, 0.14);
+}
+.laptimes-resize-grip {
+  width: 32px;
+  height: 2px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.18);
+  transition: background 0.15s ease, width 0.15s ease;
+}
+.laptimes-resize-handle:hover .laptimes-resize-grip,
+.laptimes-resize-handle.resizing .laptimes-resize-grip {
+  width: 48px;
+  background: var(--accent-cyan);
+}
+
+/* Full Vertical Height Mode in DATA Sidebar */
+#data-body-scroll.laptimes-full-height {
+  overflow: hidden;
+}
+
+#data-body-scroll.laptimes-full-height .data-card:not(#card-laptimes) {
+  display: none !important;
+}
+
+#data-body-scroll.laptimes-full-height #card-laptimes,
+#data-body-scroll.laptimes-auto-flex #card-laptimes {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+#data-body-scroll.laptimes-full-height #card-laptimes .card-content-body,
+#data-body-scroll.laptimes-auto-flex #card-laptimes .card-content-body {
+  flex: 1 1 auto;
+  display: flex !important;
+  flex-direction: column;
+  min-height: 0;
+}
+
+#data-body-scroll.laptimes-full-height #card-laptimes .lap-table-container,
+#data-body-scroll.laptimes-auto-flex #card-laptimes .lap-table-container {
+  flex: 1 1 auto;
+  max-height: none !important;
+  min-height: 0;
+}
+
+#data-body-scroll.laptimes-full-height .laptimes-resize-handle {
+  display: none;
+}
+
+
+
+
 

@@ -85,8 +85,8 @@ function initDataCardsEngine() {
     const headerBar = e.target.closest('.card-header-bar');
     if (!headerBar) return;
 
-    // Don't toggle collapse if dragging handle was clicked
-    if (e.target.closest('.card-drag-handle')) return;
+    // Don't toggle collapse if dragging handle or full-height expand button was clicked
+    if (e.target.closest('.card-drag-handle') || e.target.closest('.btn-card-expand-full')) return;
 
     const card = headerBar.closest('.data-card');
     if (!card) return;
@@ -94,8 +94,72 @@ function initDataCardsEngine() {
     const cardId = card.dataset.cardId;
     const isCollapsed = card.classList.toggle('collapsed');
     state.cardsConfig.collapsed[cardId] = isCollapsed;
+    if (cardId === 'laptimes' && isCollapsed && state.cardsConfig.laptimesFullHeight) {
+      state.cardsConfig.laptimesFullHeight = false;
+    }
+    applyCardsConfigToUI();
     saveCardsConfig();
   });
+
+  // 2b. Full-Height Toggle & Drag-Resize for Lap Times & Session Log Card
+  if (dom.btnExpandLaptimesFull) {
+    dom.btnExpandLaptimesFull.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleLaptimesFullHeight();
+    });
+  }
+  if (dom.btnMenuExpandLaptimes) {
+    dom.btnMenuExpandLaptimes.addEventListener('click', () => {
+      toggleLaptimesFullHeight();
+    });
+  }
+  if (dom.laptimesResizeHandle) {
+    let isResizingLaps = false;
+    let startY = 0;
+    let startH = 180;
+
+    dom.laptimesResizeHandle.addEventListener('pointerdown', (e) => {
+      if (state.cardsConfig.laptimesFullHeight) return;
+      const tblWrap = dom.lapTableContainer || document.getElementById('lap-table-container');
+      if (!tblWrap) return;
+      isResizingLaps = true;
+      startY = e.clientY;
+      startH = tblWrap.getBoundingClientRect().height;
+      dom.laptimesResizeHandle.classList.add('resizing');
+      document.body.style.cursor = 'ns-resize';
+      document.body.style.userSelect = 'none';
+      dom.laptimesResizeHandle.setPointerCapture(e.pointerId);
+    });
+
+    dom.laptimesResizeHandle.addEventListener('pointermove', (e) => {
+      if (!isResizingLaps) return;
+      const deltaY = e.clientY - startY;
+      const maxH = Math.max(200, (container ? container.clientHeight : window.innerHeight) - 90);
+      const nextH = Math.max(100, Math.min(maxH, Math.round(startH + deltaY)));
+      state.cardsConfig.laptimesCustomHeight = nextH;
+      const tblWrap = dom.lapTableContainer || document.getElementById('lap-table-container');
+      if (tblWrap) {
+        tblWrap.style.maxHeight = `${nextH}px`;
+      }
+    });
+
+    const stopResizeLaps = (e) => {
+      if (!isResizingLaps) return;
+      isResizingLaps = false;
+      dom.laptimesResizeHandle.classList.remove('resizing');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      try { dom.laptimesResizeHandle.releasePointerCapture(e.pointerId); } catch (_) {}
+      saveCardsConfig();
+    };
+
+    dom.laptimesResizeHandle.addEventListener('pointerup', stopResizeLaps);
+    dom.laptimesResizeHandle.addEventListener('pointercancel', stopResizeLaps);
+    dom.laptimesResizeHandle.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      toggleLaptimesFullHeight();
+    });
+  }
 
   // 3. Card Customizer Dropdown Handlers
   const chks = document.querySelectorAll('#menu-customize-cards input[type="checkbox"]');
@@ -106,6 +170,7 @@ function initDataCardsEngine() {
       if (targetCard) {
         targetCard.style.display = e.target.checked ? '' : 'none';
         state.cardsConfig.hidden[cardId] = !e.target.checked;
+        applyCardsConfigToUI();
         saveCardsConfig();
       }
     });
@@ -122,20 +187,24 @@ function initDataCardsEngine() {
 
   if (dom.btnCollapseAllCards) {
     dom.btnCollapseAllCards.addEventListener('click', () => {
+      state.cardsConfig.laptimesFullHeight = false;
       container.querySelectorAll('.data-card').forEach(c => {
         c.classList.add('collapsed');
         if (c.dataset.cardId) state.cardsConfig.collapsed[c.dataset.cardId] = true;
       });
+      applyCardsConfigToUI();
       saveCardsConfig();
     });
   }
 
   if (dom.btnExpandAllCards) {
     dom.btnExpandAllCards.addEventListener('click', () => {
+      state.cardsConfig.laptimesFullHeight = false;
       container.querySelectorAll('.data-card').forEach(c => {
         c.classList.remove('collapsed');
         if (c.dataset.cardId) state.cardsConfig.collapsed[c.dataset.cardId] = false;
       });
+      applyCardsConfigToUI();
       saveCardsConfig();
     });
   }
@@ -146,12 +215,25 @@ function initDataCardsEngine() {
         order: ['laptimes', 'timing', 'cluster', 'lean', 'gg', 'phases'],
         collapsed: {},
         hidden: {},
-        compactDensity: false
+        compactDensity: false,
+        laptimesFullHeight: false,
+        laptimesCustomHeight: null
       };
       applyCardsConfigToUI();
       saveCardsConfig();
     });
   }
+}
+
+function toggleLaptimesFullHeight(forceState) {
+  const next = forceState !== undefined ? Boolean(forceState) : !state.cardsConfig.laptimesFullHeight;
+  state.cardsConfig.laptimesFullHeight = next;
+  if (next) {
+    state.cardsConfig.collapsed.laptimes = false;
+    state.cardsConfig.hidden.laptimes = false;
+  }
+  applyCardsConfigToUI();
+  saveCardsConfig();
 }
 
 function updateCardsOrderFromDOM() {
@@ -205,6 +287,42 @@ function applyCardsConfigToUI() {
     });
   }
 
+  // Check if all other visible cards besides laptimes are collapsed or hidden
+  const otherCards = Array.from(container.querySelectorAll('.data-card:not(#card-laptimes)'));
+  const allOthersCollapsedOrHidden = otherCards.every(c => c.classList.contains('collapsed') || c.style.display === 'none');
+  const lapCard = document.getElementById('card-laptimes');
+  const lapCardOpen = lapCard && !lapCard.classList.contains('collapsed') && lapCard.style.display !== 'none';
+
+  const isFullHeight = Boolean(state.cardsConfig.laptimesFullHeight);
+  container.classList.toggle('laptimes-full-height', isFullHeight);
+  container.classList.toggle('laptimes-auto-flex', !isFullHeight && allOthersCollapsedOrHidden && lapCardOpen);
+
+  if (dom.btnExpandLaptimesFull) {
+    dom.btnExpandLaptimesFull.classList.toggle('active', isFullHeight);
+    dom.btnExpandLaptimesFull.title = isFullHeight
+      ? 'Restore other DATA cards (Exit full vertical height)'
+      : 'Expand Lap Times & Session Log to full vertical height of DATA section';
+    const iconExp = dom.btnExpandLaptimesFull.querySelector('.icon-expand-full');
+    const iconRes = dom.btnExpandLaptimesFull.querySelector('.icon-restore-full');
+    if (iconExp) iconExp.style.display = isFullHeight ? 'none' : '';
+    if (iconRes) iconRes.style.display = isFullHeight ? '' : 'none';
+  }
+  if (dom.lblMenuExpandLaptimes) {
+    dom.lblMenuExpandLaptimes.textContent = isFullHeight ? 'Full-Height Lap Log: ON' : 'Full-Height Lap Log: OFF';
+  }
+
+  const tblWrap = dom.lapTableContainer || document.getElementById('lap-table-container');
+  if (tblWrap) {
+    if (isFullHeight || (allOthersCollapsedOrHidden && lapCardOpen)) {
+      tblWrap.style.maxHeight = 'none';
+    } else if (state.cardsConfig.laptimesCustomHeight) {
+      tblWrap.style.maxHeight = `${state.cardsConfig.laptimesCustomHeight}px`;
+    } else {
+      const hasMulti = (state.sessions && state.sessions.length > 1) || (state.laps || []).some(l => l.is_reference);
+      tblWrap.style.maxHeight = hasMulti ? '260px' : '';
+    }
+  }
+
   // Apply Density Mode
   if (dom.mainWorkspace) {
     dom.mainWorkspace.classList.toggle('data-sidebar-compact', !!state.cardsConfig.compactDensity);
@@ -231,6 +349,8 @@ function loadCardsConfig() {
       if (parsed.collapsed) state.cardsConfig.collapsed = parsed.collapsed;
       if (parsed.hidden) state.cardsConfig.hidden = parsed.hidden;
       if (parsed.compactDensity !== undefined) state.cardsConfig.compactDensity = parsed.compactDensity;
+      if (parsed.laptimesFullHeight !== undefined) state.cardsConfig.laptimesFullHeight = Boolean(parsed.laptimesFullHeight);
+      if (parsed.laptimesCustomHeight !== undefined) state.cardsConfig.laptimesCustomHeight = parsed.laptimesCustomHeight;
     }
   } catch (err) {
     console.warn('Could not load cards config from localStorage:', err);
@@ -748,6 +868,82 @@ function loadLayoutState() {
   syncWorkspacePanelsUI();
 }
 
+const VIEWER_SESSION_COLORS = [
+  '#ff1801', '#00e5ff', '#ffb300', '#00e676',
+  '#d500f9', '#ff4081', '#2979ff', '#ffd600'
+];
+
+function renderSessionFilterBar() {
+  if (!dom.sessionFilterBar || !dom.sessionFilterPills) return;
+
+  state.activeSessionFilter = 'ALL';
+  dom.sessionFilterBar.style.display = 'flex';
+
+  // Quick Lap Filter Buttons Only (Flying Only, Session Bests, Reset)
+  const isBestPerSessActive = Boolean(state._bestPerSessionFilterActive);
+  const pillsHtml = `
+    <button type="button" class="session-pill lap-qfilter-pill ${state.hideOutInLaps && !isBestPerSessActive ? 'active' : ''}" data-qfilter="flying" title="Hide Out-Laps and In-Laps">
+      ⚡ Flying
+    </button>
+    <button type="button" class="session-pill lap-qfilter-pill ${isBestPerSessActive ? 'active' : ''}" data-qfilter="best_per_session" title="Check only the fastest flying lap from each session">
+      🏆 Session Bests
+    </button>
+    <button type="button" class="session-pill lap-qfilter-pill" data-qfilter="reset_all" title="Include & show all laps across all sessions">
+      ☑️ Reset
+    </button>
+  `;
+
+  dom.sessionFilterPills.innerHTML = pillsHtml;
+
+  dom.sessionFilterPills.querySelectorAll('.lap-qfilter-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const qf = btn.dataset.qfilter;
+      if (qf === 'flying') {
+        state._bestPerSessionFilterActive = false;
+        state.hideOutInLaps = !state.hideOutInLaps;
+        recalculateLapsAndSectors();
+      } else if (qf === 'best_per_session') {
+        state._bestPerSessionFilterActive = !state._bestPerSessionFilterActive;
+        if (!state.excludedLapKeys) state.excludedLapKeys = new Set();
+        state.excludedLapKeys.clear();
+        if (state._bestPerSessionFilterActive) {
+          state.hideOutInLaps = true;
+          // First recalculate with all flying laps included to find true session bests
+          recalculateLapsAndSectors();
+          (state.laps || []).forEach(l => {
+            if (!l.is_optimal && !l.is_session_best && !l.is_reference && l.lap_key) {
+              state.excludedLapKeys.add(l.lap_key);
+            }
+          });
+        } else {
+          state.hideOutInLaps = false;
+        }
+        recalculateLapsAndSectors();
+      } else if (qf === 'reset_all') {
+        state._bestPerSessionFilterActive = false;
+        state.hideOutInLaps = false;
+        if (state.excludedLapKeys) state.excludedLapKeys.clear();
+        recalculateLapsAndSectors();
+      }
+      if (dom.modalProgression && dom.modalProgression.style.display === 'flex' && typeof renderDayProgressionModal === 'function') {
+        renderDayProgressionModal();
+      }
+    });
+  });
+}
+
+function setSessionFilter(sessionId) {
+  state.activeSessionFilter = 'ALL';
+  recalculateLapsAndSectors();
+  if (sessionId && sessionId !== 'ALL') {
+    const matching = (state.laps || []).filter(l => !l.is_optimal && (l.session_id || 'S1') === sessionId);
+    const bestInFilter = matching.find(l => l.is_session_best || l.is_best) || matching[0];
+    if (bestInFilter) {
+      selectLap(bestInFilter.lap_number, false);
+    }
+  }
+}
+
 function renderLapListTable() {
   if (!dom.lapTableBody) return;
   dom.lapTableBody.innerHTML = '';
@@ -759,47 +955,16 @@ function renderLapListTable() {
   if (dom.selectMatrixLap) dom.selectMatrixLap.innerHTML = '<option value="-1">All Laps (Full Session)</option>';
   if (dom.selectScorecardLap) dom.selectScorecardLap.innerHTML = '<option value="-1">All Laps (Session Averages & Consistency)</option>';
 
-  const trAll = document.createElement('tr');
-  trAll.dataset.lap = '-1';
-  trAll.className = 'active-lap-row';
-  const totalDur = state.records.length > 0 ? (state.records[state.records.length - 1].time_s - state.records[0].time_s) : 0;
-  trAll.innerHTML = `
-    <td><strong>🏁 All</strong></td>
-    <td>${formatTime(totalDur)}</td>
-    <td>-</td>
-    <td>-</td>
-    <td>-</td>
-    <td>${state.sessionData?.stats?.max_speed_mph ? state.sessionData.stats.max_speed_mph.toFixed(0) + ' mph' : '-'}</td>
-  `;
-  trAll.addEventListener('click', () => selectLap(-1, false));
-  dom.lapTableBody.appendChild(trAll);
+  if (!state.collapsedSessionGroups) {
+    state.collapsedSessionGroups = new Set();
+  }
 
-  state.laps.forEach(l => {
-    const tr = document.createElement('tr');
-    tr.dataset.lap = l.lap_number.toString();
-    if (l.is_best) tr.classList.add('best-lap-row');
-
+  // Populate all <select> dropdowns across the workspace
+  (state.laps || []).forEach(l => {
     const durStr = formatTime(l.duration_s);
-    const s1 = l.sectors && l.sectors[0] ? `${l.sectors[0].toFixed(1)}` : '-';
-    const s2 = l.sectors && l.sectors[1] ? `${l.sectors[1].toFixed(1)}` : '-';
-    const s3 = l.sectors && l.sectors[2] ? `${l.sectors[2].toFixed(1)}` : '-';
-
-    const maxSpd = l.max_speed_kmh ? (state.unitMph ? (l.max_speed_kmh * 0.621371).toFixed(0) : l.max_speed_kmh.toFixed(0)) : '-';
-
-    tr.innerHTML = `
-      <td>${l.is_best ? '🏆 ' : ''}${escapeHTML(l.name)}</td>
-      <td><strong>${durStr}</strong></td>
-      <td>${s1}</td>
-      <td>${s2}</td>
-      <td>${s3}</td>
-      <td>${maxSpd}</td>
-    `;
-    tr.addEventListener('click', () => selectLap(l.lap_number, false));
-    dom.lapTableBody.appendChild(tr);
-
     const opt = document.createElement('option');
     opt.value = l.lap_number;
-    opt.textContent = `${l.name} (${durStr})${l.is_best ? ' [BEST]' : ''}`;
+    opt.textContent = `${l.name} (${durStr})${l.is_best ? ' [BEST]' : (l.is_reference ? ' [REF]' : '')}`;
     if (dom.selectLapJump) dom.selectLapJump.appendChild(opt.cloneNode(true));
     if (dom.selectLapA) dom.selectLapA.appendChild(opt.cloneNode(true));
     if (dom.selectLapB) dom.selectLapB.appendChild(opt.cloneNode(true));
@@ -807,6 +972,260 @@ function renderLapListTable() {
     if (dom.selectSeamLap) dom.selectSeamLap.appendChild(opt.cloneNode(true));
     if (dom.selectMatrixLap) dom.selectMatrixLap.appendChild(opt.cloneNode(true));
     if (dom.selectScorecardLap) dom.selectScorecardLap.appendChild(opt.cloneNode(true));
+  });
+
+  // Build ordered session groups & metadata
+  const sessOrder = [];
+  const sessMeta = {};
+  (state.sessions || []).forEach((s, idx) => {
+    const sid = s.id || `S${idx + 1}`;
+    if (!sessMeta[sid]) {
+      sessOrder.push(sid);
+      sessMeta[sid] = {
+        id: sid,
+        label: s.label || sid,
+        color: s.color || (s.is_reference ? '#ffd600' : VIEWER_SESSION_COLORS[idx % VIEWER_SESSION_COLORS.length]),
+        is_reference: Boolean(s.is_reference),
+        source_file: s.source_file || '',
+        session_datetime: s.session_datetime || '',
+        laps: []
+      };
+    }
+  });
+
+  (state.laps || []).forEach(l => {
+    if (l.is_optimal) return;
+    const lapSid = l.session_id || (l.is_reference ? 'REF' : 'S1');
+    if (state.hideOutInLaps && (l.is_out_lap || l.is_in_lap)) return;
+
+    if (!sessMeta[lapSid]) {
+      const idx = sessOrder.length;
+      sessOrder.push(lapSid);
+      sessMeta[lapSid] = {
+        id: lapSid,
+        label: l.is_reference ? 'Reference Laps' : (l.session_label || `Session ${lapSid}`),
+        color: l.session_color || (l.is_reference ? '#ffd600' : VIEWER_SESSION_COLORS[idx % VIEWER_SESSION_COLORS.length]),
+        is_reference: Boolean(l.is_reference),
+        source_file: '',
+        session_datetime: l.session_datetime || '',
+        laps: []
+      };
+    }
+    sessMeta[lapSid].laps.push(l);
+  });
+
+  const nonEmptySessionIds = sessOrder.filter(sid => sessMeta[sid] && sessMeta[sid].laps.length > 0);
+  const allGroupsCollapsed = nonEmptySessionIds.length > 0 && nonEmptySessionIds.every(sid => state.collapsedSessionGroups.has(sid));
+
+  // Top "All Sessions" Summary Row
+  const trAll = document.createElement('tr');
+  trAll.dataset.lap = '-1';
+  if (state.selectedLapNum === -1) trAll.className = 'active-lap-row';
+  const totalDur = state.records.length > 0 ? (state.records[state.records.length - 1].time_s - state.records[0].time_s) : 0;
+  const foldAllBtnHtml = nonEmptySessionIds.length > 1
+    ? `<button type="button" class="btn-fold-all-sessions" title="${allGroupsCollapsed ? 'Expand all session groups' : 'Collapse all session groups'}">${allGroupsCollapsed ? '⊞ Expand' : '⊟ Fold'}</button>`
+    : '';
+
+  trAll.innerHTML = `
+    <td style="display:flex; align-items:center; justify-content:space-between; gap:4px;">
+      <strong>🏁 All Sessions</strong>
+      ${foldAllBtnHtml}
+    </td>
+    <td>${formatTime(totalDur)}</td>
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>
+    <td>${state.sessionData?.stats?.max_speed_mph ? state.sessionData.stats.max_speed_mph.toFixed(0) + ' mph' : '-'}</td>
+  `;
+  trAll.addEventListener('click', (e) => {
+    if (e.target.closest('.btn-fold-all-sessions')) return;
+    selectLap(-1, false);
+  });
+  const btnFoldAll = trAll.querySelector('.btn-fold-all-sessions');
+  if (btnFoldAll) {
+    btnFoldAll.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (allGroupsCollapsed) {
+        state.collapsedSessionGroups.clear();
+      } else {
+        nonEmptySessionIds.forEach(sid => state.collapsedSessionGroups.add(sid));
+      }
+      renderLapListTable();
+    });
+  }
+  dom.lapTableBody.appendChild(trAll);
+
+  // Render Each Session as a Header Row with Nested Lap Rows Below It
+  nonEmptySessionIds.forEach(sid => {
+    const group = sessMeta[sid];
+    const sessLaps = group.laps;
+    const sColor = group.color || '#ff1801';
+    const isCollapsed = state.collapsedSessionGroups.has(sid);
+
+    const includedCount = sessLaps.filter(l => l.included !== false).length;
+    const allIncluded = includedCount === sessLaps.length && sessLaps.length > 0;
+    const someIncluded = includedCount > 0 && includedCount < sessLaps.length;
+
+    const flyingLaps = sessLaps.filter(l => l.is_flying && l.included !== false);
+    const bestLapInSess = sessLaps.find(l => l.is_session_best && l.included !== false) ||
+      (flyingLaps.length > 0 ? flyingLaps.reduce((a, b) => a.duration_s < b.duration_s ? a : b) : null);
+    const bestTimeStr = bestLapInSess ? formatTime(bestLapInSess.duration_s) : '';
+
+    const sessHourName = group.is_reference ? '⭐ Reference Laps' : (group.label || sid);
+    const tooltipInfo = [group.session_datetime, group.source_file].filter(Boolean).join(' · ') || sessHourName;
+
+    // 1. Session Group Header Row
+    const trHeader = document.createElement('tr');
+    trHeader.className = `session-group-header ${isCollapsed ? 'is-collapsed' : ''}`;
+    trHeader.dataset.sessionId = sid;
+    trHeader.style.setProperty('--sess-color', sColor);
+
+    const countBadgeText = `${sessLaps.length} ${sessLaps.length === 1 ? 'Lap' : 'Laps'}`;
+    trHeader.innerHTML = `
+      <td colspan="6" class="session-group-cell">
+        <div class="session-group-bar">
+          <div class="session-group-left">
+            <span class="session-group-caret" title="${isCollapsed ? 'Expand session laps' : 'Collapse session laps'}">${isCollapsed ? '▸' : '▾'}</span>
+            <input type="checkbox" class="session-group-chk" data-session-id="${escapeHTML(sid)}" ${allIncluded ? 'checked' : ''} title="Check/uncheck all laps in ${escapeHTML(sessHourName)}">
+            <span class="sess-dot" style="background:${sColor};"></span>
+            <span class="session-group-title" style="color:${sColor};" title="${escapeHTML(tooltipInfo)}">${escapeHTML(sessHourName)}</span>
+          </div>
+          <div class="session-group-right">
+            <span class="session-group-count">${countBadgeText}</span>
+            ${bestTimeStr ? `<button type="button" class="session-group-best-btn" data-best-lap="${bestLapInSess.lap_number}" title="Jump to fastest lap in ${escapeHTML(sessHourName)} (${bestTimeStr})">⚡ ${bestTimeStr}</button>` : ''}
+          </div>
+        </div>
+      </td>
+    `;
+
+    const sessChkEl = trHeader.querySelector('.session-group-chk');
+    if (sessChkEl) {
+      sessChkEl.indeterminate = someIncluded;
+      sessChkEl.addEventListener('change', (e) => {
+        e.stopPropagation();
+        if (!state.excludedLapKeys) state.excludedLapKeys = new Set();
+        const checkAll = e.target.checked;
+        (state.laps || []).forEach(l => {
+          if (l.is_optimal) return;
+          const lSid = l.session_id || (l.is_reference ? 'REF' : 'S1');
+          if (lSid === sid) {
+            const lKey = l.lap_key || `${lSid}:${l.orig_lap_number !== undefined ? l.orig_lap_number : l.lap_number}`;
+            if (checkAll) {
+              state.excludedLapKeys.delete(lKey);
+            } else {
+              state.excludedLapKeys.add(lKey);
+            }
+          }
+        });
+        recalculateLapsAndSectors();
+        if (dom.modalProgression && dom.modalProgression.style.display === 'flex' && typeof renderDayProgressionModal === 'function') {
+          renderDayProgressionModal();
+        }
+      });
+    }
+
+    const bestJumpBtn = trHeader.querySelector('.session-group-best-btn');
+    if (bestJumpBtn) {
+      bestJumpBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const targetLapNum = parseInt(bestJumpBtn.dataset.bestLap, 10);
+        if (!isNaN(targetLapNum)) {
+          selectLap(targetLapNum, false);
+        }
+      });
+    }
+
+    trHeader.addEventListener('click', (e) => {
+      if (e.target.closest('.session-group-chk') || e.target.closest('.session-group-best-btn')) return;
+      if (state.collapsedSessionGroups.has(sid)) {
+        state.collapsedSessionGroups.delete(sid);
+      } else {
+        state.collapsedSessionGroups.add(sid);
+      }
+      renderLapListTable();
+    });
+
+    dom.lapTableBody.appendChild(trHeader);
+
+    // 2. Nested Lap Rows (if session group is expanded)
+    if (!isCollapsed) {
+      sessLaps.forEach((l, lapIdxInSess) => {
+        const isInc = l.included !== false;
+        const lapSid = l.session_id || (l.is_reference ? 'REF' : 'S1');
+        const lapKey = l.lap_key || `${lapSid}:${l.orig_lap_number !== undefined ? l.orig_lap_number : l.lap_number}`;
+        const durStr = formatTime(l.duration_s);
+
+        const tr = document.createElement('tr');
+        tr.dataset.lap = l.lap_number.toString();
+        tr.classList.add('lap-nested-row');
+        if (lapIdxInSess === sessLaps.length - 1) tr.classList.add('lap-nested-last');
+        if (l.is_best) tr.classList.add('best-lap-row');
+        if (!isInc) tr.classList.add('lap-row-excluded');
+        if (l.lap_number === state.selectedLapNum) tr.classList.add('active-lap-row');
+        tr.style.setProperty('--sess-color', sColor);
+
+        const s1 = l.sectors && l.sectors[0] ? `${l.sectors[0].toFixed(1)}` : '-';
+        const s2 = l.sectors && l.sectors[1] ? `${l.sectors[1].toFixed(1)}` : '-';
+        const s3 = l.sectors && l.sectors[2] ? `${l.sectors[2].toFixed(1)}` : '-';
+        const maxSpd = l.max_speed_kmh ? (state.unitMph ? (l.max_speed_kmh * 0.621371).toFixed(0) : l.max_speed_kmh.toFixed(0)) : '-';
+
+        const cleanLapName = (l.orig_name || l.name || `Lap ${l.lap_number}`).replace(new RegExp(`^${lapSid}\\s*[·\\-:]\\s*`, 'i'), '');
+        const starBtn = !l.is_optimal
+          ? `<button type="button" class="btn-star-ref" data-lap="${l.lap_number}" title="Save & Export as Reference Lap (.ddalap.json)">⭐</button>`
+          : '';
+
+        const chkHtml = !l.is_optimal
+          ? `<input type="checkbox" class="lap-include-chk" data-lapkey="${escapeHTML(lapKey)}" ${isInc ? 'checked' : ''} title="Check/uncheck to include or exclude this lap from Best Lap, Optimal Lap & Day Progression">`
+          : '';
+
+        const treeBranch = lapIdxInSess === sessLaps.length - 1 ? '└' : '├';
+        const trophyIcon = l.is_best ? '🏆 ' : (l.is_session_best && !l.is_reference ? '⚡ ' : '');
+
+        tr.innerHTML = `
+          <td class="lap-nested-first-cell">
+            <span class="lap-nested-left-wrap">
+              <span class="lap-tree-branch" style="color:${sColor};">${treeBranch}</span>
+              ${chkHtml}
+              <span class="lap-nested-name">${trophyIcon}${escapeHTML(cleanLapName)}</span>
+            </span>
+            ${starBtn}
+          </td>
+          <td><strong>${durStr}</strong></td>
+          <td>${s1}</td>
+          <td>${s2}</td>
+          <td>${s3}</td>
+          <td>${maxSpd}</td>
+        `;
+        tr.addEventListener('click', (e) => {
+          if (e.target.closest('.btn-star-ref') || e.target.closest('.lap-include-chk')) return;
+          selectLap(l.lap_number, false);
+        });
+        const chkEl = tr.querySelector('.lap-include-chk');
+        if (chkEl) {
+          chkEl.addEventListener('change', (e) => {
+            e.stopPropagation();
+            if (!state.excludedLapKeys) state.excludedLapKeys = new Set();
+            if (e.target.checked) {
+              state.excludedLapKeys.delete(lapKey);
+            } else {
+              state.excludedLapKeys.add(lapKey);
+            }
+            recalculateLapsAndSectors();
+            if (dom.modalProgression && dom.modalProgression.style.display === 'flex' && typeof renderDayProgressionModal === 'function') {
+              renderDayProgressionModal();
+            }
+          });
+        }
+        const btnStar = tr.querySelector('.btn-star-ref');
+        if (btnStar) {
+          btnStar.addEventListener('click', (e) => {
+            e.stopPropagation();
+            saveLapAsReferenceInBrowser(l.lap_number);
+          });
+        }
+        dom.lapTableBody.appendChild(tr);
+      });
+    }
   });
 
   // Optimal Lap Virtual Entry
@@ -827,12 +1246,346 @@ function renderLapListTable() {
     if (dom.selectExportLap) dom.selectExportLap.value = bestLap.lap_number;
     if (dom.selectSeamLap) dom.selectSeamLap.value = bestLap.lap_number;
   }
+
+  if (typeof applyCardsConfigToUI === 'function') {
+    applyCardsConfigToUI();
+  }
+}
+
+function saveLapAsReferenceInBrowser(lapNumber) {
+  const lap = (state.laps || []).find(l => l.lap_number === lapNumber);
+  if (!lap) return;
+
+  const h = (state.sessionData && state.sessionData.header) || {};
+  const trackName = (dom.metaTrackName ? dom.metaTrackName.textContent.trim() : '') || h.track_name || 'Unknown Track';
+  const riderName = h.rider_name || 'Ducati Rider';
+  const defaultLabel = `${riderName} · ${lap.orig_name || lap.name} (${formatTime(lap.duration_s)})`;
+
+  const customName = prompt('Save Reference Lap — enter a name for this benchmark lap:', defaultLabel);
+  if (!customName || !customName.trim()) return;
+
+  const sliceRecs = state.records.slice(lap.start_index, lap.end_index + 1);
+  if (!sliceRecs.length) return;
+
+  const t0 = sliceRecs[0].time_s || 0;
+  const d0 = sliceRecs[0].distance_m || 0;
+  const normRecs = sliceRecs.map(r => {
+    const copy = Object.assign({}, r);
+    copy.time_s = Number(Math.max(0, (r.time_s || 0) - t0).toFixed(3));
+    copy.distance_m = Number(Math.max(0, (r.distance_m || 0) - d0).toFixed(2));
+    copy.session_id = 'REF';
+    delete copy.orig_index;
+    delete copy.local_index;
+    return copy;
+  });
+
+  const refObj = {
+    format: 'dda_reference_lap_v1',
+    id: `ref_${Date.now()}_${lapNumber}`,
+    name: customName.trim(),
+    track_name: trackName,
+    rider_name: riderName,
+    bike_model: h.bike_model || '',
+    bike_code: h.bike_code || '',
+    session_datetime: h.session_datetime || new Date().toISOString().slice(0, 19).replace('T', ' '),
+    unix_timestamp: h.unix_timestamp || Math.floor(Date.now() / 1000),
+    duration_s: Number((lap.duration_s || 0).toFixed(3)),
+    distance_m: Number((lap.distance_m || 0).toFixed(1)),
+    sectors: lap.sectors || [lap.sector_1_s || null, lap.sector_2_s || null, lap.sector_3_s || null],
+    max_speed_kmh: Number((lap.max_speed_kmh || 0).toFixed(1)),
+    max_gps_speed_kmh: Number((lap.max_gps_speed_kmh || 0).toFixed(1)),
+    max_lean_left_deg: Number((lap.max_lean_left_deg || 0).toFixed(1)),
+    max_lean_right_deg: Number((lap.max_lean_right_deg || 0).toFixed(1)),
+    max_rpm: lap.max_rpm || 0,
+    gates: JSON.parse(JSON.stringify(state.gates || [])),
+    records: normRecs
+  };
+
+  if (!Array.isArray(state.referenceLaps)) state.referenceLaps = [];
+  state.referenceLaps.push(refObj);
+  saveSettingsToStorage();
+  if (typeof renderTrackLibrary === 'function') renderTrackLibrary();
+
+  if (confirm(`Saved "${refObj.name}" to your built-in Reference Lap Library!\n\nWould you also like to download a shareable .ddalap.json file?`)) {
+    downloadReferenceLapFile(refObj);
+  }
+}
+
+function downloadReferenceLapFile(refObj) {
+  if (!refObj) return;
+  const safeName = `${refObj.track_name || 'Track'}_${refObj.name || 'RefLap'}`
+    .replace(/[^a-zA-Z0-9_-]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  const jsonStr = JSON.stringify(refObj, null, 2);
+  const blob = new Blob([jsonStr], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${safeName}.ddalap.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function appendReferenceLapToSession(refObj) {
+  if (!refObj || !Array.isArray(refObj.records) || refObj.records.length === 0) {
+    alert('Reference Lap file contains no telemetry records.');
+    return;
+  }
+
+  // Save to browser Reference Lap Library if not already present
+  if (!Array.isArray(state.referenceLaps)) state.referenceLaps = [];
+  if (refObj.id && !state.referenceLaps.some(r => r.id === refObj.id)) {
+    state.referenceLaps.push(refObj);
+    saveSettingsToStorage();
+  }
+
+  if (!state.records || state.records.length === 0) {
+    // Wrap Reference Lap as a standalone session
+    const wrapped = {
+      is_multi_session: false,
+      pre_segmented_laps: true,
+      sessions: [{
+        id: 'REF',
+        label: `⭐ Ref · ${refObj.name || 'Reference'}`,
+        color: '#ffd600',
+        track_name: refObj.track_name || 'Track',
+        rider_name: refObj.rider_name || 'Rider',
+        is_reference: true
+      }],
+      header: {
+        track_name: refObj.track_name || 'Track',
+        rider_name: refObj.rider_name || 'Rider',
+        bike_model: refObj.bike_model || '',
+        session_datetime: refObj.session_datetime || ''
+      },
+      stats: {
+        duration_s: refObj.duration_s || 0,
+        duration_min: (refObj.duration_s || 0) / 60.0,
+        max_speed_kmh: refObj.max_speed_kmh || 0,
+        max_speed_mph: (refObj.max_speed_kmh || 0) * 0.621371
+      },
+      gates: refObj.gates || [],
+      laps: [{
+        lap_number: 1,
+        orig_lap_number: 1,
+        session_id: 'REF',
+        session_label: `⭐ Ref · ${refObj.name || 'Reference'}`,
+        session_color: '#ffd600',
+        name: `REF · ${refObj.name || 'Reference'}`,
+        orig_name: refObj.name || 'Reference',
+        start_time_s: 0,
+        end_time_s: refObj.duration_s || refObj.records[refObj.records.length - 1].time_s,
+        duration_s: refObj.duration_s || refObj.records[refObj.records.length - 1].time_s,
+        start_index: 0,
+        end_index: refObj.records.length - 1,
+        distance_m: refObj.distance_m || 0,
+        sectors: refObj.sectors || [null, null, null],
+        max_speed_kmh: refObj.max_speed_kmh || 0,
+        max_gps_speed_kmh: refObj.max_gps_speed_kmh || 0,
+        is_flying: true,
+        is_reference: true,
+        is_best: true,
+        is_session_best: true
+      }],
+      records: refObj.records
+    };
+    loadSessionData(wrapped);
+    return;
+  }
+
+  // Ensure existing laps are marked as pre-segmented so recalculateLapsAndSectors preserves them
+  if (!state.sessionData) state.sessionData = {};
+  state.sessionData.pre_segmented_laps = true;
+  state.sessionData.is_multi_session = true;
+  state.laps = (state.laps || []).filter(l => !l.is_optimal);
+  state.laps.forEach(l => {
+    if (!l.session_id) l.session_id = 'S1';
+    if (!l.session_color) l.session_color = '#ff1801';
+  });
+
+  const lastRec = state.records[state.records.length - 1];
+  const tOffset = (lastRec ? lastRec.time_s : 0) + 1.0;
+  const dOffset = (lastRec ? (lastRec.distance_m || 0) : 0) + 10.0;
+  const startIdx = state.records.length;
+  const t0 = refObj.records[0].time_s || 0;
+  const d0 = refObj.records[0].distance_m || 0;
+  const newLapNum = state.laps.reduce((m, l) => Math.max(m, l.lap_number || 0), 0) + 1;
+
+  refObj.records.forEach((r, idx) => {
+    const rc = Object.assign({}, r);
+    rc.time_s = Number((tOffset + Math.max(0, (r.time_s || 0) - t0)).toFixed(3));
+    rc.distance_m = Number((dOffset + Math.max(0, (r.distance_m || 0) - d0)).toFixed(2));
+    rc.lap = newLapNum;
+    rc.session_id = 'REF';
+    rc.orig_index = startIdx + idx;
+    rc.local_index = startIdx + idx;
+    state.records.push(rc);
+  });
+
+  const endIdx = state.records.length - 1;
+  const dur = refObj.duration_s || (state.records[endIdx].time_s - state.records[startIdx].time_s);
+
+  state.laps.push({
+    lap_number: newLapNum,
+    orig_lap_number: 1,
+    session_id: 'REF',
+    session_label: `REF · ${refObj.name || 'Reference'}`,
+    session_color: '#ffd600',
+    name: `REF · ${refObj.name || 'Reference'}`,
+    orig_name: refObj.name || 'Reference',
+    start_time_s: state.records[startIdx].time_s,
+    end_time_s: state.records[endIdx].time_s,
+    duration_s: dur,
+    start_index: startIdx,
+    end_index: endIdx,
+    distance_m: refObj.distance_m || (state.records[endIdx].distance_m - state.records[startIdx].distance_m),
+    sectors: refObj.sectors || [null, null, null],
+    max_speed_kmh: refObj.max_speed_kmh || 0,
+    max_gps_speed_kmh: refObj.max_gps_speed_kmh || 0,
+    max_lean_left_deg: refObj.max_lean_left_deg || 0,
+    max_lean_right_deg: refObj.max_lean_right_deg || 0,
+    max_rpm: refObj.max_rpm || 0,
+    is_flying: true,
+    is_out_lap: false,
+    is_in_lap: false,
+    is_reference: true,
+    is_session_best: true,
+    is_best: false
+  });
+
+  if (!Array.isArray(state.sessions)) state.sessions = [];
+  if (!state.sessions.some(s => s.id === 'REF')) {
+    state.sessions.push({
+      id: 'REF',
+      label: 'Reference Laps',
+      color: '#ffd600',
+      track_name: refObj.track_name || '',
+      rider_name: refObj.rider_name || '',
+      is_reference: true
+    });
+  }
+
+  applySmoothingToRecords();
+  recalculateLapsAndSectors();
+  renderMapTrack(false);
+  if (dom.modalProgression && dom.modalProgression.style.display === 'flex' && typeof renderDayProgressionModal === 'function') {
+    renderDayProgressionModal();
+  }
+}
+
+function appendSessionJsonToWorkspace(jsonObj, fileName = '') {
+  if (!jsonObj || !Array.isArray(jsonObj.records) || jsonObj.records.length === 0) {
+    alert('Selected JSON file contains no telemetry records.');
+    return;
+  }
+
+  if (!state.records || state.records.length === 0) {
+    loadSessionData(jsonObj);
+    return;
+  }
+
+  if (!state.sessionData) state.sessionData = {};
+  state.sessionData.pre_segmented_laps = false;
+  state.sessionData.is_multi_session = true;
+
+  // Ensure existing records and sessions are tagged with S1 if not already tagged
+  state.records.forEach(r => {
+    if (!r.session_id) r.session_id = 'S1';
+  });
+  if (!Array.isArray(state.sessions) || state.sessions.length === 0) {
+    const h0 = state.sessionData.header || {};
+    state.sessions = [{
+      id: 'S1',
+      label: `S1 · ${h0.session_datetime || 'Session 1'}`,
+      color: VIEWER_SESSION_COLORS[0],
+      track_name: h0.track_name || '',
+      rider_name: h0.rider_name || '',
+      is_reference: false
+    }];
+  }
+
+  const nonRefSessions = state.sessions.filter(s => !s.is_reference);
+  const nextIdx = nonRefSessions.length;
+  const newSid = `S${nextIdx + 1}`;
+  const newColor = VIEWER_SESSION_COLORS[nextIdx % VIEWER_SESSION_COLORS.length];
+  const hNew = jsonObj.header || {};
+  const newLabel = `${newSid} · ${hNew.session_datetime || fileName.replace(/\.json$/i, '') || `Session ${nextIdx + 1}`}`;
+
+  const lastRec = state.records[state.records.length - 1];
+  const tOffset = (lastRec ? lastRec.time_s : 0) + 1.0;
+  const dOffset = (lastRec ? (lastRec.distance_m || 0) : 0) + 10.0;
+  const startIdx = state.records.length;
+  const t0 = jsonObj.records[0].time_s || 0;
+  const d0 = jsonObj.records[0].distance_m || 0;
+
+  jsonObj.records.forEach((r, idx) => {
+    const rc = Object.assign({}, r);
+    rc.time_s = Number((tOffset + Math.max(0, (r.time_s || 0) - t0)).toFixed(3));
+    rc.distance_m = Number((dOffset + Math.max(0, (r.distance_m || 0) - d0)).toFixed(2));
+    rc.session_id = newSid;
+    rc.orig_index = startIdx + idx;
+    rc.local_index = startIdx + idx;
+    state.records.push(rc);
+  });
+
+  const endIdx = state.records.length - 1;
+  state.sessions.push({
+    id: newSid,
+    index: nextIdx + 1,
+    label: newLabel,
+    color: newColor,
+    track_name: hNew.track_name || '',
+    rider_name: hNew.rider_name || '',
+    session_datetime: hNew.session_datetime || '',
+    start_index: startIdx,
+    end_index: endIdx,
+    is_reference: false
+  });
+
+  applySmoothingToRecords();
+  recalculateLapsAndSectors();
+  renderMapTrack(false);
+  if (dom.modalProgression && dom.modalProgression.style.display === 'flex' && typeof renderDayProgressionModal === 'function') {
+    renderDayProgressionModal();
+  }
 }
 
 function loadSessionData(jsonObj) {
   state.sessionData = jsonObj;
   state.records = jsonObj.records || [];
   state.laps = jsonObj.laps || [];
+  state.activeSessionFilter = 'ALL';
+  state.excludedLapKeys = new Set();
+  state.hideOutInLaps = false;
+
+  const h = jsonObj.header || {};
+  if (Array.isArray(jsonObj.sessions) && jsonObj.sessions.length > 0) {
+    state.sessions = jsonObj.sessions;
+  } else {
+    state.sessions = [{
+      id: 'S1',
+      label: `S1 · ${h.session_datetime || 'Session 1'}`,
+      color: VIEWER_SESSION_COLORS[0],
+      track_name: h.track_name || '',
+      rider_name: h.rider_name || '',
+      session_datetime: h.session_datetime || '',
+      is_reference: false
+    }];
+  }
+
+  // Merge any reference_laps embedded from dda_settings.json into state.referenceLaps
+  if (jsonObj.settings && Array.isArray(jsonObj.settings.reference_laps)) {
+    if (!Array.isArray(state.referenceLaps)) state.referenceLaps = [];
+    const existingIds = new Set(state.referenceLaps.map(r => r.id));
+    jsonObj.settings.reference_laps.forEach(ref => {
+      if (ref && ref.id && !existingIds.has(ref.id)) {
+        state.referenceLaps.push(ref);
+        existingIds.add(ref.id);
+      }
+    });
+  }
 
   const matched = autoDetectTrackFromGps();
   if (!matched) {
@@ -894,7 +1647,6 @@ function loadSessionData(jsonObj) {
     }
   }
 
-  const h = jsonObj.header || {};
   const s = jsonObj.stats || {};
   if (!matched && dom.metaTrackName) {
     dom.metaTrackName.textContent = h.track_name || 'Ducati Telemetry Track';
@@ -977,15 +1729,21 @@ function checkEmbeddedOrSampleData() {
   }
 }
 
-function parseUploadedFile(file) {
+function parseUploadedFile(file, appendMode = false) {
   const reader = new FileReader();
   reader.onload = (e) => {
     try {
       if (file.name.endsWith('.json')) {
         const json = JSON.parse(e.target.result);
-        loadSessionData(json);
+        if (json.format === 'dda_reference_lap_v1' || (json.records && json.duration_s && !json.header)) {
+          appendReferenceLapToSession(json);
+        } else if (appendMode && state.records && state.records.length > 0) {
+          appendSessionJsonToWorkspace(json, file.name);
+        } else {
+          loadSessionData(json);
+        }
       } else {
-        alert('Please select an exported .json telemetry file or standalone HTML bundle.');
+        alert('Please select an exported .json session file or .ddalap.json Reference Lap file.');
       }
     } catch (err) {
       alert(`Failed to parse file: ${err.message}`);
@@ -1179,6 +1937,93 @@ function bindEvents() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+      }
+    });
+  }
+
+  // Day Progression & Multi-Session Analytics Modal
+  function openProgressionModal() {
+    if (dom.modalProgression) {
+      dom.modalProgression.style.display = 'flex';
+      if (typeof renderDayProgressionModal === 'function') renderDayProgressionModal();
+    }
+  }
+  if (dom.btnOpenProgression) {
+    dom.btnOpenProgression.addEventListener('click', openProgressionModal);
+  }
+  if (dom.btnCardProgression) {
+    dom.btnCardProgression.addEventListener('click', openProgressionModal);
+  }
+  if (dom.btnCloseProgression) {
+    dom.btnCloseProgression.addEventListener('click', () => {
+      if (dom.modalProgression) dom.modalProgression.style.display = 'none';
+    });
+  }
+  document.querySelectorAll('.btn-prog-mode').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.btn-prog-mode').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.progressionChartMode = btn.dataset.pmode || 'laptimes';
+      if (typeof renderDayProgressionModal === 'function') renderDayProgressionModal();
+    });
+  });
+  if (dom.progressionCanvas) {
+    dom.progressionCanvas.addEventListener('mousemove', (e) => {
+      const pts = state.progressionHitPoints || [];
+      if (pts.length === 0) return;
+      const rect = dom.progressionCanvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      let hit = null;
+      let minDist = 18;
+      pts.forEach(p => {
+        const d = Math.hypot(p.x - mx, p.y - my);
+        if (d < minDist) {
+          minDist = d;
+          hit = p;
+        }
+      });
+      if (hit) {
+        dom.progressionCanvas.style.cursor = 'pointer';
+        if (dom.lblProgChartHint) {
+          dom.lblProgChartHint.textContent = `${hit.lap.name}: ${formatTime(hit.lap.duration_s)} (Click to jump, Shift+Click to compare)`;
+          dom.lblProgChartHint.style.color = '#00e5ff';
+        }
+      } else {
+        dom.progressionCanvas.style.cursor = 'default';
+        if (dom.lblProgChartHint) {
+          dom.lblProgChartHint.textContent = 'Click any lap point to jump to that lap · Shift+Click to compare against Best Lap';
+          dom.lblProgChartHint.style.color = '';
+        }
+      }
+    });
+    dom.progressionCanvas.addEventListener('click', (e) => {
+      const pts = state.progressionHitPoints || [];
+      if (pts.length === 0) return;
+      const rect = dom.progressionCanvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      let hit = null;
+      let minDist = 18;
+      pts.forEach(p => {
+        const d = Math.hypot(p.x - mx, p.y - my);
+        if (d < minDist) {
+          minDist = d;
+          hit = p;
+        }
+      });
+      if (hit && hit.lap) {
+        if (dom.modalProgression) dom.modalProgression.style.display = 'none';
+        if (e.shiftKey) {
+          const bestLap = state.laps.find(l => l.is_best) || state.laps[0];
+          state.compareMode = true;
+          if (dom.btnToggleCompare) dom.btnToggleCompare.classList.add('active');
+          if (dom.compareBanner) dom.compareBanner.style.display = 'flex';
+          state.compareLaps = [bestLap ? bestLap.lap_number : hit.lap.lap_number, hit.lap.lap_number];
+          selectLap(hit.lap.lap_number, true);
+        } else {
+          selectLap(hit.lap.lap_number, false);
+        }
       }
     });
   }
@@ -1895,8 +2740,25 @@ function bindEvents() {
   if (dom.fileInput) {
     dom.fileInput.addEventListener('change', (e) => {
       if (e.target.files && e.target.files[0]) {
-        parseUploadedFile(e.target.files[0]);
+        parseUploadedFile(e.target.files[0], false);
       }
+      e.target.value = '';
+    });
+  }
+
+  // Add Session / Reference Lap Merge Upload
+  const triggerAddSessionUpload = () => {
+    if (dom.addSessionFileInput) dom.addSessionFileInput.click();
+  };
+  if (dom.btnAddSessionFile) dom.btnAddSessionFile.addEventListener('click', triggerAddSessionUpload);
+  if (dom.btnCardAddRef) dom.btnCardAddRef.addEventListener('click', triggerAddSessionUpload);
+  if (dom.btnProgAddSession) dom.btnProgAddSession.addEventListener('click', triggerAddSessionUpload);
+  if (dom.addSessionFileInput) {
+    dom.addSessionFileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files.length > 0) {
+        Array.from(e.target.files).forEach(file => parseUploadedFile(file, true));
+      }
+      e.target.value = '';
     });
   }
 
@@ -1918,8 +2780,13 @@ function bindEvents() {
     dom.dropOverlay.addEventListener('drop', (e) => {
       e.preventDefault();
       dom.dropOverlay.style.display = 'none';
-      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-        parseUploadedFile(e.dataTransfer.files[0]);
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        const files = Array.from(e.dataTransfer.files);
+        files.forEach((f, idx) => {
+          const isRef = f.name.toLowerCase().endsWith('.ddalap.json');
+          const shouldAppend = isRef || idx > 0 || e.shiftKey;
+          parseUploadedFile(f, shouldAppend);
+        });
       }
     });
   }
@@ -2100,6 +2967,14 @@ function bindEvents() {
           if (typeof renderScorecardTable === 'function') renderScorecardTable(lapNum);
         }
       }
+    } else if (e.code === 'KeyP') {
+      if (dom.modalProgression) {
+        const isVis = dom.modalProgression.style.display === 'flex';
+        dom.modalProgression.style.display = isVis ? 'none' : 'flex';
+        if (!isVis && typeof renderDayProgressionModal === 'function') {
+          renderDayProgressionModal();
+        }
+      }
     } else if (e.code === 'KeyA') {
       if (dom.btnToggleApexMarkers) dom.btnToggleApexMarkers.click();
     } else if (e.code === 'KeyL') {
@@ -2129,6 +3004,7 @@ function bindEvents() {
     } else if (e.code === 'KeyF') {
       if (dom.btnFitBounds) dom.btnFitBounds.click();
     } else if (e.code === 'Escape') {
+      if (dom.modalProgression) dom.modalProgression.style.display = 'none';
       if (dom.modalScorecard) dom.modalScorecard.style.display = 'none';
       if (dom.modalLeanThrottle) dom.modalLeanThrottle.style.display = 'none';
       if (dom.modalSettings) dom.modalSettings.style.display = 'none';

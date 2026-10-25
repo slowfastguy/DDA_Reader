@@ -13,6 +13,7 @@ function generateTheoreticalOptimalLap() {
 
   // Filter valid timed laps with defined sector splits
   const validLaps = state.laps.filter(l => 
+    l.included !== false &&
     l.duration_s > 25 && 
     l.sectors && 
     l.sectors.length >= 3 && 
@@ -788,3 +789,497 @@ function generateScorecardSummaryText(targetLapNum = -1) {
   lines.push(`------------------------------------------------------------`);
   return lines.join('\n');
 }
+
+// ==========================================
+// Day & Multi-Session Progression Analytics
+// ==========================================
+
+const PROGRESSION_SESSION_COLORS = [
+  '#ff1801', '#00e5ff', '#ffb300', '#00e676',
+  '#d500f9', '#ff4081', '#2979ff', '#ffd600'
+];
+
+function renderDayProgressionModal() {
+  if (!dom.modalProgression) return;
+
+  const allRealLaps = (state.laps || []).filter(l => !l.is_optimal);
+  const flyingLaps = allRealLaps.filter(l =>
+    l.included !== false &&
+    !l.is_out_lap &&
+    !l.is_in_lap &&
+    l.lap_number >= 1 &&
+    l.duration_s > 25.0 &&
+    !(l.name && l.name.includes('In-Lap'))
+  );
+
+  const riderFlyingLaps = flyingLaps.filter(l => !l.is_reference);
+  const refLaps = flyingLaps.filter(l => l.is_reference);
+  const targetFlying = riderFlyingLaps.length > 0 ? riderFlyingLaps : flyingLaps;
+
+  // Build session metadata map
+  const sessionsMap = {};
+  (state.sessions || []).forEach((s, idx) => {
+    sessionsMap[s.id] = Object.assign({
+      color: s.color || (s.is_reference ? '#ffd600' : PROGRESSION_SESSION_COLORS[idx % PROGRESSION_SESSION_COLORS.length]),
+      label: s.label || s.id
+    }, s);
+  });
+
+  allRealLaps.forEach(l => {
+    const sid = l.session_id || (l.is_reference ? 'REF' : 'S1');
+    if (!sessionsMap[sid]) {
+      const idx = Object.keys(sessionsMap).length;
+      sessionsMap[sid] = {
+        id: sid,
+        label: l.is_reference ? '⭐ Reference Laps' : (l.session_label || `Session ${sid}`),
+        color: l.session_color || (l.is_reference ? '#ffd600' : PROGRESSION_SESSION_COLORS[idx % PROGRESSION_SESSION_COLORS.length]),
+        is_reference: Boolean(l.is_reference)
+      };
+    }
+  });
+
+  const sessionIds = Object.keys(sessionsMap);
+  const riderSessionIds = sessionIds.filter(sid => !sessionsMap[sid].is_reference);
+
+  // Compute Day Best & Improvement
+  const dayBestLap = targetFlying.length > 0
+    ? targetFlying.reduce((min, l) => l.duration_s < min.duration_s ? l : min, targetFlying[0])
+    : null;
+
+  let improvementDeltaS = null;
+  if (riderSessionIds.length >= 2) {
+    const firstSid = riderSessionIds[0];
+    const s1Flying = riderFlyingLaps.filter(l => (l.session_id || 'S1') === firstSid);
+    if (s1Flying.length > 0 && dayBestLap) {
+      const s1Best = Math.min(...s1Flying.map(l => l.duration_s));
+      improvementDeltaS = dayBestLap.duration_s - s1Best;
+    }
+  } else if (targetFlying.length >= 2 && dayBestLap) {
+    improvementDeltaS = dayBestLap.duration_s - targetFlying[0].duration_s;
+  }
+
+  // Consistency (sigma across rider flying laps)
+  let globalSigma = 0;
+  if (targetFlying.length > 1) {
+    const meanT = targetFlying.reduce((a, l) => a + l.duration_s, 0) / targetFlying.length;
+    const variance = targetFlying.reduce((a, l) => a + Math.pow(l.duration_s - meanT, 2), 0) / targetFlying.length;
+    globalSigma = Math.sqrt(variance);
+  }
+
+  // Update KPI badges
+  if (dom.kpiProgSessions) {
+    dom.kpiProgSessions.textContent = refLaps.length > 0
+      ? `${Math.max(1, riderSessionIds.length)} (+${refLaps.length} Ref)`
+      : `${Math.max(1, riderSessionIds.length)}`;
+  }
+  if (dom.kpiProgLaps) dom.kpiProgLaps.textContent = `${targetFlying.length}`;
+  if (dom.kpiProgBest) {
+    dom.kpiProgBest.textContent = dayBestLap ? `${formatTime(dayBestLap.duration_s)} (${dayBestLap.name})` : '--';
+  }
+  if (dom.kpiProgImprovement) {
+    if (improvementDeltaS !== null) {
+      const sign = improvementDeltaS <= 0 ? '' : '+';
+      dom.kpiProgImprovement.textContent = `${sign}${improvementDeltaS.toFixed(3)}s`;
+      dom.kpiProgImprovement.className = improvementDeltaS <= 0 ? 'text-green' : 'text-warning';
+    } else {
+      dom.kpiProgImprovement.textContent = '0.000s';
+    }
+  }
+  if (dom.kpiProgOptimal) {
+    const optTime = state.optimalLap ? state.optimalLap.duration_s : null;
+    dom.kpiProgOptimal.textContent = optTime ? formatTime(optTime) : '--';
+  }
+  if (dom.kpiProgConsistency) {
+    dom.kpiProgConsistency.textContent = targetFlying.length > 1 ? `±${globalSigma.toFixed(2)}s` : '--';
+  }
+
+  // Render Canvas Chart
+  drawProgressionChart(targetFlying, refLaps, sessionsMap, dayBestLap);
+
+  // Render Session-by-Session Comparison Table
+  if (dom.progressionTableBody) {
+    const spdUnit = state.unitMph ? 'mph' : 'km/h';
+    const spdFactor = state.unitMph ? 0.621371 : 1.0;
+
+    const rowsHtml = sessionIds.map(sid => {
+      const sMeta = sessionsMap[sid];
+      const sAllLaps = allRealLaps.filter(l => (l.session_id || 'S1') === sid);
+      const sFlying = flyingLaps.filter(l => (l.session_id || 'S1') === sid);
+      const pool = sFlying.length > 0 ? sFlying : sAllLaps;
+      if (pool.length === 0) return '';
+
+      const bestLap = pool.reduce((min, l) => l.duration_s < min.duration_s ? l : min, pool[0]);
+      const avgTime = pool.reduce((a, l) => a + l.duration_s, 0) / pool.length;
+      const variance = pool.length > 1
+        ? pool.reduce((a, l) => a + Math.pow(l.duration_s - avgTime, 2), 0) / pool.length
+        : 0;
+      const sigma = Math.sqrt(variance);
+
+      const s1Times = pool.map(l => l.sectors && l.sectors[0]).filter(v => v && v > 2);
+      const s2Times = pool.map(l => l.sectors && l.sectors[1]).filter(v => v && v > 2);
+      const s3Times = pool.map(l => l.sectors && l.sectors[2]).filter(v => v && v > 2);
+
+      const bestS1 = s1Times.length > 0 ? `${Math.min(...s1Times).toFixed(2)}s` : '--';
+      const bestS2 = s2Times.length > 0 ? `${Math.min(...s2Times).toFixed(2)}s` : '--';
+      const bestS3 = s3Times.length > 0 ? `${Math.min(...s3Times).toFixed(2)}s` : '--';
+
+      let maxSpdKmh = 0;
+      let maxLean = 0;
+      pool.forEach(l => {
+        const recs = state.records.slice(l.start_index, l.end_index + 1);
+        recs.forEach(r => {
+          if ((r.speed_kmh || 0) > maxSpdKmh) maxSpdKmh = r.speed_kmh;
+          const absL = Math.abs(r.lean_angle_deg || 0);
+          if (absL > maxLean) maxLean = absL;
+        });
+      });
+
+      const deltaVsDayBest = (dayBestLap && bestLap)
+        ? (bestLap.duration_s - dayBestLap.duration_s)
+        : 0;
+      const deltaStr = Math.abs(deltaVsDayBest) < 1e-3
+        ? '<strong class="text-green">DAY BEST</strong>'
+        : `<span class="${deltaVsDayBest < 0 ? 'text-green' : 'text-warning'}">${deltaVsDayBest >= 0 ? '+' : ''}${deltaVsDayBest.toFixed(3)}s</span>`;
+
+      return `
+        <tr>
+          <td>
+            <span class="session-badge-inline" style="background:${sMeta.color}22; color:${sMeta.color}; border:1px solid ${sMeta.color}; padding:2px 7px; border-radius:4px; font-weight:800;">
+              ${escapeHTML(sMeta.label || sMeta.id)}
+            </span>
+            ${sMeta.source_file ? `<span style="margin-left:6px; font-weight:500; color:var(--text-muted);">${escapeHTML(sMeta.source_file)}</span>` : ''}
+          </td>
+          <td>${sAllLaps.length} (${sFlying.length} flying)</td>
+          <td><strong class="val-mono text-green">${formatTime(bestLap.duration_s)}</strong> <small class="text-muted">(${escapeHTML(bestLap.name)})</small></td>
+          <td class="val-mono">${deltaStr}</td>
+          <td class="val-mono">${formatTime(avgTime)}</td>
+          <td class="val-mono">${pool.length > 1 ? `±${sigma.toFixed(2)}s` : '--'}</td>
+          <td class="val-mono text-cyan">${bestS1}</td>
+          <td class="val-mono text-cyan">${bestS2}</td>
+          <td class="val-mono text-cyan">${bestS3}</td>
+          <td class="val-mono">${(maxSpdKmh * spdFactor).toFixed(1)} ${spdUnit}</td>
+          <td class="val-mono">${maxLean.toFixed(1)}°</td>
+          <td>
+            <div style="display:flex; gap:4px;">
+              <button type="button" class="btn-xs btn-prog-filter-sess" data-sid="${escapeHTML(sid)}" title="Filter Lap List to ${escapeHTML(sid)}">🔍 Filter</button>
+              <button type="button" class="btn-xs btn-prog-compare-best" data-lap="${bestLap.lap_number}" title="Compare ${escapeHTML(bestLap.name)} vs Day Best">⚔️ Compare</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    dom.progressionTableBody.innerHTML = rowsHtml || '<tr><td colspan="12" style="text-align:center; padding:18px;">No session laps available.</td></tr>';
+
+    dom.progressionTableBody.querySelectorAll('.btn-prog-filter-sess').forEach(btn => {
+      btn.onclick = () => {
+        const sid = btn.dataset.sid;
+        if (typeof setSessionFilter === 'function') {
+          setSessionFilter(sid);
+          dom.modalProgression.style.display = 'none';
+        }
+      };
+    });
+
+    dom.progressionTableBody.querySelectorAll('.btn-prog-compare-best').forEach(btn => {
+      btn.onclick = () => {
+        const targetLapNum = parseInt(btn.dataset.lap, 10);
+        if (!isNaN(targetLapNum) && dayBestLap) {
+          state.compareLapA = dayBestLap.lap_number;
+          state.compareLapB = targetLapNum === dayBestLap.lap_number && flyingLaps.length > 1
+            ? (flyingLaps.find(l => l.lap_number !== dayBestLap.lap_number) || dayBestLap).lap_number
+            : targetLapNum;
+          dom.modalProgression.style.display = 'none';
+          if (!state.isCompareMode && typeof toggleCompareMode === 'function') {
+            toggleCompareMode();
+          } else {
+            if (dom.selectLapA) dom.selectLapA.value = state.compareLapA;
+            if (dom.selectLapB) dom.selectLapB.value = state.compareLapB;
+            if (typeof renderTrackPolylines === 'function') renderTrackPolylines();
+            if (typeof renderCharts === 'function') renderCharts();
+            if (typeof renderLapListTable === 'function') renderLapListTable();
+          }
+        }
+      };
+    });
+  }
+}
+
+function drawProgressionChart(riderLaps, refLaps, sessionsMap, dayBestLap) {
+  const canvas = dom.progressionCanvas;
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  const w = Math.max(600, rect.width || 900);
+  const h = Math.max(220, rect.height || 260);
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  ctx.save();
+  ctx.scale(dpr, dpr);
+
+  ctx.clearRect(0, 0, w, h);
+  state.progressionHitPoints = [];
+
+  const plotLaps = riderLaps.length > 0 ? riderLaps : refLaps;
+  if (!plotLaps || plotLaps.length === 0) {
+    ctx.fillStyle = '#8e94a5';
+    ctx.font = '13px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('No flying timed laps available to plot.', w / 2, h / 2);
+    ctx.restore();
+    return;
+  }
+
+  const padL = 64, padR = 28, padT = 28, padB = 42;
+  const plotW = w - padL - padR;
+  const plotH = h - padT - padB;
+  const mode = state.progressionChartMode || 'laptimes';
+
+  const xForIdx = (i) => plotLaps.length === 1
+    ? padL + plotW / 2
+    : padL + (i / (plotLaps.length - 1)) * plotW;
+
+  // Draw vertical session divider lines where session_id changes
+  let prevSid = null;
+  plotLaps.forEach((l, i) => {
+    const sid = l.session_id || 'S1';
+    const sMeta = sessionsMap[sid] || { color: '#00e5ff', id: sid };
+    if (prevSid !== null && sid !== prevSid) {
+      const divX = (xForIdx(i - 1) + xForIdx(i)) / 2;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(divX, padT - 10);
+      ctx.lineTo(divX, padT + plotH);
+      ctx.stroke();
+      ctx.restore();
+    }
+    if (i === 0 || sid !== prevSid) {
+      const lx = xForIdx(i);
+      ctx.fillStyle = sMeta.color || '#00e5ff';
+      ctx.font = 'bold 11px JetBrains Mono, monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText(sMeta.label || sid, Math.max(padL, lx - 8), padT - 10);
+    }
+    prevSid = sid;
+  });
+
+  if (mode === 'laptimes') {
+    const allTimes = plotLaps.map(l => l.duration_s).concat(refLaps.map(r => r.duration_s));
+    const minT = Math.min(...allTimes);
+    const maxT = Math.max(...allTimes);
+    const span = Math.max(1.5, maxT - minT);
+    const yMin = minT - span * 0.15;
+    const yMax = maxT + span * 0.15;
+    const yForVal = (v) => padT + ((v - yMin) / (yMax - yMin)) * plotH; // Faster (smaller) at top!
+
+    // Horizontal grid lines
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.fillStyle = '#8e94a5';
+    ctx.font = '10px JetBrains Mono, monospace';
+    ctx.textAlign = 'right';
+    for (let g = 0; g <= 4; g++) {
+      const val = yMin + (g / 4) * (yMax - yMin);
+      const gy = yForVal(val);
+      ctx.beginPath();
+      ctx.moveTo(padL, gy);
+      ctx.lineTo(padL + plotW, gy);
+      ctx.stroke();
+      ctx.fillText(formatTime(val), padL - 8, gy + 3);
+    }
+
+    // Reference Lap horizontal benchmark line
+    if (refLaps.length > 0) {
+      const bestRef = refLaps.reduce((m, r) => r.duration_s < m.duration_s ? r : m, refLaps[0]);
+      const ry = yForVal(bestRef.duration_s);
+      ctx.save();
+      ctx.strokeStyle = '#ffd600';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.moveTo(padL, ry);
+      ctx.lineTo(padL + plotW, ry);
+      ctx.stroke();
+      ctx.fillStyle = '#ffd600';
+      ctx.textAlign = 'right';
+      ctx.fillText(`⭐ Ref: ${formatTime(bestRef.duration_s)}`, padL + plotW, ry - 5);
+      ctx.restore();
+    }
+
+    // Day Best horizontal line
+    if (dayBestLap) {
+      const by = yForVal(dayBestLap.duration_s);
+      ctx.save();
+      ctx.strokeStyle = 'rgba(0, 230, 118, 0.45)';
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(padL, by);
+      ctx.lineTo(padL + plotW, by);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Connect points
+    ctx.strokeStyle = 'rgba(0, 229, 255, 0.65)';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    plotLaps.forEach((l, i) => {
+      const px = xForIdx(i);
+      const py = yForVal(l.duration_s);
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    });
+    ctx.stroke();
+
+    // Draw nodes & X labels
+    plotLaps.forEach((l, i) => {
+      const px = xForIdx(i);
+      const py = yForVal(l.duration_s);
+      const sid = l.session_id || 'S1';
+      const sMeta = sessionsMap[sid] || { color: '#00e5ff' };
+      const isDayBest = dayBestLap && l.lap_number === dayBestLap.lap_number;
+
+      ctx.beginPath();
+      ctx.arc(px, py, isDayBest ? 6.5 : 4.8, 0, Math.PI * 2);
+      ctx.fillStyle = isDayBest ? '#00e676' : (sMeta.color || '#00e5ff');
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = '#0c0f17';
+      ctx.stroke();
+
+      ctx.fillStyle = '#9aa4be';
+      ctx.font = '10px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      const shortLbl = plotLaps.length <= 16 ? (l.name || `L${l.lap_number}`).replace(' · ', ' ') : `L${l.orig_lap_number || l.lap_number}`;
+      ctx.fillText(shortLbl, px, padT + plotH + 18);
+
+      state.progressionHitPoints.push({ x: px, y: py, r: 10, lap: l });
+    });
+
+  } else if (mode === 'sectors') {
+    const sColors = ['#00e5ff', '#ffb300', '#d500f9'];
+    const sNames = ['S1', 'S2', 'S3'];
+    const allSecVals = [];
+    plotLaps.forEach(l => {
+      if (l.sectors) {
+        l.sectors.forEach(v => { if (v && v > 2) allSecVals.push(v); });
+      }
+    });
+    const minS = allSecVals.length > 0 ? Math.min(...allSecVals) : 15;
+    const maxS = allSecVals.length > 0 ? Math.max(...allSecVals) : 45;
+    const span = Math.max(1.0, maxS - minS);
+    const yMin = Math.max(0, minS - span * 0.15);
+    const yMax = maxS + span * 0.15;
+    const yForVal = (v) => padT + ((v - yMin) / (yMax - yMin)) * plotH;
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.fillStyle = '#8e94a5';
+    ctx.font = '10px JetBrains Mono, monospace';
+    ctx.textAlign = 'right';
+    for (let g = 0; g <= 4; g++) {
+      const val = yMin + (g / 4) * (yMax - yMin);
+      const gy = yForVal(val);
+      ctx.beginPath();
+      ctx.moveTo(padL, gy);
+      ctx.lineTo(padL + plotW, gy);
+      ctx.stroke();
+      ctx.fillText(`${val.toFixed(1)}s`, padL - 8, gy + 3);
+    }
+
+    for (let sIdx = 0; sIdx < 3; sIdx++) {
+      ctx.strokeStyle = sColors[sIdx];
+      ctx.lineWidth = 2.0;
+      ctx.beginPath();
+      let started = false;
+      plotLaps.forEach((l, i) => {
+        const sv = l.sectors && l.sectors[sIdx];
+        if (!sv || sv <= 2) return;
+        const px = xForIdx(i);
+        const py = yForVal(sv);
+        if (!started) { ctx.moveTo(px, py); started = true; }
+        else ctx.lineTo(px, py);
+      });
+      ctx.stroke();
+
+      plotLaps.forEach((l, i) => {
+        const sv = l.sectors && l.sectors[sIdx];
+        if (!sv || sv <= 2) return;
+        const px = xForIdx(i);
+        const py = yForVal(sv);
+        ctx.beginPath();
+        ctx.arc(px, py, 4, 0, Math.PI * 2);
+        ctx.fillStyle = sColors[sIdx];
+        ctx.fill();
+        if (sIdx === 0) {
+          state.progressionHitPoints.push({ x: px, y: py, r: 10, lap: l });
+        }
+      });
+
+      // Legend badge
+      ctx.fillStyle = sColors[sIdx];
+      ctx.font = 'bold 11px Inter, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(`● ${sNames[sIdx]}`, padL + plotW - (2 - sIdx) * 55, padT - 10);
+    }
+
+    plotLaps.forEach((l, i) => {
+      const px = xForIdx(i);
+      ctx.fillStyle = '#9aa4be';
+      ctx.font = '10px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`L${l.orig_lap_number || l.lap_number}`, px, padT + plotH + 18);
+    });
+
+  } else if (mode === 'speeds') {
+    const spdFactor = state.unitMph ? 0.621371 : 1.0;
+    const spdUnit = state.unitMph ? 'mph' : 'km/h';
+    const topSpeeds = plotLaps.map(l => (l.max_speed_kmh || 0) * spdFactor);
+    const minV = Math.min(...topSpeeds) * 0.92;
+    const maxV = Math.max(...topSpeeds) * 1.04 + 1;
+    const yForVal = (v) => padT + plotH - ((v - minV) / Math.max(1, maxV - minV)) * plotH;
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.fillStyle = '#8e94a5';
+    ctx.font = '10px JetBrains Mono, monospace';
+    ctx.textAlign = 'right';
+    for (let g = 0; g <= 4; g++) {
+      const val = minV + (g / 4) * (maxV - minV);
+      const gy = yForVal(val);
+      ctx.beginPath();
+      ctx.moveTo(padL, gy);
+      ctx.lineTo(padL + plotW, gy);
+      ctx.stroke();
+      ctx.fillText(`${val.toFixed(0)} ${spdUnit}`, padL - 8, gy + 3);
+    }
+
+    ctx.strokeStyle = '#00e676';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    plotLaps.forEach((l, i) => {
+      const px = xForIdx(i);
+      const py = yForVal((l.max_speed_kmh || 0) * spdFactor);
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    });
+    ctx.stroke();
+
+    plotLaps.forEach((l, i) => {
+      const px = xForIdx(i);
+      const py = yForVal((l.max_speed_kmh || 0) * spdFactor);
+      ctx.beginPath();
+      ctx.arc(px, py, 5, 0, Math.PI * 2);
+      ctx.fillStyle = '#00e676';
+      ctx.fill();
+      ctx.fillStyle = '#9aa4be';
+      ctx.font = '10px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`L${l.orig_lap_number || l.lap_number}`, px, padT + plotH + 18);
+      state.progressionHitPoints.push({ x: px, y: py, r: 10, lap: l });
+    });
+  }
+
+  ctx.restore();
+}
+

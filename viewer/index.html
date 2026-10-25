@@ -90,6 +90,13 @@
             </span>
             <kbd>T</kbd>
           </button>
+          <button id="btn-open-progression" class="dropdown-item" title="View Multi-Session Day Progression, Lap Trends & Sector Splits (P)">
+            <span class="dropdown-item-left">
+              <span class="dropdown-item-icon">📈</span>
+              <span>Day &amp; Session Progression</span>
+            </span>
+            <kbd>P</kbd>
+          </button>
           <div class="dropdown-divider"></div>
           <div class="dropdown-header">Theoretical & Ghost</div>
           <button id="btn-menu-optimal-lap" class="dropdown-item" title="Jump to Synthesized Theoretical Optimal Lap">
@@ -218,11 +225,16 @@
       <button id="btn-open-settings" class="btn btn-secondary btn-icon" title="Settings & Track Gate Library">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
+      <button id="btn-add-session-file" class="btn btn-secondary" title="Add / Merge another Session JSON or .ddalap.json Reference Lap into current view">
+        <span style="color:#ffd600; font-weight:800;">+</span>
+        <span>Add Session / Ref</span>
+      </button>
       <button id="btn-load-file" class="btn btn-primary" title="Open Ducati DDA Binary or Exported JSON File">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         <span>Open File</span>
       </button>
-      <input type="file" id="file-input" accept=".json,.dda,.csv" style="display: none;">
+      <input type="file" id="file-input" accept=".json,.dda,.csv,.ddalap.json" style="display: none;">
+      <input type="file" id="add-session-file-input" accept=".json,.ddalap.json,.csv" multiple style="display: none;">
       <input type="file" id="settings-file-input" accept=".json" style="display: none;">
       <input type="file" id="video-file-input" accept="video/mp4,video/quicktime,video/webm,video/*" style="display: none;">
       <input type="file" id="video-lap-b-file-input" accept="video/mp4,video/quicktime,video/webm,video/*" style="display: none;">
@@ -916,6 +928,12 @@
                 <span id="lbl-density-mode">Compact Density: OFF</span>
               </span>
             </button>
+            <button id="btn-menu-expand-laptimes" class="dropdown-item">
+              <span class="dropdown-item-left">
+                <span class="dropdown-item-icon">⤢</span>
+                <span id="lbl-menu-expand-laptimes">Full-Height Lap Log: OFF</span>
+              </span>
+            </button>
             <button id="btn-collapse-all-cards" class="dropdown-item">
               <span class="dropdown-item-left">
                 <span class="dropdown-item-icon">📁</span>
@@ -961,6 +979,10 @@
               <span id="data-best-lap-badge" class="badge badge-best-lap">🏆 Best: 2:03.80</span>
               <span id="data-opt-lap-badge" class="badge badge-opt-lap">⚡ Opt: 2:02.95</span>
             </div>
+            <button type="button" id="btn-expand-laptimes-full" class="btn-card-expand-full" title="Expand Lap Times & Session Log to full vertical height of DATA section">
+              <svg class="icon-expand-full" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+              <svg class="icon-restore-full" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" style="display: none;"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg>
+            </button>
             <button class="btn-card-collapse" title="Collapse / Expand Card">
               <svg class="card-collapse-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
@@ -968,11 +990,21 @@
         </div>
 
         <div class="card-content-body">
-          <div class="lap-table-container">
+          <!-- Multi-Session & Reference Lap Filter Bar -->
+          <div id="session-filter-bar" class="session-filter-bar">
+            <div id="session-filter-pills" class="session-filter-pills">
+              <button type="button" class="session-pill active" data-session="ALL">All Laps</button>
+            </div>
+            <div class="session-filter-actions">
+              <button type="button" id="btn-card-progression" class="btn-xs btn-prog-pill" title="Open Day & Session Progression Analytics (P)">📈 Progress</button>
+              <button type="button" id="btn-card-add-ref" class="btn-xs btn-ref-pill" title="Add Session JSON or .ddalap.json Reference Lap">+ Add</button>
+            </div>
+          </div>
+          <div class="lap-table-container" id="lap-table-container">
             <table class="lap-table" id="lap-times-table">
               <thead>
                 <tr>
-                  <th>Lap</th>
+                  <th>Lap / Session</th>
                   <th>Time</th>
                   <th>S1</th>
                   <th>S2</th>
@@ -984,6 +1016,9 @@
                 <!-- Dynamically populated lap rows -->
               </tbody>
             </table>
+          </div>
+          <div class="laptimes-resize-handle" id="laptimes-resize-handle" title="Drag down to expand Lap Times height (Double-click to toggle full height)">
+            <div class="laptimes-resize-grip"></div>
           </div>
         </div>
       </div>
@@ -1735,6 +1770,7 @@
         <div class="shortcut-row"><kbd>Shift</kbd> + <kbd>←</kbd> / <kbd>→</kbd> <span>Jump 5.0s</span></div>
         <div class="shortcut-row"><kbd>Home</kbd> / <kbd>End</kbd> <span>Start / End of Session/Lap</span></div>
         <div class="shortcut-row"><kbd>C</kbd> <span>Toggle Lap Comparison Mode</span></div>
+        <div class="shortcut-row"><kbd>P</kbd> <span>Open Day &amp; Session Progression Analytics</span></div>
         <div class="shortcut-row"><kbd>T</kbd> <span>Open Turn Performance Scorecard</span></div>
         <div class="shortcut-row"><kbd>Alt</kbd> + <kbd>T</kbd> <span>Toggle Chart Turn Markers</span></div>
         <div class="shortcut-row"><kbd>A</kbd> <span>Toggle Map Turn Apex Markers</span></div>
@@ -1869,6 +1905,90 @@
             </thead>
             <tbody id="scorecard-table-body">
               <!-- Dynamically populated turn evaluations -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Day & Session Progression Analytics Modal -->
+  <div id="modal-progression" class="modal-overlay" style="display: none;">
+    <div class="modal-card modal-scorecard-card">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <span style="font-size: 18px;">📈</span>
+          <h3>Day &amp; Multi-Session Progression Analytics</h3>
+        </div>
+        <div class="modal-header-actions-group">
+          <button type="button" id="btn-prog-add-session" class="btn btn-tool-sm" title="Append another Session JSON or .ddalap.json Reference Lap">+ Add Session / Ref Lap</button>
+          <button type="button" id="btn-close-progression" class="btn-close">&times;</button>
+        </div>
+      </div>
+
+      <div class="scorecard-body">
+        <div class="scorecard-controls-bar">
+          <div class="progression-mode-tabs">
+            <button type="button" class="btn-tool-sm btn-prog-mode active" data-pmode="laptimes">⏱️ Lap Times Trend</button>
+            <button type="button" class="btn-tool-sm btn-prog-mode" data-pmode="sectors">🧩 Sector Splits (S1/S2/S3)</button>
+            <button type="button" class="btn-tool-sm btn-prog-mode" data-pmode="speeds">🚀 Top &amp; Apex Speeds</button>
+          </div>
+          <div class="scorecard-summary-pills">
+            <div class="scorecard-kpi-pill">
+              <span>Sessions:</span>
+              <strong id="kpi-prog-sessions" class="text-cyan">--</strong>
+            </div>
+            <div class="scorecard-kpi-pill">
+              <span>Flying Laps:</span>
+              <strong id="kpi-prog-laps" class="text-cyan">--</strong>
+            </div>
+            <div class="scorecard-kpi-pill">
+              <span>Day Best:</span>
+              <strong id="kpi-prog-best" class="text-green">--</strong>
+            </div>
+            <div class="scorecard-kpi-pill">
+              <span>Day Δ (S1 → Best):</span>
+              <strong id="kpi-prog-improvement" class="text-yellow">--</strong>
+            </div>
+            <div class="scorecard-kpi-pill">
+              <span>Optimal Lap:</span>
+              <strong id="kpi-prog-optimal" style="color: #c084fc;">--</strong>
+            </div>
+            <div class="scorecard-kpi-pill">
+              <span>Consistency (σ):</span>
+              <strong id="kpi-prog-consistency" class="text-cyan">--</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="progression-chart-wrap" style="background: rgba(12, 15, 23, 0.85); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px; margin-bottom: 12px; position: relative;">
+          <canvas id="progression-canvas" width="920" height="260" style="width: 100%; height: 260px; display: block; cursor: pointer;"></canvas>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 11px; color: var(--text-dim);">
+            <span>💡 Click any lap point on the chart to inspect that lap, or Shift+Click to Compare against Day Best.</span>
+            <span id="lbl-prog-chart-hint" class="val-mono" style="color: #00e5ff;"></span>
+          </div>
+        </div>
+
+        <div class="scorecard-table-wrap">
+          <table class="scorecard-table" id="progression-table">
+            <thead>
+              <tr>
+                <th>Session</th>
+                <th>Laps (Flying)</th>
+                <th>Best Lap</th>
+                <th>Δ vs Day Best</th>
+                <th>Avg Flying Lap</th>
+                <th>Consistency (σ)</th>
+                <th>Best S1</th>
+                <th>Best S2</th>
+                <th>Best S3</th>
+                <th>Top Speed</th>
+                <th>Max Lean</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="progression-table-body">
+              <!-- Dynamically populated session progression summary rows -->
             </tbody>
           </table>
         </div>

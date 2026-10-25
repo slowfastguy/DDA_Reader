@@ -180,6 +180,14 @@ const state = {
   rawRecords: [],
   records: [],
   laps: [],
+  sessions: [],
+  activeSessionFilter: 'ALL',
+  excludedLapKeys: new Set(),
+  collapsedSessionGroups: new Set(),
+  hideOutInLaps: false,
+  referenceLaps: [],
+  progressionChartMode: 'laptimes',
+  progressionHitPoints: [],
   gates: [],
   tracks: {},
   selectedLapNum: -1,
@@ -338,7 +346,9 @@ const state = {
     order: ['laptimes', 'timing', 'cluster', 'lean', 'gg', 'phases'],
     collapsed: {},
     hidden: {},
-    compactDensity: false
+    compactDensity: false,
+    laptimesFullHeight: false,
+    laptimesCustomHeight: null
   }
 };
 
@@ -355,6 +365,11 @@ const dom = {
   btnCustomizeCards: document.getElementById('btn-customize-cards'),
   btnToggleDensity: document.getElementById('btn-toggle-density'),
   lblDensityMode: document.getElementById('lbl-density-mode'),
+  btnExpandLaptimesFull: document.getElementById('btn-expand-laptimes-full'),
+  btnMenuExpandLaptimes: document.getElementById('btn-menu-expand-laptimes'),
+  lblMenuExpandLaptimes: document.getElementById('lbl-menu-expand-laptimes'),
+  lapTableContainer: document.getElementById('lap-table-container'),
+  laptimesResizeHandle: document.getElementById('laptimes-resize-handle'),
   btnCollapseAllCards: document.getElementById('btn-collapse-all-cards'),
   btnExpandAllCards: document.getElementById('btn-expand-all-cards'),
   btnResetCardsOrder: document.getElementById('btn-reset-cards-order'),
@@ -718,7 +733,28 @@ const dom = {
   chkModGmeter: document.getElementById('chk-mod-gmeter'),
   chkModLean: document.getElementById('chk-mod-lean'),
   chkModPedals: document.getElementById('chk-mod-pedals'),
-  inputDotColor: document.getElementById('input-dot-color')
+  inputDotColor: document.getElementById('input-dot-color'),
+
+  // Multi-Session & Day Progression Elements
+  btnAddSessionFile: document.getElementById('btn-add-session-file'),
+  addSessionFileInput: document.getElementById('add-session-file-input'),
+  sessionFilterBar: document.getElementById('session-filter-bar'),
+  sessionFilterPills: document.getElementById('session-filter-pills'),
+  btnCardProgression: document.getElementById('btn-card-progression'),
+  btnCardAddRef: document.getElementById('btn-card-add-ref'),
+  btnOpenProgression: document.getElementById('btn-open-progression'),
+  modalProgression: document.getElementById('modal-progression'),
+  btnCloseProgression: document.getElementById('btn-close-progression'),
+  btnProgAddSession: document.getElementById('btn-prog-add-session'),
+  progressionCanvas: document.getElementById('progression-canvas'),
+  progressionTableBody: document.getElementById('progression-table-body'),
+  kpiProgSessions: document.getElementById('kpi-prog-sessions'),
+  kpiProgLaps: document.getElementById('kpi-prog-laps'),
+  kpiProgBest: document.getElementById('kpi-prog-best'),
+  kpiProgImprovement: document.getElementById('kpi-prog-improvement'),
+  kpiProgOptimal: document.getElementById('kpi-prog-optimal'),
+  kpiProgConsistency: document.getElementById('kpi-prog-consistency'),
+  lblProgChartHint: document.getElementById('lbl-prog-chart-hint')
 };
 
 // Settings Initialization & Sync
@@ -737,6 +773,9 @@ function initSettings() {
     if (loaded.preferences && loaded.preferences.channels) Object.assign(base.preferences.channels, loaded.preferences.channels);
     if (loaded.preferences && loaded.preferences.channelLanes) Object.assign(base.preferences.channelLanes, loaded.preferences.channelLanes);
     if (loaded.preferences && loaded.preferences.motogp) Object.assign(base.preferences.motogp, loaded.preferences.motogp);
+    if (Array.isArray(loaded.reference_laps)) {
+      base.reference_laps = loaded.reference_laps;
+    }
     if (loaded.tracks) {
       for (const trackKey in loaded.tracks) {
         if (base.tracks[trackKey]) {
@@ -753,6 +792,7 @@ function initSettings() {
   }
 
   state.tracks = base.tracks;
+  state.referenceLaps = Array.isArray(base.reference_laps) ? base.reference_laps : [];
   const p = base.preferences;
   state.unitMph = p.unitMph !== undefined ? p.unitMph : true;
   state.currentLayer = p.currentLayer || 'dark';
@@ -856,7 +896,8 @@ function saveSettingsToStorage() {
       channels: state.channels,
       channelLanes: state.channelLanes
     },
-    tracks: state.tracks
+    tracks: state.tracks,
+    reference_laps: state.referenceLaps || []
   };
   try {
     localStorage.setItem('dda_settings', JSON.stringify(payload, null, 2));
@@ -885,7 +926,8 @@ function exportSettingsFile() {
       channels: state.channels,
       channelLanes: state.channelLanes
     },
-    tracks: state.tracks
+    tracks: state.tracks,
+    reference_laps: state.referenceLaps || []
   };
   const jsonStr = JSON.stringify(payload, null, 2);
   const blob = new Blob([jsonStr], { type: 'application/json' });
@@ -917,6 +959,15 @@ function importSettingsFile(file) {
       }
       if (data.tracks) {
         Object.assign(state.tracks, data.tracks);
+      }
+      if (Array.isArray(data.reference_laps)) {
+        const existingIds = new Set((state.referenceLaps || []).map(r => r.id));
+        data.reference_laps.forEach(ref => {
+          if (ref && ref.id && !existingIds.has(ref.id)) {
+            state.referenceLaps.push(ref);
+            existingIds.add(ref.id);
+          }
+        });
       }
       saveSettingsToStorage();
       initSettings();

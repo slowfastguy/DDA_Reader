@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Ducati DDA (Ducati Data Analyzer) GUI & Multi-Format Exporter
+Ducati DDA (Ducati Data Analyzer) GUI, Multi-Session Lap Manager & Multi-Format Exporter
 Modern Cross-Platform Desktop GUI powered by PyQt6 / PySide6.
-Full visual interface for decoding .dda files, inspecting telemetry channels,
+Full visual interface for decoding multiple .dda files, comparing/combining laps across sessions,
+managing Reference Laps (.ddalap.json & built-in library), inspecting telemetry frames,
 and exporting to Standalone Interactive HTML Visualizer, JSON, RaceChrono v3 CSV, RaceChrono Native .rcz,
 Standard CSV, GPX 1.1, and Google Earth 3D KML.
-Includes customizable batch directory conversion with selective output format checkboxes.
 """
 
 import os
@@ -24,7 +24,7 @@ try:
         QGridLayout, QLabel, QPushButton, QLineEdit, QGroupBox,
         QTabWidget, QTableWidget, QTableWidgetItem, QHeaderView,
         QCheckBox, QTextEdit, QFileDialog, QMessageBox, QFrame,
-        QDialog, QProgressBar
+        QDialog, QProgressBar, QComboBox, QInputDialog
     )
     QT_LIB = "PyQt6"
 except ImportError:
@@ -36,7 +36,7 @@ except ImportError:
             QGridLayout, QLabel, QPushButton, QLineEdit, QGroupBox,
             QTabWidget, QTableWidget, QTableWidgetItem, QHeaderView,
             QCheckBox, QTextEdit, QFileDialog, QMessageBox, QFrame,
-            QDialog, QProgressBar
+            QDialog, QProgressBar, QComboBox, QInputDialog
         )
         QT_LIB = "PySide6"
     except ImportError:
@@ -45,7 +45,16 @@ except ImportError:
         sys.exit(1)
 
 import dda_core
-from dda_core import DDAParser
+from dda_core import (
+    DDAParser,
+    DDAReferenceLap,
+    DDAMultiSessionCombiner,
+    SESSION_COLORS,
+    compute_session_hour_names,
+    load_reference_laps_library,
+    save_reference_lap_to_library,
+    delete_reference_lap_from_library,
+)
 from dda_device import DDADevice, DDARunInfo, HAS_USB
 
 
@@ -59,6 +68,18 @@ if IS_WIN:
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
     except Exception:
         pass
+
+
+def format_lap_time(seconds: float) -> str:
+    """Formats lap duration in seconds as M:SS.mmm or SS.mmm."""
+    if seconds is None or seconds <= 0:
+        return "--:--.---"
+    mins = int(seconds // 60)
+    secs = seconds - (mins * 60)
+    if mins > 0:
+        return f"{mins}:{secs:06.3f}"
+    return f"{secs:06.3f}s"
+
 
 # QSS Theme Stylesheet for Modern Dark Interface
 QSS_DARK = """
@@ -89,7 +110,7 @@ QGroupBox::title {
     background-color: #252a38;
     color: #ffffff;
 }
-QLineEdit {
+QLineEdit, QComboBox {
     background-color: #141722;
     color: #ffffff;
     border: 1px solid #353c52;
@@ -99,8 +120,15 @@ QLineEdit {
     selection-background-color: #00e5ff;
     selection-color: #000000;
 }
-QLineEdit:focus {
+QLineEdit:focus, QComboBox:focus {
     border: 1px solid #00e5ff;
+}
+QComboBox QAbstractItemView {
+    background-color: #141722;
+    color: #ffffff;
+    selection-background-color: #00695c;
+    selection-color: #ffffff;
+    border: 1px solid #353c52;
 }
 QPushButton {
     background-color: #353c52;
@@ -123,6 +151,14 @@ QPushButton#AccentBtn {
 }
 QPushButton#AccentBtn:hover {
     background-color: #b71c1c;
+}
+QPushButton#GoldBtn {
+    background-color: #262010;
+    color: #ffd600;
+    border: 1px solid #ffd600;
+}
+QPushButton#GoldBtn:hover {
+    background-color: #3d3315;
 }
 QPushButton#ViewerBtn {
     background-color: #11131a;
@@ -277,6 +313,7 @@ class DDADownloadWorker(QThread):
 class DDADownloadDialog(QDialog):
     """Interactive hardware download dialog with run selection and live progress."""
     sig_load_file = Signal(str)
+    sig_load_files = Signal(list)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -447,7 +484,6 @@ class DDADownloadDialog(QDialog):
         self.runs.clear()
         self.pbar.setValue(0)
 
-        # Check OEM downloader
         if self.device.is_oem_downloader_running():
             self.oem_banner.setVisible(True)
             self.lbl_dev_status.setText("⚠️ DDA Stick Found, but OEM Downloader is holding exclusive lock.")
@@ -475,7 +511,6 @@ class DDADownloadDialog(QDialog):
 
             self.tbl_runs.setRowCount(len(self.runs))
             for row, r in enumerate(self.runs):
-                # Checkbox
                 chk = QCheckBox()
                 chk.setChecked(True)
                 chk_widget = QWidget()
@@ -485,21 +520,17 @@ class DDADownloadDialog(QDialog):
                 chk_layout.setContentsMargins(0, 0, 0, 0)
                 self.tbl_runs.setCellWidget(row, 0, chk_widget)
 
-                # Index
                 item_idx = QTableWidgetItem(f"Run #{r.index:02d}")
                 item_idx.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.tbl_runs.setItem(row, 1, item_idx)
 
-                # Date & Time
                 item_dt = QTableWidgetItem(r.datetime_str)
                 self.tbl_runs.setItem(row, 2, item_dt)
 
-                # Size
                 item_sz = QTableWidgetItem(f"{r.size_kb:.1f} KB")
                 item_sz.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
                 self.tbl_runs.setItem(row, 3, item_sz)
 
-                # Duration
                 item_dur = QTableWidgetItem(r.duration_str)
                 item_dur.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
                 self.tbl_runs.setItem(row, 4, item_dur)
@@ -584,14 +615,14 @@ class DDADownloadDialog(QDialog):
             self,
             "Download Complete",
             f"Successfully downloaded {len(filepaths)} native .dda session file(s)!\n\n"
-            f"Would you like to open and inspect the newest run in the reader now?",
+            f"Would you like to load all {len(filepaths)} downloaded session(s) into the Laps & Sessions Manager now?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.Yes
         )
 
         if reply == QMessageBox.StandardButton.Yes and filepaths:
-            latest = filepaths[-1]
-            self.sig_load_file.emit(latest)
+            self.sig_load_files.emit(filepaths)
+            self.sig_load_file.emit(filepaths[-1])
             self.accept()
 
     def _on_worker_error(self, err_msg):
@@ -608,14 +639,229 @@ class DDADownloadDialog(QDialog):
         event.accept()
 
 
+class ReferenceLapLibraryDialog(QDialog):
+    """
+    Dialog for browsing the built-in Reference Lap Library (saved in dda_settings.json),
+    importing/exporting standalone .ddalap.json files, and loading selected Reference Laps
+    into the active multi-session workspace.
+    """
+    sig_select_ref_laps = Signal(list)  # list of DDAReferenceLap
+
+    def __init__(self, parent=None, active_track: str = ""):
+        super().__init__(parent)
+        self.setWindowTitle("Reference Lap Library & .ddalap.json Manager")
+        self.resize(860, 500)
+        self.setMinimumSize(720, 400)
+        self.active_track = active_track
+        self.library_laps: list[DDAReferenceLap] = []
+
+        self._build_ui()
+        self.setStyleSheet(parent.styleSheet() if parent else QSS_DARK)
+        self._reload_library()
+
+    def _build_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
+
+        info_box = QGroupBox(" ⭐ Saved Reference Laps (Built-in Library & Shareable .ddalap.json Files) ", self)
+        info_layout = QVBoxLayout(info_box)
+        info_layout.setContentsMargins(12, 12, 12, 12)
+
+        top_bar = QHBoxLayout()
+        lbl_desc = QLabel(
+            "Check any Reference Laps below to include them alongside your sessions, or import a standalone .ddalap.json file:",
+            info_box
+        )
+        lbl_desc.setStyleSheet("color: #9aa4be;")
+        top_bar.addWidget(lbl_desc, 1)
+
+        btn_import = QPushButton("📂 Import .ddalap.json File...", info_box)
+        btn_import.setObjectName("GoldBtn")
+        btn_import.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_import.clicked.connect(self._import_ddalap_file)
+        top_bar.addWidget(btn_import)
+
+        info_layout.addLayout(top_bar)
+
+        cols = ("Include", "Track", "Reference Name", "Lap Time", "S1 / S2 / S3", "Max Speed", "Rider / Bike", "Date")
+        self.tbl_refs = QTableWidget(info_box)
+        self.tbl_refs.setColumnCount(len(cols))
+        self.tbl_refs.setHorizontalHeaderLabels(cols)
+        self.tbl_refs.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.tbl_refs.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.tbl_refs.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        self.tbl_refs.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        self.tbl_refs.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
+        self.tbl_refs.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
+        self.tbl_refs.horizontalHeader().setSectionResizeMode(6, QHeaderView.ResizeMode.ResizeToContents)
+        self.tbl_refs.horizontalHeader().setSectionResizeMode(7, QHeaderView.ResizeMode.ResizeToContents)
+        self.tbl_refs.setAlternatingRowColors(True)
+        self.tbl_refs.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.tbl_refs.setStyleSheet("QTableWidget { alternate-background-color: #1a1e2b; }")
+        info_layout.addWidget(self.tbl_refs)
+
+        act_bar = QHBoxLayout()
+        btn_export = QPushButton("💾 Export Highlighted to .ddalap.json...", info_box)
+        btn_export.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_export.clicked.connect(self._export_highlighted)
+        act_bar.addWidget(btn_export)
+
+        btn_delete = QPushButton("🗑️ Delete Highlighted from Library", info_box)
+        btn_delete.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_delete.clicked.connect(self._delete_highlighted)
+        act_bar.addWidget(btn_delete)
+
+        act_bar.addStretch()
+        info_layout.addLayout(act_bar)
+        layout.addWidget(info_box, 1)
+
+        bottom_bar = QHBoxLayout()
+        bottom_bar.addStretch()
+
+        btn_add = QPushButton("✅ Load Checked Reference Laps into Workspace", self)
+        btn_add.setObjectName("AccentBtn")
+        btn_add.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_add.clicked.connect(self._confirm_selection)
+        bottom_bar.addWidget(btn_add)
+
+        btn_cancel = QPushButton("Close", self)
+        btn_cancel.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_cancel.clicked.connect(self.close)
+        bottom_bar.addWidget(btn_cancel)
+
+        layout.addLayout(bottom_bar)
+
+    def _reload_library(self, newly_imported_id: str = None):
+        self.library_laps = load_reference_laps_library()
+        self.tbl_refs.setRowCount(len(self.library_laps))
+
+        for row, ref in enumerate(self.library_laps):
+            chk = QCheckBox()
+            # Pre-check if it matches the active track or was just imported
+            match_track = bool(
+                self.active_track
+                and ref.track_name
+                and self.active_track.strip().lower() == ref.track_name.strip().lower()
+            )
+            chk.setChecked(match_track or (newly_imported_id is not None and ref.id == newly_imported_id))
+            chk_widget = QWidget()
+            chk_layout = QHBoxLayout(chk_widget)
+            chk_layout.addWidget(chk)
+            chk_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            chk_layout.setContentsMargins(0, 0, 0, 0)
+            self.tbl_runs_chk = chk
+            self.tbl_refs.setCellWidget(row, 0, chk_widget)
+
+            s1, s2, s3 = (ref.sectors + [None, None, None])[:3]
+            s_str = " / ".join(f"{s:.2f}s" if isinstance(s, (int, float)) and s > 0 else "--" for s in (s1, s2, s3))
+            rider_bike = ref.rider_name or "Rider"
+            if ref.bike_model:
+                rider_bike += f" ({ref.bike_model})"
+
+            vals = [
+                ref.track_name or "Unknown Track",
+                f"⭐ {ref.name}",
+                format_lap_time(ref.duration_s),
+                s_str,
+                f"{ref.max_speed_kmh:.1f} km/h",
+                rider_bike,
+                ref.session_datetime or "--"
+            ]
+            for c_idx, val in enumerate(vals, start=1):
+                item = QTableWidgetItem(val)
+                if c_idx in (3, 4, 5):
+                    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                if c_idx == 2:
+                    item.setForeground(QColor("#ffd600"))
+                self.tbl_refs.setItem(row, c_idx, item)
+
+    def _import_ddalap_file(self):
+        files, _ = QFileDialog.getOpenFileNames(
+            self,
+            "Import Reference Lap (.ddalap.json or Session .json)",
+            "",
+            "DDA Reference Laps (*.ddalap.json *.json);;All Files (*)"
+        )
+        if not files:
+            return
+        last_id = None
+        imported_count = 0
+        for fpath in files:
+            try:
+                ref = DDAReferenceLap.load_file(fpath)
+                save_reference_lap_to_library(ref)
+                last_id = ref.id
+                imported_count += 1
+            except Exception as e:
+                QMessageBox.warning(self, "Import Error", f"Could not import Reference Lap from:\n{fpath}\n\n{e}")
+        if imported_count > 0:
+            self._reload_library(newly_imported_id=last_id)
+
+    def _export_highlighted(self):
+        row = self.tbl_refs.currentRow()
+        if row < 0 or row >= len(self.library_laps):
+            QMessageBox.information(self, "Select Reference Lap", "Please click a Reference Lap row in the table to export.")
+            return
+        ref = self.library_laps[row]
+        safe_name = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in f"{ref.track_name}_{ref.name}").strip("_")
+        out_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Standalone Reference Lap (.ddalap.json)",
+            f"{safe_name}.ddalap.json",
+            "DDA Reference Lap (*.ddalap.json);;JSON Files (*.json)"
+        )
+        if out_path:
+            try:
+                ref.save_file(out_path)
+                QMessageBox.information(self, "Exported Reference Lap", f"Saved standalone Reference Lap to:\n{out_path}")
+            except Exception as e:
+                QMessageBox.critical(self, "Export Error", str(e))
+
+    def _delete_highlighted(self):
+        row = self.tbl_refs.currentRow()
+        if row < 0 or row >= len(self.library_laps):
+            QMessageBox.information(self, "Select Reference Lap", "Please click a Reference Lap row in the table to delete.")
+            return
+        ref = self.library_laps[row]
+        reply = QMessageBox.question(
+            self,
+            "Delete Reference Lap",
+            f"Remove '{ref.name}' ({ref.track_name}) from the built-in Reference Lap Library?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            delete_reference_lap_from_library(ref.id)
+            self._reload_library()
+
+    def _confirm_selection(self):
+        chosen = []
+        for row, ref in enumerate(self.library_laps):
+            w = self.tbl_refs.cellWidget(row, 0)
+            if w:
+                chk = w.findChild(QCheckBox)
+                if chk and chk.isChecked():
+                    chosen.append(ref)
+        self.sig_select_ref_laps.emit(chosen)
+        self.accept()
+
+
 class DDAConverterApp(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Ducati DDA Reader & Telemetry Exporter Pro")
-        self.resize(1120, 720)
-        self.setMinimumSize(980, 600)
+        self.setWindowTitle("Ducati DDA Reader, Multi-Session Lap Manager & Telemetry Exporter Pro")
+        self.resize(1240, 780)
+        self.setMinimumSize(1020, 640)
 
+        # Multi-session & reference lap state
+        self.loaded_sessions: list[dict] = []  # [{"parser", "filepath", "session_id", "session_label", "color", "selected_laps"}]
+        self.loaded_ref_laps: list[dict] = []  # [{"ref_lap", "checked"}]
+        self.lap_table_row_map: list[dict] = []  # maps row index -> {"type": "session"|"ref", "session_idx": int, "lap_number": int, "ref_idx": int}
+        self._suppress_lap_item_changed = False
+
+        # Backward-compatible attributes pointing to active combined (or single) parser
         self.parser = None
         self.current_filepath = None
 
@@ -625,10 +871,8 @@ class DDAConverterApp(QMainWindow):
         # Auto-load default file if available in directory
         for candidate in ["sample_run.dda", "Run045-192535-00.14.dda"]:
             if os.path.exists(candidate):
-                self.file_entry.setText(os.path.abspath(candidate))
-                self._parse_file()
+                self._load_dda_files([os.path.abspath(candidate)], replace=True)
                 break
-
 
     def _build_ui(self):
         central_widget = QWidget(self)
@@ -648,7 +892,7 @@ class DDAConverterApp(QMainWindow):
         lbl_title.setStyleSheet("color: #ffffff; font-size: 17px; font-weight: bold; background: transparent;")
         hdr_layout.addWidget(lbl_title)
 
-        lbl_sub = QLabel("GPS & Chassis Dynamics Visualizer", hdr_frame)
+        lbl_sub = QLabel("Multi-Session Lap Manager, Reference Laps & Telemetry Visualizer", hdr_frame)
         lbl_sub.setStyleSheet("color: #ffcdd2; font-size: 13px; font-style: italic; background: transparent;")
         hdr_layout.addWidget(lbl_sub)
 
@@ -660,7 +904,7 @@ class DDAConverterApp(QMainWindow):
         btn_download_top.clicked.connect(self._open_device_downloader)
         hdr_layout.addWidget(btn_download_top)
 
-        btn_viewer_top = QPushButton("🚀 Open Interactive Viewer", hdr_frame)
+        btn_viewer_top = QPushButton("🚀 Open Interactive Viewer (Checked Sessions)", hdr_frame)
         btn_viewer_top.setObjectName("ViewerBtn")
         btn_viewer_top.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_viewer_top.clicked.connect(self._launch_viewer)
@@ -671,42 +915,56 @@ class DDAConverterApp(QMainWindow):
         # Content Container Layout
         content_widget = QWidget(central_widget)
         content_layout = QVBoxLayout(content_widget)
-        content_layout.setContentsMargins(15, 15, 15, 15)
-        content_layout.setSpacing(12)
+        content_layout.setContentsMargins(15, 12, 15, 15)
+        content_layout.setSpacing(10)
 
-        # 2. File Selection Box
-        file_box = QGroupBox(" DDA Telemetry File ", content_widget)
+        # 2. Multi-Session & Reference Lap Workspace Bar
+        file_box = QGroupBox(" Telemetry Sessions & Reference Laps Workspace ", content_widget)
         file_layout = QHBoxLayout(file_box)
-        file_layout.setContentsMargins(12, 12, 12, 12)
+        file_layout.setContentsMargins(12, 10, 12, 10)
+        file_layout.setSpacing(8)
 
         self.file_entry = QLineEdit(file_box)
-        self.file_entry.setPlaceholderText("Select a .dda file or click Browse...")
+        self.file_entry.setPlaceholderText("Add one or more .dda session files, load a track-day folder, or attach Reference Laps...")
         file_layout.addWidget(self.file_entry, 1)
 
-        btn_browse = QPushButton("Browse DDA...", file_box)
-        btn_browse.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_browse.clicked.connect(self._browse_file)
-        file_layout.addWidget(btn_browse)
+        btn_add_files = QPushButton("📂 Add .DDA Files...", file_box)
+        btn_add_files.setObjectName("AccentBtn")
+        btn_add_files.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_add_files.setToolTip("Select one or multiple .dda session files to load and compare")
+        btn_add_files.clicked.connect(self._browse_file)
+        file_layout.addWidget(btn_add_files)
+
+        btn_day_folder = QPushButton("📁 Load Day Folder...", file_box)
+        btn_day_folder.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_day_folder.setToolTip("Load all .dda files from a directory sorted chronologically (S1, S2, S3...)")
+        btn_day_folder.clicked.connect(self._load_day_folder)
+        file_layout.addWidget(btn_day_folder)
+
+        btn_ref_laps = QPushButton("⭐ Reference Laps...", file_box)
+        btn_ref_laps.setObjectName("GoldBtn")
+        btn_ref_laps.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_ref_laps.setToolTip("Load saved Reference Laps from library or import standalone .ddalap.json files")
+        btn_ref_laps.clicked.connect(self._open_reference_lap_dialog)
+        file_layout.addWidget(btn_ref_laps)
 
         btn_device = QPushButton("⚡ Read Stick...", file_box)
         btn_device.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_device.clicked.connect(self._open_device_downloader)
         file_layout.addWidget(btn_device)
 
-        btn_parse = QPushButton("Load & Decode", file_box)
-        btn_parse.setObjectName("AccentBtn")
-        btn_parse.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_parse.clicked.connect(self._parse_file)
-        file_layout.addWidget(btn_parse)
-
+        btn_clear_ws = QPushButton("🗑️ Clear All", file_box)
+        btn_clear_ws.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_clear_ws.clicked.connect(self._clear_workspace)
+        file_layout.addWidget(btn_clear_ws)
 
         content_layout.addWidget(file_box)
 
-        # 3. Session Summary Grid Card
-        stats_box = QGroupBox(" Session Summary & Dynamics ", content_widget)
+        # 3. Dynamic Multi-Session Summary Card
+        stats_box = QGroupBox(" Checked Sessions & Telemetry Summary ", content_widget)
         stats_grid = QGridLayout(stats_box)
-        stats_grid.setContentsMargins(15, 12, 15, 12)
-        stats_grid.setVerticalSpacing(8)
+        stats_grid.setContentsMargins(15, 10, 15, 10)
+        stats_grid.setVerticalSpacing(6)
 
         self.lbl_meta_track = QLabel("Track: --", stats_box)
         self.lbl_meta_track.setStyleSheet("font-weight: bold; color: #ffffff;")
@@ -716,10 +974,12 @@ class DDAConverterApp(QMainWindow):
         self.lbl_meta_rider.setStyleSheet("font-weight: bold; color: #ffffff;")
         stats_grid.addWidget(self.lbl_meta_rider, 0, 1)
 
-        self.lbl_meta_dur = QLabel("Duration: --", stats_box)
+        self.lbl_meta_dur = QLabel("Sessions: 0 | Total Time: 0.0m", stats_box)
+        self.lbl_meta_dur.setStyleSheet("font-weight: bold; color: #00e5ff;")
         stats_grid.addWidget(self.lbl_meta_dur, 0, 2)
 
-        self.lbl_meta_gps = QLabel("GPS Fixes: --", stats_box)
+        self.lbl_meta_gps = QLabel("Total Distance: --", stats_box)
+        self.lbl_meta_gps.setStyleSheet("font-weight: bold; color: #00e676;")
         stats_grid.addWidget(self.lbl_meta_gps, 0, 3)
 
         self.lbl_stat_speed = QLabel("Max Wheel Speed: -- km/h (-- mph)", stats_box)
@@ -741,7 +1001,7 @@ class DDAConverterApp(QMainWindow):
         self.lbl_stat_gps_speed.setStyleSheet("font-weight: bold; color: #b388ff;")
         stats_grid.addWidget(self.lbl_stat_gps_speed, 2, 0)
 
-        self.lbl_stat_slip = QLabel("Peak Wheel Slip: -- %", stats_box)
+        self.lbl_stat_slip = QLabel("Peak Wheel Slip: --", stats_box)
         self.lbl_stat_slip.setStyleSheet("font-weight: bold; color: #ffd600;")
         stats_grid.addWidget(self.lbl_stat_slip, 2, 1)
 
@@ -754,13 +1014,107 @@ class DDAConverterApp(QMainWindow):
 
         content_layout.addWidget(stats_box)
 
-        # 4. Multi-Tabbed Workspace
+        # 4. Multi-Tabbed Workspace (Tab 1: Sessions & Reference Laps, Tab 2: Raw Frame Inspector, Tab 3: Export Hub, Tab 4: Log)
         self.tabs = QTabWidget(content_widget)
 
-        # Tab 1: Telemetry Inspector
+        # =========================================================
+        # Tab 1: Sessions & Reference Laps Manager (Primary View)
+        # =========================================================
+        tab_laps = QWidget()
+        laps_layout = QVBoxLayout(tab_laps)
+        laps_layout.setContentsMargins(10, 10, 10, 10)
+        laps_layout.setSpacing(8)
+
+        # Quick Selection & Info Toolbar
+        filter_bar = QHBoxLayout()
+        filter_bar.setSpacing(8)
+
+        btn_all_laps = QPushButton("✅ Select All Sessions", tab_laps)
+        btn_all_laps.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_all_laps.clicked.connect(self._select_all_laps)
+        filter_bar.addWidget(btn_all_laps)
+
+        btn_none_laps = QPushButton("⬜ Select None", tab_laps)
+        btn_none_laps.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_none_laps.clicked.connect(self._select_no_laps)
+        filter_bar.addWidget(btn_none_laps)
+
+        lbl_gate_hint = QLabel(
+            "💡 Laps & sector splits are dynamically sliced per session through the Start/Finish & Sector gates in the Interactive Viewer.",
+            tab_laps
+        )
+        lbl_gate_hint.setStyleSheet("color: #9aa4be; font-style: italic; margin-left: 8px;")
+        filter_bar.addWidget(lbl_gate_hint)
+
+        filter_bar.addStretch()
+
+        btn_rem_session = QPushButton("🗑️ Remove Highlighted Row", tab_laps)
+        btn_rem_session.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_rem_session.clicked.connect(self._remove_highlighted_session)
+        filter_bar.addWidget(btn_rem_session)
+
+        laps_layout.addLayout(filter_bar)
+
+        # Sessions & Reference Laps Table
+        lap_cols = (
+            "Include",
+            "Session",
+            "Source File / Name",
+            "Date & Time",
+            "Duration",
+            "Distance",
+            "Frames",
+            "Max Speed (W / GPS)",
+            "Max Lean (L / R)",
+            "Max RPM",
+            "Action"
+        )
+        self.lap_table = QTableWidget(tab_laps)
+        self.lap_table.setColumnCount(len(lap_cols))
+        self.lap_table.setHorizontalHeaderLabels(lap_cols)
+        self.lap_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.lap_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.lap_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        self.lap_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        self.lap_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
+        self.lap_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
+        self.lap_table.horizontalHeader().setSectionResizeMode(6, QHeaderView.ResizeMode.ResizeToContents)
+        self.lap_table.horizontalHeader().setSectionResizeMode(7, QHeaderView.ResizeMode.ResizeToContents)
+        self.lap_table.horizontalHeader().setSectionResizeMode(8, QHeaderView.ResizeMode.ResizeToContents)
+        self.lap_table.horizontalHeader().setSectionResizeMode(9, QHeaderView.ResizeMode.ResizeToContents)
+        self.lap_table.horizontalHeader().setSectionResizeMode(10, QHeaderView.ResizeMode.ResizeToContents)
+        self.lap_table.setAlternatingRowColors(True)
+        self.lap_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.lap_table.setStyleSheet("QTableWidget { alternate-background-color: #1a1e2b; }")
+        self.lap_table.itemSelectionChanged.connect(self._on_lap_table_selection_changed)
+        laps_layout.addWidget(self.lap_table)
+
+        self.tabs.addTab(tab_laps, " 🏁 Sessions & Reference Laps ")
+
+        # =========================================================
+        # Tab 2: Raw Frame Inspector (Secondary Tab)
+        # =========================================================
         tab_inspector = QWidget()
         insp_layout = QVBoxLayout(tab_inspector)
-        insp_layout.setContentsMargins(8, 8, 8, 8)
+        insp_layout.setContentsMargins(10, 10, 10, 10)
+        insp_layout.setSpacing(8)
+
+        insp_top = QHBoxLayout()
+        lbl_insp_filter = QLabel("Inspect Telemetry Frames For:", tab_inspector)
+        lbl_insp_filter.setStyleSheet("font-weight: bold; color: #9aa4be;")
+        insp_top.addWidget(lbl_insp_filter)
+
+        self.cmb_frame_filter = QComboBox(tab_inspector)
+        self.cmb_frame_filter.setMinimumWidth(340)
+        self.cmb_frame_filter.currentIndexChanged.connect(self._populate_raw_frame_table)
+        insp_top.addWidget(self.cmb_frame_filter)
+
+        self.lbl_frame_count = QLabel("", tab_inspector)
+        self.lbl_frame_count.setStyleSheet("color: #9aa4be;")
+        insp_top.addWidget(self.lbl_frame_count)
+        insp_top.addStretch()
+
+        insp_layout.addLayout(insp_top)
 
         cols = ("Time (s)", "Speed (Wheel)", "Speed (GPS)", "Wheel Slip", "RPM", "TPS", "Gear", "Lean (°)", "Temp (°C)", "DTC Fast", "DTC Slow", "Odo (km)", "Latitude", "Longitude", "Altitude (m)")
         self.tree = QTableWidget(tab_inspector)
@@ -771,15 +1125,17 @@ class DDAConverterApp(QMainWindow):
         self.tree.setStyleSheet("QTableWidget { alternate-background-color: #1a1e2b; }")
         insp_layout.addWidget(self.tree)
 
-        self.tabs.addTab(tab_inspector, " Telemetry Inspector ")
+        self.tabs.addTab(tab_inspector, " 🔍 Raw Frame Inspector ")
 
-        # Tab 2: Export Hub
+        # =========================================================
+        # Tab 3: Export Hub
+        # =========================================================
         tab_export = QWidget()
         exp_layout = QVBoxLayout(tab_export)
         exp_layout.setContentsMargins(15, 15, 15, 15)
         exp_layout.setSpacing(12)
 
-        lbl_exp_info = QLabel("Export Decoded Session into Visualizers, Telemetry, and GPS Formats:", tab_export)
+        lbl_exp_info = QLabel("Export Checked Laps & Sessions (Combined) into Visualizers, Telemetry, and GPS Formats:", tab_export)
         lbl_exp_info.setStyleSheet("font-weight: bold; color: #ffffff;")
         exp_layout.addWidget(lbl_exp_info)
 
@@ -787,7 +1143,7 @@ class DDAConverterApp(QMainWindow):
         btn_grid = QGridLayout()
         btn_grid.setSpacing(10)
 
-        btn_html = QPushButton("🌐 Export Standalone HTML Visualizer\n(Self-Contained Interactive Dashboard)", tab_export)
+        btn_html = QPushButton("🌐 Export Standalone HTML Visualizer\n(Self-Contained Multi-Session Dashboard)", tab_export)
         btn_html.setObjectName("ExportHtml")
         btn_html.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_html.clicked.connect(lambda: self._export("html"))
@@ -805,7 +1161,7 @@ class DDAConverterApp(QMainWindow):
         btn_rcz.clicked.connect(lambda: self._export("racechrono_rcz"))
         btn_grid.addWidget(btn_rcz, 0, 2)
 
-        btn_json = QPushButton("📊 Export Telemetry JSON\n(For Web Apps & Custom Code)", tab_export)
+        btn_json = QPushButton("📊 Export Telemetry JSON\n(Combined Multi-Session JSON Bundle)", tab_export)
         btn_json.setObjectName("ExportJson")
         btn_json.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_json.clicked.connect(lambda: self._export("json"))
@@ -826,11 +1182,11 @@ class DDAConverterApp(QMainWindow):
         exp_layout.addLayout(btn_grid)
 
         # Batch Export Section
-        batch_box = QGroupBox(" Batch Directory Conversion (Select Output Formats) ", tab_export)
+        batch_box = QGroupBox(" Batch Directory Conversion (Individual .DDA Files in Folder) ", tab_export)
         batch_layout = QVBoxLayout(batch_box)
         batch_layout.setContentsMargins(12, 12, 12, 12)
 
-        lbl_batch = QLabel("Choose which file formats to generate for each .dda file in the target folder:", batch_box)
+        lbl_batch = QLabel("Choose which file formats to generate for each .dda file in a target folder:", batch_box)
         lbl_batch.setStyleSheet("font-weight: bold; color: #ffffff;")
         batch_layout.addWidget(lbl_batch)
 
@@ -889,9 +1245,11 @@ class DDAConverterApp(QMainWindow):
         exp_layout.addWidget(batch_box)
         exp_layout.addStretch()
 
-        self.tabs.addTab(tab_export, " Export Hub ")
+        self.tabs.addTab(tab_export, " 📦 Export Hub ")
 
-        # Tab 3: Log Console
+        # =========================================================
+        # Tab 4: Processing Log
+        # =========================================================
         tab_log = QWidget()
         log_layout = QVBoxLayout(tab_log)
         log_layout.setContentsMargins(8, 8, 8, 8)
@@ -900,166 +1258,648 @@ class DDAConverterApp(QMainWindow):
         self.txt_log.setReadOnly(True)
         log_layout.addWidget(self.txt_log)
 
-        self.tabs.addTab(tab_log, " Processing Log ")
+        self.tabs.addTab(tab_log, " 📋 Processing Log ")
 
         content_layout.addWidget(self.tabs)
         main_layout.addWidget(content_widget)
+
+    # =========================================================
+    # Workspace & File Loading Methods
+    # =========================================================
 
     def _log(self, msg):
         self.txt_log.append(msg)
 
     def _browse_file(self):
-        f, _ = QFileDialog.getOpenFileName(
+        files, _ = QFileDialog.getOpenFileNames(
             self,
-            "Select Ducati DDA Telemetry File",
+            "Select One or Multiple Ducati DDA Telemetry Files",
             "",
             "Ducati DDA Files (*.dda);;All Files (*)"
         )
-        if f:
-            self.file_entry.setText(f)
-            self._parse_file()
+        if files:
+            self._load_dda_files(files, replace=False)
+
+    def _load_day_folder(self):
+        folder = QFileDialog.getExistingDirectory(self, "Select Track Day Folder Containing .dda Sessions")
+        if not folder:
+            return
+        dda_files = [
+            os.path.join(folder, f)
+            for f in sorted(os.listdir(folder))
+            if f.lower().endswith(".dda")
+        ]
+        if not dda_files:
+            QMessageBox.information(self, "No DDA Files Found", f"No .dda files were found in:\n{folder}")
+            return
+        self._load_dda_files(dda_files, replace=True)
+
+    def _open_reference_lap_dialog(self):
+        active_track = ""
+        if self.loaded_sessions:
+            active_track = self.loaded_sessions[0]["parser"].header.track_name or ""
+        dlg = ReferenceLapLibraryDialog(self, active_track=active_track)
+        dlg.sig_select_ref_laps.connect(self._on_reference_laps_selected)
+        dlg.exec()
+
+    def _on_reference_laps_selected(self, ref_laps: list):
+        existing_ids = {item["ref_lap"].id for item in self.loaded_ref_laps}
+        added = 0
+        for ref in ref_laps:
+            if ref.id not in existing_ids:
+                self.loaded_ref_laps.append({"ref_lap": ref, "checked": True})
+                existing_ids.add(ref.id)
+                added += 1
+            else:
+                for item in self.loaded_ref_laps:
+                    if item["ref_lap"].id == ref.id:
+                        item["checked"] = True
+        if added > 0:
+            self._log(f"[+] Added {added} Reference Lap(s) to workspace.")
+        self._refresh_workspace_views()
 
     def _open_device_downloader(self):
         dlg = DDADownloadDialog(self)
-        dlg.sig_load_file.connect(self._on_device_file_downloaded)
+        dlg.sig_load_files.connect(self._on_device_files_downloaded)
         dlg.exec()
+
+    def _on_device_files_downloaded(self, filepaths: list):
+        valid = [os.path.abspath(p) for p in filepaths if os.path.exists(p)]
+        if valid:
+            self._load_dda_files(valid, replace=False)
 
     def _on_device_file_downloaded(self, filepath: str):
         if os.path.exists(filepath):
-            self.file_entry.setText(os.path.abspath(filepath))
-            self._parse_file()
+            self._load_dda_files([os.path.abspath(filepath)], replace=False)
+
+    def _clear_workspace(self):
+        self.loaded_sessions.clear()
+        self.loaded_ref_laps.clear()
+        self.lap_table_row_map.clear()
+        self.parser = None
+        self.current_filepath = None
+        self.file_entry.clear()
+        self.lap_table.setRowCount(0)
+        self.cmb_frame_filter.clear()
+        self.tree.setRowCount(0)
+        self.txt_log.clear()
+        self._update_summary_from_selection()
 
     def _parse_file(self):
+        """Backward-compatible single file parse entry point (reads path from self.file_entry)."""
         raw_fpath = self.file_entry.text().strip().strip('"').strip("'")
         raw_fpath = raw_fpath.lstrip("\u202a\u202b\u202c\u200e\u200f\ufeff").strip()
         if raw_fpath.lower().startswith("file:///"):
             from urllib.parse import unquote
             raw_fpath = unquote(raw_fpath[8:])
         fpath = os.path.normpath(raw_fpath) if raw_fpath else ""
-
         if not fpath or not os.path.isfile(fpath):
             QMessageBox.critical(self, "File Error", f"Please select a valid .dda file.\n\nPath not found:\n{fpath or '(empty)'}")
             return
+        self._load_dda_files([fpath], replace=True)
 
-        self.file_entry.setText(fpath)
-        self.current_filepath = fpath
-        self.txt_log.clear()
-        self._log(f"[*] Opening and analyzing DDA file: {fpath}")
+    def _load_dda_files(self, filepaths: list[str], replace: bool = False):
+        """Loads and parses one or multiple .dda files into the multi-session workspace."""
+        if replace:
+            self.loaded_sessions.clear()
+            self.txt_log.clear()
 
-        try:
-            self.parser = dda_core.DDAParser(fpath)
-            count = self.parser.parse()
-            self._log(f"[+] Successfully decoded {count:,} telemetry frames.\n")
+        existing_paths = {os.path.abspath(s["filepath"]) for s in self.loaded_sessions if s.get("filepath")}
+        newly_parsed = []
 
-            # Update Metadata display
-            track_disp = self.parser.header.track_name or 'N/A'
-            if self.parser.header.session_datetime:
-                track_disp += f" ({self.parser.header.session_datetime})"
-            rider_disp = self.parser.header.rider_name or 'N/A'
-            if self.parser.header.bike_model:
-                rider_disp += f" [{self.parser.header.bike_model}]"
-            self.lbl_meta_track.setText(f"Track: {track_disp}")
-            self.lbl_meta_rider.setText(f"Rider: {rider_disp}")
-            self.lbl_meta_dur.setText(f"Duration: {self.parser.stats.get('duration_min', 0):.2f} min ({self.parser.stats.get('duration_s', 0):.1f}s)")
-            self.lbl_meta_gps.setText(f"GPS Fixes: {self.parser.stats.get('gps_fixes', 0):,}")
+        for raw_p in filepaths:
+            fpath = os.path.abspath(os.path.normpath(raw_p))
+            if not os.path.isfile(fpath):
+                continue
+            if fpath in existing_paths and not replace:
+                self._log(f"[*] Skipping already loaded file: {os.path.basename(fpath)}")
+                continue
 
-            # Update Dynamics display
-            max_spd_k = self.parser.stats.get('max_speed_kmh', 0)
-            max_spd_m = self.parser.stats.get('max_speed_mph', 0)
-            max_gps_k = self.parser.stats.get('max_gps_speed_kmh', 0)
-            max_gps_m = self.parser.stats.get('max_gps_speed_mph', 0)
-            max_slip = max((r.wheel_slip_pct for r in self.parser.records), default=0.0)
+            self._log(f"[*] Opening and analyzing DDA file: {fpath}")
+            try:
+                p = dda_core.DDAParser(fpath)
+                count = p.parse()
+                self._log(f"[+] Decoded {count:,} frames, {len(p.laps)} segments ({p.header.track_name or 'Unknown Track'} | {p.header.session_datetime})")
+                newly_parsed.append((fpath, p))
+                existing_paths.add(fpath)
+            except Exception as e:
+                import traceback
+                self._log(f"[-] Error loading {fpath}: {e}\n{traceback.format_exc()}")
+                QMessageBox.critical(self, "Parsing Error", f"Failed to decode DDA file:\n{fpath}\n\n{e}")
 
-            self.lbl_stat_speed.setText(f"Wheel Speed: {max_spd_k:.1f} km/h ({max_spd_m:.1f} mph)")
-            self.lbl_stat_gps_speed.setText(f"GPS Speed: {max_gps_k:.1f} km/h ({max_gps_m:.1f} mph)")
-            self.lbl_stat_slip.setText(f"Peak Wheel Slip: +{max_slip:.1f}%")
-            self.lbl_stat_rpm.setText(f"Max RPM: {self.parser.stats.get('max_rpm', 0):,}")
+        if not newly_parsed and not self.loaded_sessions:
+            return
 
-            lean_l = self.parser.stats.get('max_lean_left_deg', 0)
-            lean_r = self.parser.stats.get('max_lean_right_deg', 0)
-            self.lbl_stat_lean.setText(f"Max Lean: L {lean_l:.1f}° / R {lean_r:.1f}°")
+        for fpath, p in newly_parsed:
+            self.loaded_sessions.append({
+                "parser": p,
+                "filepath": fpath,
+                "session_id": "",
+                "session_label": "",
+                "color": "",
+                "checked": True
+            })
 
-            alt_min = self.parser.stats.get('min_alt_m', 0)
-            alt_max = self.parser.stats.get('max_alt_m', 0)
-            self.lbl_stat_alt.setText(f"Elevation: {alt_min:.1f} m to {alt_max:.1f} m")
+        # Sort loaded sessions chronologically by unix_timestamp, run_number, odometer, then filename
+        self.loaded_sessions.sort(key=lambda s: (
+            s["parser"].header.unix_timestamp or 0.0,
+            s["parser"].header.run_number or 0,
+            s["parser"].header.header_odometer_km or 0,
+            os.path.basename(s["filepath"])
+        ))
 
-            t_min = self.parser.stats.get('min_temp_c', 0)
-            t_max = self.parser.stats.get('max_temp_c', 0)
-            if t_max > 0:
-                self.lbl_stat_temp.setText(f"Coolant Temp: {t_min:.0f}°C – {t_max:.0f}°C")
+        # Assign sequential S1, S2, S3 IDs, hour-based session labels (e.g. "2PM" or "2PM Run 1"), and colors
+        hour_names = compute_session_hour_names([s["parser"].header for s in self.loaded_sessions])
+        for idx, s in enumerate(self.loaded_sessions):
+            s_id = f"S{idx + 1}"
+            s["session_id"] = s_id
+            s["session_label"] = hour_names[idx]
+            s["color"] = SESSION_COLORS[idx % len(SESSION_COLORS)]
+
+        # Auto-attach matching Reference Laps from library if none loaded yet
+        if self.loaded_sessions and not self.loaded_ref_laps:
+            primary_track = self.loaded_sessions[0]["parser"].header.track_name
+            if primary_track and primary_track not in ("Unknown Track", "Custom Session"):
+                matching_refs = load_reference_laps_library(primary_track)
+                for ref in matching_refs:
+                    self.loaded_ref_laps.append({"ref_lap": ref, "checked": False})
+
+        # Update file entry summary text
+        if len(self.loaded_sessions) == 1:
+            self.file_entry.setText(self.loaded_sessions[0]["filepath"])
+            self.current_filepath = self.loaded_sessions[0]["filepath"]
+        elif len(self.loaded_sessions) > 1:
+            names = ", ".join(os.path.basename(s["filepath"]) for s in self.loaded_sessions)
+            self.file_entry.setText(f"[{len(self.loaded_sessions)} Sessions Loaded] {names}")
+            self.current_filepath = self.loaded_sessions[0]["filepath"]
+
+        self._refresh_workspace_views()
+
+    # =========================================================
+    # Sessions & Reference Laps Table, Selection & Actions
+    # =========================================================
+
+    def _refresh_workspace_views(self):
+        """Rebuilds the Sessions & Reference Laps Table, Raw Frame Inspector filter dropdown, and Dynamic Summary Card."""
+        self._populate_lap_table()
+        self._populate_frame_filter_combo()
+        self._update_summary_from_selection()
+
+    def _populate_lap_table(self):
+        self._suppress_lap_item_changed = True
+        self.lap_table.setRowCount(0)
+        self.lap_table_row_map.clear()
+
+        rows_data = []
+        for s_idx, s in enumerate(self.loaded_sessions):
+            rows_data.append({
+                "type": "session",
+                "session_idx": s_idx,
+                "session": s
+            })
+
+        for r_idx, r_item in enumerate(self.loaded_ref_laps):
+            rows_data.append({
+                "type": "ref",
+                "ref_idx": r_idx,
+                "ref_item": r_item,
+                "ref_lap": r_item["ref_lap"]
+            })
+
+        self.lap_table.setRowCount(len(rows_data))
+
+        for row_idx, rdata in enumerate(rows_data):
+            self.lap_table_row_map.append(rdata)
+
+            if rdata["type"] == "session":
+                s = rdata["session"]
+                p: DDAParser = s["parser"]
+                is_checked = bool(s.get("checked", True))
+                s_color = QColor(s["color"])
+
+                # Col 0: Checkbox
+                chk = QCheckBox()
+                chk.setChecked(is_checked)
+                chk.stateChanged.connect(lambda state, r=row_idx: self._on_lap_checkbox_toggled(r, state))
+                chk_w = QWidget()
+                chk_l = QHBoxLayout(chk_w)
+                chk_l.addWidget(chk)
+                chk_l.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                chk_l.setContentsMargins(0, 0, 0, 0)
+                self.lap_table.setCellWidget(row_idx, 0, chk_w)
+
+                # Col 1: Session Name (Hour / Run)
+                item_sess = QTableWidgetItem(s["session_label"] or s["session_id"])
+                item_sess.setForeground(s_color)
+                item_sess.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.lap_table.setItem(row_idx, 1, item_sess)
+
+                # Col 2: Source File / Name
+                fname = os.path.basename(s["filepath"])
+                trk = p.header.track_name or ""
+                title_str = f"{fname} ({trk})" if trk and trk != "Unknown Track" else fname
+                item_name = QTableWidgetItem(title_str)
+                item_name.setForeground(s_color)
+                self.lap_table.setItem(row_idx, 2, item_name)
+
+                # Col 3: Date & Time
+                dt_str = p.header.session_datetime or "--"
+                item_dt = QTableWidgetItem(dt_str)
+                item_dt.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.lap_table.setItem(row_idx, 3, item_dt)
+
+                # Col 4: Duration
+                dur_s = (p.records[-1].time_s - p.records[0].time_s) if len(p.records) >= 2 else 0.0
+                item_dur = QTableWidgetItem(format_lap_time(dur_s))
+                item_dur.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.lap_table.setItem(row_idx, 4, item_dur)
+
+                # Col 5: Distance
+                dist_km = p.stats.get("total_distance_km", 0.0)
+                dist_mi = p.stats.get("total_distance_mi", dist_km * 0.621371)
+                item_dist = QTableWidgetItem(f"{dist_km:.2f} km ({dist_mi:.2f} mi)")
+                item_dist.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.lap_table.setItem(row_idx, 5, item_dist)
+
+                # Col 6: Frames
+                item_frames = QTableWidgetItem(f"{len(p.records):,}")
+                item_frames.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.lap_table.setItem(row_idx, 6, item_frames)
+
+                # Col 7: Max Speed (W / GPS)
+                w_spd = p.stats.get("max_speed_kmh", 0.0)
+                g_spd = p.stats.get("max_gps_speed_kmh", 0.0)
+                it_spd = QTableWidgetItem(f"{w_spd:.1f} / {g_spd:.1f} km/h")
+                it_spd.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.lap_table.setItem(row_idx, 7, it_spd)
+
+                # Col 8: Max Lean (L / R)
+                ll = p.stats.get("max_lean_left_deg", 0.0)
+                lr = p.stats.get("max_lean_right_deg", 0.0)
+                it_lean = QTableWidgetItem(f"L {ll:.1f}° / R {lr:.1f}°")
+                it_lean.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.lap_table.setItem(row_idx, 8, it_lean)
+
+                # Col 9: Max RPM
+                it_rpm = QTableWidgetItem(f"{p.stats.get('max_rpm', 0):,}")
+                it_rpm.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.lap_table.setItem(row_idx, 9, it_rpm)
+
+                # Col 10: Action (Remove Session)
+                btn_rem = QPushButton("✕ Remove")
+                btn_rem.setCursor(Qt.CursorShape.PointingHandCursor)
+                btn_rem.setStyleSheet("padding: 2px 8px; font-size: 11px;")
+                btn_rem.clicked.connect(lambda _, r=row_idx: self._remove_row_item(r))
+                self.lap_table.setCellWidget(row_idx, 10, btn_rem)
+
             else:
-                self.lbl_stat_temp.setText("Coolant Temp: N/A")
+                # Reference Lap Row
+                ref_item = rdata["ref_item"]
+                ref: DDAReferenceLap = rdata["ref_lap"]
+                gold_color = QColor("#ffd600")
 
-            odo_end = self.parser.stats.get('odometer_end_km', 0) or self.parser.header.header_odometer_km
-            if odo_end > 0:
-                self.lbl_stat_odo.setText(f"Odometer: {odo_end:,.0f} km ({odo_end * 0.621371:,.0f} mi)")
-            else:
-                self.lbl_stat_odo.setText("Odometer: N/A")
+                chk = QCheckBox()
+                chk.setChecked(ref_item["checked"])
+                chk.stateChanged.connect(lambda state, r=row_idx: self._on_lap_checkbox_toggled(r, state))
+                chk_w = QWidget()
+                chk_l = QHBoxLayout(chk_w)
+                chk_l.addWidget(chk)
+                chk_l.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                chk_l.setContentsMargins(0, 0, 0, 0)
+                self.lap_table.setCellWidget(row_idx, 0, chk_w)
 
-            # Populate Table with Downsampled Records
-            sampled_records = self.records_sample(self.parser.records, max_rows=1500)
-            self.tree.setRowCount(len(sampled_records))
+                item_sess = QTableWidgetItem("⭐ REF")
+                item_sess.setForeground(gold_color)
+                item_sess.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.lap_table.setItem(row_idx, 1, item_sess)
 
-            for row_idx, r in enumerate(sampled_records):
-                lat_str = f"{r.gps_lat:.6f}" if r.gps_lat is not None else "--"
-                lon_str = f"{r.gps_lon:.6f}" if r.gps_lon is not None else "--"
-                alt_str = f"{r.gps_alt_m:.1f}" if r.gps_lat is not None else "--"
-                gps_spd_str = f"{r.gps_speed_kmh:.1f}" if r.gps_speed_kmh > 0 else "--"
-                slip_str = f"{r.wheel_slip_pct:+.1f}%" if r.gps_speed_kmh > 5.0 else "--"
-                temp_str = f"{r.temp_c:.0f}°C" if r.temp_c > 0 else "--"
-                odo_str = f"{r.odometer_km:.0f}" if r.odometer_km > 0 else "--"
+                item_lap = QTableWidgetItem(f"⭐ {ref.name} ({ref.track_name})")
+                item_lap.setForeground(gold_color)
+                self.lap_table.setItem(row_idx, 2, item_lap)
 
-                vals = [
-                    f"{r.time_s:.2f}",
-                    f"{r.speed_kmh:.1f}",
-                    gps_spd_str,
-                    slip_str,
-                    f"{r.rpm:,}",
-                    f"{r.tps_pct:.1f}%",
-                    f"{r.gear}",
-                    f"{r.lean_angle_deg:.1f}°",
-                    temp_str,
-                    f"{r.torque_fast_pct:.0f}%",
-                    f"{r.torque_slow_pct:.0f}%",
-                    odo_str,
-                    lat_str,
-                    lon_str,
-                    alt_str
-                ]
+                item_dt = QTableWidgetItem(ref.session_datetime or "Benchmark Lap")
+                item_dt.setForeground(gold_color)
+                item_dt.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.lap_table.setItem(row_idx, 3, item_dt)
 
-                for col_idx, val in enumerate(vals):
-                    item = QTableWidgetItem(val)
-                    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    self.tree.setItem(row_idx, col_idx, item)
+                dur = ref.duration_s
+                item_time = QTableWidgetItem(format_lap_time(dur))
+                item_time.setForeground(gold_color)
+                item_time.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.lap_table.setItem(row_idx, 4, item_time)
 
-            self._log("=" * 60)
-            self._log("TELEMETRY SESSION OVERVIEW")
-            self._log("=" * 60)
-            self._log(f"Track Name      : {self.parser.header.track_name}")
-            self._log(f"Rider Name      : {self.parser.header.rider_name}")
-            if self.parser.header.bike_model:
-                self._log(f"Bike Model      : {self.parser.header.bike_model} (Project {self.parser.header.bike_code})")
-            if self.parser.header.session_datetime:
-                self._log(f"Session Date    : {self.parser.header.session_datetime}")
-            self._log(f"Session Duration: {self.parser.stats.get('duration_s', 0):.1f} s ({self.parser.stats.get('duration_min', 0):.2f} min)")
-            self._log(f"Total Frames    : {len(self.parser.records):,}")
-            self._log(f"GPS Fixes       : {self.parser.stats.get('gps_fixes', 0):,}")
-            self._log(f"Max Wheel Speed : {max_spd_k:.1f} km/h ({max_spd_m:.1f} mph)")
-            self._log(f"Max GPS Speed   : {max_gps_k:.1f} km/h ({max_gps_m:.1f} mph)")
-            self._log(f"Peak Wheel Slip : +{max_slip:.1f}%")
-            self._log(f"Max RPM         : {self.parser.stats.get('max_rpm', 0):,} RPM")
-            self._log(f"Max Lean Angle  : Left {lean_l:.1f}° / Right {lean_r:.1f}°")
-            if t_max > 0:
-                self._log(f"Coolant Temp    : {t_min:.0f}°C to {t_max:.0f}°C")
-            if odo_end > 0:
-                self._log(f"Odometer        : {odo_end:,.0f} km")
-            self._log("=" * 60)
+                dist_km = (ref.distance_m or 0.0) / 1000.0
+                item_dist = QTableWidgetItem(f"{dist_km:.2f} km ({dist_km * 0.621371:.2f} mi)")
+                item_dist.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.lap_table.setItem(row_idx, 5, item_dist)
 
-        except Exception as e:
-            import traceback
-            tb_str = traceback.format_exc()
-            self._log(f"[-] Error loading file: {e}\n{tb_str}")
-            QMessageBox.critical(self, "Parsing Error", f"Failed to decode DDA file:\n{e}")
+                item_frames = QTableWidgetItem(f"{len(ref.records):,}")
+                item_frames.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.lap_table.setItem(row_idx, 6, item_frames)
+
+                it_spd = QTableWidgetItem(f"{ref.max_speed_kmh:.1f} / {ref.max_gps_speed_kmh:.1f} km/h")
+                it_spd.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.lap_table.setItem(row_idx, 7, it_spd)
+
+                it_lean = QTableWidgetItem(f"L {ref.max_lean_left_deg:.1f}° / R {ref.max_lean_right_deg:.1f}°")
+                it_lean.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.lap_table.setItem(row_idx, 8, it_lean)
+
+                it_rpm = QTableWidgetItem(f"{ref.max_rpm:,}")
+                it_rpm.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.lap_table.setItem(row_idx, 9, it_rpm)
+
+                btn_exp_ref = QPushButton("💾 Export .ddalap")
+                btn_exp_ref.setCursor(Qt.CursorShape.PointingHandCursor)
+                btn_exp_ref.setStyleSheet("padding: 2px 8px; font-size: 11px;")
+                btn_exp_ref.clicked.connect(lambda _, r=row_idx: self._export_row_ref_lap(r))
+                self.lap_table.setCellWidget(row_idx, 10, btn_exp_ref)
+
+        self._suppress_lap_item_changed = False
+
+    def _on_lap_checkbox_toggled(self, row_idx: int, state: int):
+        if self._suppress_lap_item_changed or row_idx < 0 or row_idx >= len(self.lap_table_row_map):
+            return
+        is_checked = bool(state)
+        rdata = self.lap_table_row_map[row_idx]
+        if rdata["type"] == "session":
+            rdata["session"]["checked"] = is_checked
+        else:
+            rdata["ref_item"]["checked"] = is_checked
+
+        self._update_summary_from_selection()
+
+    def _select_all_laps(self):
+        for s in self.loaded_sessions:
+            s["checked"] = True
+        for r_item in self.loaded_ref_laps:
+            r_item["checked"] = True
+        self._populate_lap_table()
+        self._update_summary_from_selection()
+
+    def _select_no_laps(self):
+        for s in self.loaded_sessions:
+            s["checked"] = False
+        for r_item in self.loaded_ref_laps:
+            r_item["checked"] = False
+        self._populate_lap_table()
+        self._update_summary_from_selection()
+
+    def _export_row_ref_lap(self, row_idx: int):
+        if row_idx < 0 or row_idx >= len(self.lap_table_row_map):
+            return
+        rdata = self.lap_table_row_map[row_idx]
+        if rdata["type"] != "ref":
+            return
+        ref: DDAReferenceLap = rdata["ref_lap"]
+        safe_name = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in f"{ref.track_name}_{ref.name}").strip("_")
+        out_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Standalone Reference Lap (.ddalap.json)",
+            f"{safe_name}.ddalap.json",
+            "DDA Reference Lap (*.ddalap.json);;JSON Files (*.json)"
+        )
+        if out_path:
+            ref.save_file(out_path)
+            self._log(f"[+] Exported Reference Lap to: {out_path}")
+
+    def _remove_row_item(self, row: int):
+        if row < 0 or row >= len(self.lap_table_row_map):
+            return
+        rdata = self.lap_table_row_map[row]
+        if rdata["type"] == "session":
+            s_idx = rdata["session_idx"]
+            removed = self.loaded_sessions.pop(s_idx)
+            self._log(f"[*] Removed session: {removed['session_label']}")
+            hour_names = compute_session_hour_names([s["parser"].header for s in self.loaded_sessions])
+            for idx, s in enumerate(self.loaded_sessions):
+                s_id = f"S{idx + 1}"
+                s["session_id"] = s_id
+                s["session_label"] = hour_names[idx]
+                s["color"] = SESSION_COLORS[idx % len(SESSION_COLORS)]
+        else:
+            r_idx = rdata["ref_idx"]
+            removed_ref = self.loaded_ref_laps.pop(r_idx)
+            self._log(f"[*] Removed Reference Lap from workspace: {removed_ref['ref_lap'].name}")
+
+        self._refresh_workspace_views()
+
+    def _remove_highlighted_session(self):
+        row = self.lap_table.currentRow()
+        if row < 0 or row >= len(self.lap_table_row_map):
+            QMessageBox.information(self, "Select a Row", "Please click a session or reference lap row you wish to remove.")
+            return
+        self._remove_row_item(row)
+
+    # =========================================================
+    # Summary & Raw Frame Inspector Sync
+    # =========================================================
+
+    def _build_active_combiner(self) -> DDAParser:
+        """Builds a DDAMultiSessionCombiner from all currently checked whole sessions and reference laps."""
+        session_entries = []
+        for s in self.loaded_sessions:
+            if s.get("checked", True):
+                session_entries.append({
+                    "parser": s["parser"],
+                    "selected_lap_numbers": None,  # Whole session stream (segmented dynamically through gates in Viewer)
+                    "session_id": s["session_id"],
+                    "session_label": s["session_label"],
+                    "color": s["color"]
+                })
+        checked_refs = [r["ref_lap"] for r in self.loaded_ref_laps if r.get("checked")]
+
+        # Fallback: if user unchecked everything, include all loaded sessions
+        if not session_entries and not checked_refs and self.loaded_sessions:
+            for s in self.loaded_sessions:
+                session_entries.append({
+                    "parser": s["parser"],
+                    "selected_lap_numbers": None,
+                    "session_id": s["session_id"],
+                    "session_label": s["session_label"],
+                    "color": s["color"]
+                })
+
+        if not session_entries and not checked_refs:
+            return None
+
+        combiner = DDAMultiSessionCombiner(session_entries=session_entries, reference_laps=checked_refs)
+        self.parser = combiner
+        return combiner
+
+    def _update_summary_from_selection(self):
+        combiner = self._build_active_combiner()
+        if not combiner or not combiner.records:
+            self.lbl_meta_track.setText("Track: --")
+            self.lbl_meta_rider.setText("Rider: --")
+            self.lbl_meta_dur.setText("Sessions: 0 | Total Time: 0.0m")
+            self.lbl_meta_gps.setText("Total Distance: --")
+            self.lbl_stat_speed.setText("Max Wheel Speed: -- km/h (-- mph)")
+            self.lbl_stat_gps_speed.setText("Max GPS Speed: -- km/h (-- mph)")
+            self.lbl_stat_rpm.setText("Max RPM: --")
+            self.lbl_stat_lean.setText("Max Lean: L --° / R --°")
+            self.lbl_stat_slip.setText("Peak Wheel Slip: --")
+            self.lbl_stat_temp.setText("Coolant Temp: -- °C")
+            self.lbl_stat_alt.setText("Elevation: -- m to -- m")
+            self.lbl_stat_odo.setText("Odometer: -- km")
+            return
+
+        active_sess_count = len([s for s in self.loaded_sessions if s.get("checked", True)])
+        ref_count = len([r for r in self.loaded_ref_laps if r.get("checked")])
+
+        track_disp = combiner.header.track_name or "Unknown Track"
+        rider_disp = combiner.header.rider_name or "Ducati Rider"
+        if combiner.header.bike_model:
+            rider_disp += f" [{combiner.header.bike_model}]"
+
+        self.lbl_meta_track.setText(f"Track: {track_disp}")
+        self.lbl_meta_rider.setText(f"Rider: {rider_disp}")
+
+        dur_min = combiner.stats.get("duration_min", 0.0)
+        sess_txt = f"Sessions: {active_sess_count}/{len(self.loaded_sessions)} | Total Time: {dur_min:.1f} min ({len(combiner.records):,} frames)"
+        if ref_count > 0:
+            sess_txt += f" (+{ref_count} Ref)"
+        self.lbl_meta_dur.setText(sess_txt)
+
+        dist_km = combiner.stats.get("total_distance_km", 0.0)
+        dist_mi = combiner.stats.get("total_distance_mi", dist_km * 0.621371)
+        self.lbl_meta_gps.setText(f"Total Distance: {dist_km:.2f} km ({dist_mi:.2f} mi)")
+
+        max_spd_k = combiner.stats.get("max_speed_kmh", 0.0)
+        max_spd_m = combiner.stats.get("max_speed_mph", 0.0)
+        max_gps_k = combiner.stats.get("max_gps_speed_kmh", 0.0)
+        max_gps_m = combiner.stats.get("max_gps_speed_mph", 0.0)
+        max_slip = max((r.wheel_slip_pct for r in combiner.records), default=0.0)
+
+        self.lbl_stat_speed.setText(f"Wheel Speed: {max_spd_k:.1f} km/h ({max_spd_m:.1f} mph)")
+        self.lbl_stat_gps_speed.setText(f"GPS Speed: {max_gps_k:.1f} km/h ({max_gps_m:.1f} mph)")
+        self.lbl_stat_rpm.setText(f"Max RPM: {combiner.stats.get('max_rpm', 0):,}")
+
+        lean_l = combiner.stats.get("max_lean_left_deg", 0.0)
+        lean_r = combiner.stats.get("max_lean_right_deg", 0.0)
+        self.lbl_stat_lean.setText(f"Max Lean: L {lean_l:.1f}° / R {lean_r:.1f}°")
+        self.lbl_stat_slip.setText(f"Peak Wheel Slip: +{max_slip:.1f}%")
+
+        alt_min = combiner.stats.get("min_alt_m", 0.0)
+        alt_max = combiner.stats.get("max_alt_m", 0.0)
+        self.lbl_stat_alt.setText(f"Elevation: {alt_min:.1f} m to {alt_max:.1f} m")
+
+        t_min = combiner.stats.get("min_temp_c", 0.0)
+        t_max = combiner.stats.get("max_temp_c", 0.0)
+        if t_max > 0:
+            self.lbl_stat_temp.setText(f"Coolant Temp: {t_min:.0f}°C – {t_max:.0f}°C")
+        else:
+            self.lbl_stat_temp.setText("Coolant Temp: N/A")
+
+        odo_end = combiner.stats.get("odometer_end_km", 0.0) or combiner.header.header_odometer_km
+        if odo_end > 0:
+            self.lbl_stat_odo.setText(f"Odometer: {odo_end:,.0f} km ({odo_end * 0.621371:,.0f} mi)")
+        else:
+            self.lbl_stat_odo.setText("Odometer: N/A")
+
+        # Refresh Raw Frame Inspector if showing "All Checked Sessions"
+        if self.cmb_frame_filter.currentIndex() == 0:
+            self._populate_raw_frame_table()
+
+    def _populate_frame_filter_combo(self):
+        self.cmb_frame_filter.blockSignals(True)
+        self.cmb_frame_filter.clear()
+        self.cmb_frame_filter.addItem("All Checked Sessions (Combined Workspace)", {"scope": "combined"})
+
+        for s_idx, s in enumerate(self.loaded_sessions):
+            p: DDAParser = s["parser"]
+            self.cmb_frame_filter.addItem(f"Session {s['session_label']} ({len(p.records):,} Frames)", {"scope": "session", "session_idx": s_idx})
+
+        for r_idx, r_item in enumerate(self.loaded_ref_laps):
+            ref: DDAReferenceLap = r_item["ref_lap"]
+            self.cmb_frame_filter.addItem(
+                f"⭐ REF · {ref.name} ({format_lap_time(ref.duration_s)})",
+                {"scope": "ref", "ref_idx": r_idx}
+            )
+
+        self.cmb_frame_filter.blockSignals(False)
+        self._populate_raw_frame_table()
+
+    def _on_lap_table_selection_changed(self):
+        row = self.lap_table.currentRow()
+        if row < 0 or row >= len(self.lap_table_row_map):
+            return
+        rdata = self.lap_table_row_map[row]
+        for idx in range(self.cmb_frame_filter.count()):
+            data = self.cmb_frame_filter.itemData(idx)
+            if not isinstance(data, dict):
+                continue
+            if rdata["type"] == "session" and data.get("scope") == "session":
+                if data.get("session_idx") == rdata["session_idx"]:
+                    self.cmb_frame_filter.setCurrentIndex(idx)
+                    break
+            elif rdata["type"] == "ref" and data.get("scope") == "ref":
+                if data.get("ref_idx") == rdata["ref_idx"]:
+                    self.cmb_frame_filter.setCurrentIndex(idx)
+                    break
+
+    def _populate_raw_frame_table(self):
+        data = self.cmb_frame_filter.currentData()
+        records = []
+        if isinstance(data, dict):
+            scope = data.get("scope")
+            if scope == "combined":
+                if self.parser and self.parser.records:
+                    records = self.parser.records
+            elif scope == "session":
+                s_idx = data.get("session_idx", 0)
+                if 0 <= s_idx < len(self.loaded_sessions):
+                    records = self.loaded_sessions[s_idx]["parser"].records
+            elif scope == "lap":
+                s_idx = data.get("session_idx", 0)
+                lap_num = data.get("lap_number", 0)
+                if 0 <= s_idx < len(self.loaded_sessions):
+                    p = self.loaded_sessions[s_idx]["parser"]
+                    lap_obj = next((l for l in p.laps if l["lap_number"] == lap_num), None)
+                    if lap_obj:
+                        i1 = max(0, int(lap_obj.get("start_index", 0)))
+                        i2 = min(len(p.records) - 1, int(lap_obj.get("end_index", len(p.records) - 1)))
+                        records = p.records[i1:i2 + 1]
+            elif scope == "ref":
+                r_idx = data.get("ref_idx", 0)
+                if 0 <= r_idx < len(self.loaded_ref_laps):
+                    records = self.loaded_ref_laps[r_idx]["ref_lap"].records
+
+        sampled_records = self.records_sample(records, max_rows=1500)
+        self.lbl_frame_count.setText(f"Showing {len(sampled_records):,} of {len(records):,} frames")
+        self.tree.setRowCount(len(sampled_records))
+
+        for row_idx, r in enumerate(sampled_records):
+            lat_str = f"{r.gps_lat:.6f}" if r.gps_lat is not None else "--"
+            lon_str = f"{r.gps_lon:.6f}" if r.gps_lon is not None else "--"
+            alt_str = f"{r.gps_alt_m:.1f}" if r.gps_lat is not None else "--"
+            gps_spd_str = f"{r.gps_speed_kmh:.1f}" if r.gps_speed_kmh > 0 else "--"
+            slip_str = f"{r.wheel_slip_pct:+.1f}%" if r.gps_speed_kmh > 5.0 else "--"
+            temp_str = f"{r.temp_c:.0f}°C" if r.temp_c > 0 else "--"
+            odo_str = f"{r.odometer_km:.0f}" if r.odometer_km > 0 else "--"
+
+            vals = [
+                f"{r.time_s:.2f}",
+                f"{r.speed_kmh:.1f}",
+                gps_spd_str,
+                slip_str,
+                f"{r.rpm:,}",
+                f"{r.tps_pct:.1f}%",
+                f"{r.gear}",
+                f"{r.lean_angle_deg:.1f}°",
+                temp_str,
+                f"{r.torque_fast_pct:.0f}%",
+                f"{r.torque_slow_pct:.0f}%",
+                odo_str,
+                lat_str,
+                lon_str,
+                alt_str
+            ]
+
+            for col_idx, val in enumerate(vals):
+                item = QTableWidgetItem(val)
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.tree.setItem(row_idx, col_idx, item)
 
     def records_sample(self, records, max_rows=1500):
         if len(records) <= max_rows:
@@ -1067,30 +1907,49 @@ class DDAConverterApp(QMainWindow):
         step = max(1, len(records) // max_rows)
         return records[::step]
 
+    # =========================================================
+    # Interactive Viewer & Exporters
+    # =========================================================
+
+    def _get_export_base_path(self) -> str:
+        if self.loaded_sessions:
+            first_path = self.loaded_sessions[0]["filepath"]
+            base = os.path.splitext(first_path)[0]
+            if len(self.loaded_sessions) > 1:
+                return f"{base}_combined_{len(self.loaded_sessions)}sessions"
+            return base
+        elif self.loaded_ref_laps:
+            ref = self.loaded_ref_laps[0]["ref_lap"]
+            safe = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in ref.track_name).strip("_")
+            return os.path.join(os.getcwd(), f"{safe}_ref")
+        return os.path.join(os.getcwd(), "dda_session")
+
     def _launch_viewer(self):
-        if not self.parser or not self.parser.records:
-            QMessageBox.warning(self, "No Data", "Please load and decode a valid .dda file first.")
+        combiner = self._build_active_combiner()
+        if not combiner or not combiner.records:
+            QMessageBox.warning(self, "No Data", "Please load at least one .dda session or Reference Lap first.")
             return
 
-        base = os.path.splitext(self.current_filepath)[0]
+        base = self._get_export_base_path()
         out_html = base + "_viewer.html"
         out_json = base + ".json"
 
         try:
-            self.parser.export_json(out_json)
-            self.parser.export_html(out_html)
-            self._log(f"[+] Generated Interactive Visualizer: {out_html}")
+            combiner.export_json(out_json)
+            combiner.export_html(out_html)
+            self._log(f"[+] Generated Interactive Visualizer ({len(combiner.laps)} laps across {len(combiner.sessions)} session groups): {out_html}")
             webbrowser.open(Path(out_html).resolve().as_uri())
         except Exception as e:
             self._log(f"[-] Error launching viewer: {e}")
             QMessageBox.critical(self, "Viewer Error", f"Failed to launch visualizer:\n{e}")
 
     def _export(self, fmt):
-        if not self.parser or not self.parser.records:
-            QMessageBox.warning(self, "No Data", "Please load and decode a valid .dda file first.")
+        combiner = self._build_active_combiner()
+        if not combiner or not combiner.records:
+            QMessageBox.warning(self, "No Data", "Please load at least one .dda session or Reference Lap first.")
             return
 
-        base_name = os.path.splitext(os.path.basename(self.current_filepath))[0]
+        base_name = os.path.basename(self._get_export_base_path())
         ext_map = {
             "html": "_viewer.html",
             "json": ".json",
@@ -1112,19 +1971,19 @@ class DDAConverterApp(QMainWindow):
 
         try:
             if fmt == "html":
-                self.parser.export_html(out_f)
+                combiner.export_html(out_f)
             elif fmt == "json":
-                self.parser.export_json(out_f)
+                combiner.export_json(out_f)
             elif fmt == "csv":
-                self.parser.export_csv(out_f)
+                combiner.export_csv(out_f)
             elif fmt == "gpx":
-                self.parser.export_gpx(out_f)
+                combiner.export_gpx(out_f)
             elif fmt == "racechrono_csv":
-                self.parser.export_racechrono_csv(out_f)
+                combiner.export_racechrono_csv(out_f)
             elif fmt == "racechrono_rcz":
-                self.parser.export_racechrono_rcz(out_f)
+                combiner.export_racechrono_rcz(out_f)
 
-            self._log(f"[+] Exported {fmt.upper()} successfully to: {out_f}")
+            self._log(f"[+] Exported {fmt.upper()} ({len(combiner.laps)} selected laps) to: {out_f}")
             QMessageBox.information(self, "Export Success", f"Successfully exported file to:\n{out_f}")
         except Exception as e:
             self._log(f"[-] Export failed: {e}")
@@ -1210,8 +2069,8 @@ class DDAConverterApp(QMainWindow):
 
 
 def cli_main():
-    arg_parser = argparse.ArgumentParser(description="Ducati DDA Telemetry Decoder, Exporter & Visualizer")
-    arg_parser.add_argument("file", nargs="?", help="Path to .dda file")
+    arg_parser = argparse.ArgumentParser(description="Ducati DDA Telemetry Decoder, Multi-Session Combiner & Visualizer")
+    arg_parser.add_argument("file", nargs="*", help="Path(s) to one or more .dda files")
     arg_parser.add_argument("--viewer", action="store_true", help="Launch interactive browser visualizer")
     arg_parser.add_argument("--html", action="store_true", help="Export standalone HTML visualizer")
     arg_parser.add_argument("--json", action="store_true", help="Export JSON telemetry bundle")
@@ -1219,6 +2078,8 @@ def cli_main():
     arg_parser.add_argument("--racechrono", action="store_true", help="Export RaceChrono v3 CSV")
     arg_parser.add_argument("--rcz", action="store_true", help="Export RaceChrono native .rcz archive")
     arg_parser.add_argument("--gpx", action="store_true", help="Export GPX 1.1")
+    arg_parser.add_argument("--ref-lap", action="append", default=[], help="Path to a .ddalap.json Reference Lap to include")
+    arg_parser.add_argument("--save-ref-lap", help="Save a specific lap number as a .ddalap.json file (format: LAP_NUM:OUT_PATH)")
     arg_parser.add_argument("--formats", help="Comma-separated format list for batch conversion")
     arg_parser.add_argument("--batch", help="Batch convert all .dda files in directory")
 
@@ -1282,24 +2143,54 @@ def cli_main():
         return
 
     if args.file:
-        if not os.path.exists(args.file):
-            print(f"Error: File not found: {args.file}")
-            sys.exit(1)
+        files = args.file if isinstance(args.file, list) else [args.file]
+        for f in files:
+            if not os.path.exists(f):
+                print(f"Error: File not found: {f}")
+                sys.exit(1)
 
-        p = DDAParser(args.file)
-        count = p.parse()
-        print(f"[+] Loaded '{args.file}': {count:,} telemetry frames.")
-        print(f"    Track: {p.header.track_name} | Rider: {p.header.rider_name}")
-        print(f"    Max Speed: {p.stats.get('max_speed_kmh', 0):.1f} km/h ({p.stats.get('max_speed_mph', 0):.1f} mph)")
+        parsed_list = []
+        for idx, f in enumerate(files):
+            p = DDAParser(f)
+            count = p.parse()
+            print(f"[+] Loaded '{f}': {count:,} telemetry frames, {len(p.laps)} segments.")
+            print(f"    Track: {p.header.track_name} | Rider: {p.header.rider_name}")
+            print(f"    Max Speed: {p.stats.get('max_speed_kmh', 0):.1f} km/h ({p.stats.get('max_speed_mph', 0):.1f} mph)")
+            parsed_list.append(p)
 
-        base = os.path.splitext(args.file)[0]
-        p.export_json(base + ".json")
-        p.export_html(base + "_viewer.html")
-        p.export_racechrono_csv(base + "_racechrono_v3.csv")
-        p.export_racechrono_rcz(base + ".rcz")
-        p.export_csv(base + ".csv")
-        p.export_gpx(base + ".gpx")
-        print(f"  [+] Generated export suite for: {args.file}")
+        if args.save_ref_lap and parsed_list:
+            parts = args.save_ref_lap.split(":", 1)
+            lap_num = int(parts[0])
+            out_ref = parts[1] if len(parts) > 1 else f"ref_lap_{lap_num}.ddalap.json"
+            ref_obj = DDAReferenceLap.from_parser_lap(parsed_list[0], lap_num)
+            ref_obj.save_file(out_ref)
+            save_reference_lap_to_library(ref_obj)
+            print(f"  [+] Saved Reference Lap #{lap_num} to: {out_ref}")
+
+        ref_laps = [DDAReferenceLap.load_file(rf) for rf in (args.ref_lap or []) if os.path.exists(rf)]
+
+        if len(parsed_list) == 1 and not ref_laps:
+            target_exporter = parsed_list[0]
+            base = os.path.splitext(files[0])[0]
+        else:
+            entries = [
+                {
+                    "parser": p,
+                    "selected_lap_numbers": [l["lap_number"] for l in p.laps if not l.get("is_out_lap") and not l.get("is_in_lap")] or None,
+                    "session_id": f"S{i + 1}"
+                }
+                for i, p in enumerate(parsed_list)
+            ]
+            target_exporter = DDAMultiSessionCombiner(session_entries=entries, reference_laps=ref_laps)
+            base = os.path.splitext(files[0])[0] + (f"_combined_{len(parsed_list)}sessions" if len(parsed_list) > 1 else "_with_ref")
+
+        target_exporter.export_json(base + ".json")
+        target_exporter.export_html(base + "_viewer.html")
+        target_exporter.export_racechrono_csv(base + "_racechrono_v3.csv")
+        target_exporter.export_racechrono_rcz(base + ".rcz")
+        target_exporter.export_csv(base + ".csv")
+        target_exporter.export_gpx(base + ".gpx")
+        print(f"  [+] Generated export suite for: {base}")
 
         if args.viewer:
             print("  [*] Launching interactive telemetry viewer in browser...")

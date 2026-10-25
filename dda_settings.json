@@ -1,70 +1,37 @@
 {
   "version": "1.0",
-  "preferences": {
-    "unitMph": true,
-    "currentLayer": "dark",
-    "heatmapMode": "speed",
-    "smoothingLevel": "med",
-    "showSpeedExtrema": true,
-    "showApexMarkers": true,
-    "showChartTurnMarkers": true,
-    "redlineRpm": 12000,
-    "followBike": true,
-    "playbackSpeed": 1.0,
-    "motogp": {
-      "showCard": true,
-      "riderName": "DUCATI RIDER",
-      "bikeName": "Panigale V4 R",
-      "riderNum": "14",
-      "tyreFront": "M",
-      "tyreRear": "S",
-      "badgeColor": "#6f2dbd",
-      "bgFormat": "transparent",
-      "fps": 60,
-      "scale": 1.5
-    },
-    "channels": {
-      "speedA": true,
-      "speedB": true,
-      "speedGps": true,
-      "rpm": true,
-      "tps": true,
-      "lean": true,
-      "dtc": true,
-      "gear": true
-    }
-  },
+  "active_rider": {},
   "tracks": {
     "sonoma_raceway": {
       "id": "sonoma_raceway",
       "name": "Sonoma Raceway",
       "location": "Sonoma, CA",
-      "center_lat": 38.161580,
-      "center_lon": -122.454640,
+      "center_lat": 38.16158,
+      "center_lon": -122.45464,
       "radius_m": 3500,
       "gates": [
         {
           "id": "sf",
           "name": "Start / Finish",
           "type": "sf",
-          "lat": 38.161580,
-          "lon": -122.454640,
+          "lat": 38.16158,
+          "lon": -122.45464,
           "bearing": 310.0
         },
         {
           "id": "s1",
           "name": "Sector 1 (Carousel)",
           "type": "split",
-          "lat": 38.164320,
-          "lon": -122.458900,
+          "lat": 38.16432,
+          "lon": -122.4589,
           "bearing": 265.0
         },
         {
           "id": "s2",
           "name": "Sector 2 (Esses)",
           "type": "split",
-          "lat": 38.158210,
-          "lon": -122.457800,
+          "lat": 38.15821,
+          "lon": -122.4578,
           "bearing": 180.0
         }
       ],
@@ -162,8 +129,8 @@
           "number": "8A",
           "name": "Turn 8A (Esses)",
           "direction": "right",
-          "lat": 38.163750,
-          "lon": -122.458050,
+          "lat": 38.16375,
+          "lon": -122.45805,
           "radius_m": 40,
           "bearing": 30.0,
           "description": "Turn 8A Esses crest right"
@@ -215,24 +182,24 @@
           "id": "sf",
           "name": "Start / Finish",
           "type": "sf",
-          "lat": 36.585500,
-          "lon": -121.754000,
+          "lat": 36.5855,
+          "lon": -121.754,
           "bearing": 240.0
         },
         {
           "id": "s1",
           "name": "Sector 1 (Andretti Hairpin)",
           "type": "split",
-          "lat": 36.586200,
-          "lon": -121.758500,
+          "lat": 36.5862,
+          "lon": -121.7585,
           "bearing": 135.0
         },
         {
           "id": "s2",
           "name": "Sector 2 (Corkscrew)",
           "type": "split",
-          "lat": 36.582800,
-          "lon": -121.751200,
+          "lat": 36.5828,
+          "lon": -121.7512,
           "bearing": 210.0
         }
       ],
@@ -242,8 +209,8 @@
           "number": 1,
           "name": "Turn 1",
           "direction": "left",
-          "lat": 36.585700,
-          "lon": -121.755800,
+          "lat": 36.5857,
+          "lon": -121.7558,
           "radius_m": 45,
           "bearing": 250.0,
           "description": "Fast crest kink on front straight"
@@ -253,8 +220,8 @@
           "number": 2,
           "name": "Turn 2 (Andretti)",
           "direction": "left",
-          "lat": 36.586400,
-          "lon": -121.758700,
+          "lat": 36.5864,
+          "lon": -121.7587,
           "radius_m": 50,
           "bearing": 140.0,
           "description": "Andretti Hairpin double-apex left"
@@ -264,8 +231,8 @@
           "number": 3,
           "name": "Turn 3",
           "direction": "right",
-          "lat": 36.587800,
-          "lon": -121.755400,
+          "lat": 36.5878,
+          "lon": -121.7554,
           "radius_m": 40,
           "bearing": 95.0,
           "description": "90-degree right onto short chute"
@@ -275,8 +242,8 @@
           "number": 4,
           "name": "Turn 4",
           "direction": "right",
-          "lat": 36.588000,
-          "lon": -121.753400,
+          "lat": 36.588,
+          "lon": -121.7534,
           "radius_m": 45,
           "bearing": 120.0,
           "description": "Fast sweeping right"
@@ -286,8 +253,8 @@
           "number": 5,
           "name": "Turn 5",
           "direction": "left",
-          "lat": 36.585500,
-          "lon": -121.749500,
+          "lat": 36.5855,
+          "lon": -121.7495,
           "radius_m": 45,
           "bearing": 155.0,
           "description": "Uphill sweeping banking left"
@@ -297,8 +264,8 @@
           "number": 6,
           "name": "Turn 6",
           "direction": "left",
-          "lat": 36.584100,
-          "lon": -121.748700,
+          "lat": 36.5841,
+          "lon": -121.7487,
           "radius_m": 45,
           "bearing": 175.0,
           "description": "Fast uphill left toward Rahal Straight"
@@ -308,8 +275,8 @@
           "number": 7,
           "name": "Turn 7",
           "direction": "right",
-          "lat": 36.583300,
-          "lon": -121.749500,
+          "lat": 36.5833,
+          "lon": -121.7495,
           "radius_m": 45,
           "bearing": 235.0,
           "description": "Rahal Straight uphill crest right"
@@ -319,8 +286,8 @@
           "number": 8,
           "name": "Turn 8 (Corkscrew)",
           "direction": "left",
-          "lat": 36.582800,
-          "lon": -121.751100,
+          "lat": 36.5828,
+          "lon": -121.7511,
           "radius_m": 40,
           "bearing": 210.0,
           "description": "Blind crest & 59ft downhill drop left"
@@ -330,8 +297,8 @@
           "number": "8A",
           "name": "Turn 8A (Corkscrew Exit)",
           "direction": "right",
-          "lat": 36.582500,
-          "lon": -121.751500,
+          "lat": 36.5825,
+          "lon": -121.7515,
           "radius_m": 40,
           "bearing": 230.0,
           "description": "Corkscrew compression right transition"
@@ -341,8 +308,8 @@
           "number": 9,
           "name": "Turn 9 (Rainey Curve)",
           "direction": "left",
-          "lat": 36.581600,
-          "lon": -121.753500,
+          "lat": 36.5816,
+          "lon": -121.7535,
           "radius_m": 50,
           "bearing": 290.0,
           "description": "High-speed sweeping downhill left"
@@ -352,8 +319,8 @@
           "number": 10,
           "name": "Turn 10",
           "direction": "right",
-          "lat": 36.582300,
-          "lon": -121.756200,
+          "lat": 36.5823,
+          "lon": -121.7562,
           "radius_m": 45,
           "bearing": 335.0,
           "description": "Positive camber fast downhill right"
@@ -363,8 +330,8 @@
           "number": 11,
           "name": "Turn 11",
           "direction": "left",
-          "lat": 36.583900,
-          "lon": -121.756800,
+          "lat": 36.5839,
+          "lon": -121.7568,
           "radius_m": 40,
           "bearing": 55.0,
           "description": "Slow 90-degree left onto front straight"
@@ -375,32 +342,32 @@
       "id": "thunderhill_east",
       "name": "Thunderhill Raceway Park (East 3-Mile)",
       "location": "Willows, CA",
-      "center_lat": 39.539700,
-      "center_lon": -122.332500,
+      "center_lat": 39.5397,
+      "center_lon": -122.3325,
       "radius_m": 4000,
       "gates": [
         {
           "id": "sf",
           "name": "Start / Finish",
           "type": "sf",
-          "lat": 39.537200,
-          "lon": -122.331500,
+          "lat": 39.5372,
+          "lon": -122.3315,
           "bearing": 355.0
         },
         {
           "id": "s1",
           "name": "Sector 1 (The Cyclone)",
           "type": "split",
-          "lat": 39.544100,
-          "lon": -122.336200,
+          "lat": 39.5441,
+          "lon": -122.3362,
           "bearing": 270.0
         },
         {
           "id": "s2",
           "name": "Sector 2 (Turn 9/10)",
           "type": "split",
-          "lat": 39.538500,
-          "lon": -122.337800,
+          "lat": 39.5385,
+          "lon": -122.3378,
           "bearing": 160.0
         }
       ],
@@ -410,8 +377,8 @@
           "number": 1,
           "name": "Turn 1",
           "direction": "left",
-          "lat": 39.540800,
-          "lon": -122.331700,
+          "lat": 39.5408,
+          "lon": -122.3317,
           "radius_m": 45,
           "bearing": 340.0,
           "description": "Fast entry left off front straight"
@@ -421,8 +388,8 @@
           "number": 2,
           "name": "Turn 2",
           "direction": "left",
-          "lat": 39.544100,
-          "lon": -122.332700,
+          "lat": 39.5441,
+          "lon": -122.3327,
           "radius_m": 55,
           "bearing": 270.0,
           "description": "Long continuous sweeping carousel left"
@@ -432,8 +399,8 @@
           "number": 3,
           "name": "Turn 3",
           "direction": "right",
-          "lat": 39.545800,
-          "lon": -122.333800,
+          "lat": 39.5458,
+          "lon": -122.3338,
           "radius_m": 45,
           "bearing": 235.0,
           "description": "Off-camber downhill right"
@@ -443,8 +410,8 @@
           "number": 4,
           "name": "Turn 4",
           "direction": "left",
-          "lat": 39.545200,
-          "lon": -122.334900,
+          "lat": 39.5452,
+          "lon": -122.3349,
           "radius_m": 40,
           "bearing": 180.0,
           "description": "Uphill transition left"
@@ -454,8 +421,8 @@
           "number": 5,
           "name": "Turn 5 (The Cyclone)",
           "direction": "left",
-          "lat": 39.544000,
-          "lon": -122.336300,
+          "lat": 39.544,
+          "lon": -122.3363,
           "radius_m": 45,
           "bearing": 205.0,
           "description": "Steep blind crest & compression drop left"
@@ -465,8 +432,8 @@
           "number": 6,
           "name": "Turn 6",
           "direction": "right",
-          "lat": 39.542200,
-          "lon": -122.336700,
+          "lat": 39.5422,
+          "lon": -122.3367,
           "radius_m": 45,
           "bearing": 175.0,
           "description": "Fast sweeping right"
@@ -476,8 +443,8 @@
           "number": 7,
           "name": "Turn 7",
           "direction": "left",
-          "lat": 39.541000,
-          "lon": -122.337000,
+          "lat": 39.541,
+          "lon": -122.337,
           "radius_m": 40,
           "bearing": 165.0,
           "description": "Left kink onto back straight"
@@ -487,8 +454,8 @@
           "number": 8,
           "name": "Turn 8",
           "direction": "left",
-          "lat": 39.538500,
-          "lon": -122.337800,
+          "lat": 39.5385,
+          "lon": -122.3378,
           "radius_m": 50,
           "bearing": 155.0,
           "description": "High-speed 100+ mph sweeping left"
@@ -498,8 +465,8 @@
           "number": 9,
           "name": "Turn 9",
           "direction": "left",
-          "lat": 39.536000,
-          "lon": -122.337500,
+          "lat": 39.536,
+          "lon": -122.3375,
           "radius_m": 45,
           "bearing": 85.0,
           "description": "Uphill blind crest left"
@@ -509,8 +476,8 @@
           "number": 10,
           "name": "Turn 10",
           "direction": "right",
-          "lat": 39.535000,
-          "lon": -122.336500,
+          "lat": 39.535,
+          "lon": -122.3365,
           "radius_m": 45,
           "bearing": 120.0,
           "description": "Fast downhill right sweep"
@@ -520,8 +487,8 @@
           "number": 11,
           "name": "Turn 11",
           "direction": "left",
-          "lat": 39.534800,
-          "lon": -122.334500,
+          "lat": 39.5348,
+          "lon": -122.3345,
           "radius_m": 40,
           "bearing": 40.0,
           "description": "Heavy braking tight left hairpin"
@@ -531,8 +498,8 @@
           "number": 12,
           "name": "Turn 12",
           "direction": "right",
-          "lat": 39.535300,
-          "lon": -122.334000,
+          "lat": 39.5353,
+          "lon": -122.334,
           "radius_m": 40,
           "bearing": 30.0,
           "description": "Esses right transition"
@@ -542,8 +509,8 @@
           "number": 13,
           "name": "Turn 13",
           "direction": "right",
-          "lat": 39.535800,
-          "lon": -122.333500,
+          "lat": 39.5358,
+          "lon": -122.3335,
           "radius_m": 40,
           "bearing": 350.0,
           "description": "Esses right kink"
@@ -553,8 +520,8 @@
           "number": 14,
           "name": "Turn 14",
           "direction": "left",
-          "lat": 39.536200,
-          "lon": -122.332800,
+          "lat": 39.5362,
+          "lon": -122.3328,
           "radius_m": 40,
           "bearing": 330.0,
           "description": "Approach left before final turn"
@@ -564,8 +531,8 @@
           "number": 15,
           "name": "Turn 15",
           "direction": "left",
-          "lat": 39.536700,
-          "lon": -122.332000,
+          "lat": 39.5367,
+          "lon": -122.332,
           "radius_m": 45,
           "bearing": 10.0,
           "description": "Final fast left onto front straight"
@@ -576,8 +543,8 @@
       "id": "grattan_raceway",
       "name": "Grattan Raceway",
       "location": "Belding, MI",
-      "center_lat": 43.095400,
-      "center_lon": -85.384500,
+      "center_lat": 43.0954,
+      "center_lon": -85.3845,
       "radius_m": 3500,
       "gates": [
         {
@@ -611,8 +578,8 @@
           "number": 1,
           "name": "Turn 1",
           "direction": "right",
-          "lat": 43.096800,
-          "lon": -85.379200,
+          "lat": 43.0968,
+          "lon": -85.3792,
           "radius_m": 45,
           "bearing": 140.0,
           "description": "Heavy braking downhill right off 3,200ft front straight"
@@ -622,8 +589,8 @@
           "number": 2,
           "name": "Turn 2",
           "direction": "right",
-          "lat": 43.096100,
-          "lon": -85.378800,
+          "lat": 43.0961,
+          "lon": -85.3788,
           "radius_m": 45,
           "bearing": 210.0,
           "description": "Decreasing radius right exit"
@@ -633,8 +600,8 @@
           "number": 3,
           "name": "Turn 3 (The Bowl)",
           "direction": "right",
-          "lat": 43.095600,
-          "lon": -85.382200,
+          "lat": 43.0956,
+          "lon": -85.3822,
           "radius_m": 45,
           "bearing": 240.0,
           "description": "Cambered bowl right"
@@ -644,8 +611,8 @@
           "number": 4,
           "name": "Turn 4 (The Jump)",
           "direction": "left",
-          "lat": 43.094700,
-          "lon": -85.384500,
+          "lat": 43.0947,
+          "lon": -85.3845,
           "radius_m": 45,
           "bearing": 250.0,
           "description": "Blind crest uphill left"
@@ -655,8 +622,8 @@
           "number": 5,
           "name": "Turn 5 (Hairpin)",
           "direction": "left",
-          "lat": 43.093800,
-          "lon": -85.389500,
+          "lat": 43.0938,
+          "lon": -85.3895,
           "radius_m": 40,
           "bearing": 340.0,
           "description": "Tight slow hairpin left"
@@ -666,8 +633,8 @@
           "number": 8,
           "name": "Turn 8 (Esses)",
           "direction": "right",
-          "lat": 43.095200,
-          "lon": -85.388100,
+          "lat": 43.0952,
+          "lon": -85.3881,
           "radius_m": 45,
           "bearing": 65.0,
           "description": "Fast back-section Esses transition"
@@ -677,13 +644,48 @@
           "number": 10,
           "name": "Turn 10 (Last Turn)",
           "direction": "right",
-          "lat": 43.095100,
-          "lon": -85.387200,
+          "lat": 43.0951,
+          "lon": -85.3872,
           "radius_m": 45,
           "bearing": 60.0,
           "description": "Cambered right onto long front straight"
         }
       ]
+    }
+  },
+  "reference_laps": [],
+  "preferences": {
+    "unitMph": true,
+    "currentLayer": "dark",
+    "heatmapMode": "speed",
+    "smoothingLevel": "med",
+    "showSpeedExtrema": true,
+    "showApexMarkers": true,
+    "showChartTurnMarkers": true,
+    "redlineRpm": 12000,
+    "followBike": true,
+    "playbackSpeed": 1.0,
+    "motogp": {
+      "showCard": true,
+      "riderName": "DUCATI RIDER",
+      "bikeName": "Panigale V4 R",
+      "riderNum": "14",
+      "tyreFront": "M",
+      "tyreRear": "S",
+      "badgeColor": "#6f2dbd",
+      "bgFormat": "transparent",
+      "fps": 60,
+      "scale": 1.5
+    },
+    "channels": {
+      "speedA": true,
+      "speedB": true,
+      "speedGps": true,
+      "rpm": true,
+      "tps": true,
+      "lean": true,
+      "dtc": true,
+      "gear": true
     }
   }
 }

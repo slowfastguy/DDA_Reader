@@ -141,8 +141,10 @@ class DDAHeader:
         self.bike_model = ""
         self.session_datetime = ""
         self.datetime_obj = None
-        self.unix_timestamp = 1724868022.0
+        self.unix_timestamp = 0.0
         self.header_odometer_km = 0
+        self.run_number = 0
+        self.is_download_timestamp = False
         self.header_size = 1630
         self.frequency_hz = 100
         self.clock_s = 0.01
@@ -168,44 +170,6 @@ class DDAHeader:
         except Exception:
             self.rider_name = ""
 
-        # Session Date/Time at offset 0xAA (170) as 64-bit .NET DateTime.Ticks (100-ns intervals since 0001-01-01)
-        self.datetime_obj = None
-        self.session_datetime = ""
-        if len(raw_data) >= 178:
-            try:
-                raw_ticks = struct.unpack_from("<Q", raw_data, 0xAA)[0]
-                net_ticks = raw_ticks & 0x3FFFFFFFFFFFFFFF
-                if 500_000_000_000_000_000 <= net_ticks <= 900_000_000_000_000_000:
-                    dt = datetime(1, 1, 1) + timedelta(microseconds=net_ticks // 10)
-                    if 1995 <= dt.year <= 2100:
-                        self.datetime_obj = dt
-                        self.session_datetime = dt.strftime("%Y-%m-%d %H:%M:%S")
-                        self.unix_timestamp = dt.replace(tzinfo=timezone.utc).timestamp()
-            except Exception:
-                pass
-
-        # Fallback to filename timestamp (e.g. Run022_20240904_080100.dda) if header ticks were unset
-        if self.datetime_obj is None and filepath:
-            m_dt = re.search(r'(20\d{2})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})', os.path.basename(filepath))
-            if m_dt:
-                try:
-                    dt = datetime(
-                        int(m_dt.group(1)), int(m_dt.group(2)), int(m_dt.group(3)),
-                        int(m_dt.group(4)), int(m_dt.group(5)), int(m_dt.group(6))
-                    )
-                    self.datetime_obj = dt
-                    self.session_datetime = dt.strftime("%Y-%m-%d %H:%M:%S")
-                    self.unix_timestamp = dt.replace(tzinfo=timezone.utc).timestamp()
-                except Exception:
-                    pass
-
-        # Starting odometer / run metric at offset 0xB2 (178)
-        if len(raw_data) >= 182:
-            try:
-                self.header_odometer_km = struct.unpack_from("<I", raw_data, 0xB2)[0]
-            except Exception:
-                self.header_odometer_km = 0
-
         # Note & Ducati project model code at offset 0x14D (333)
         self.bike_code = ""
         self.bike_model = ""
@@ -229,6 +193,100 @@ class DDAHeader:
                 self.session_note = ""
         except Exception:
             self.session_note = ""
+
+        # Extract run number from filename if present (e.g. Run045-... -> 45)
+        self.run_number = 0
+        base_fname = os.path.basename(filepath) if filepath else ""
+        if base_fname:
+            m_run = re.search(r'Run0*(\d+)', base_fname, re.IGNORECASE)
+            if m_run:
+                try:
+                    self.run_number = int(m_run.group(1))
+                except ValueError:
+                    self.run_number = 0
+
+        # Starting odometer / run metric at offset 0xB2 (178)
+        self.header_odometer_km = 0
+        raw_odo = 0
+        if len(raw_data) >= 182:
+            try:
+                raw_odo = struct.unpack_from("<I", raw_data, 0xB2)[0]
+                # On Streetfighter V2 / Panigale V2 (1714), CAN 0x300 odometer is shifted left by 6 bits with 0x17 status bits
+                if self.bike_code == "1714" and raw_odo > 65536 and (raw_odo & 0x3F) == 0x17:
+                    self.header_odometer_km = raw_odo >> 6
+                else:
+                    self.header_odometer_km = raw_odo
+            except Exception:
+                self.header_odometer_km = 0
+        if self.header_odometer_km == 0 and base_fname:
+            m_odo = re.search(r'Run\d+-(\d{5,7})-', base_fname, re.IGNORECASE)
+            if m_odo:
+                try:
+                    f_odo = int(m_odo.group(1))
+                    if self.bike_code == "1714" and f_odo > 65536 and (f_odo & 0x3F) == 0x17:
+                        self.header_odometer_km = f_odo >> 6
+                    else:
+                        self.header_odometer_km = f_odo
+                except ValueError:
+                    pass
+
+        # Session Date/Time at offset 0xAA (170):
+        # pfusbcontroller.dll writes: (QDateTime::toMSecsSinceEpoch() * 10000) + 0x089F7FF5F7B58000
+        # IMPORTANT: In PFProtocolBase::getRunDateTime, genuine stick timestamps use QTime(hour, minute, 0, 0)
+        # so seconds and milliseconds are strictly 0 (msecs % 60000 == 0).
+        # When the bike has no valid calendar date on CAN (or on 1714 where CAN 0x300 bitfields are shifted),
+        # pfusbcontroller.dll logs "Run Date Time is not available. Returning now()" and writes
+        # QDateTime::currentDateTime() (the PC's file-creation/download time, with non-zero seconds/ms) into 0xAA.
+        self.datetime_obj = None
+        self.session_datetime = ""
+        self.unix_timestamp = 0.0
+        self.is_download_timestamp = False
+        OEM_EPOCH_TICKS = 0x089F7FF5F7B58000  # 621,355,968,000,000,000 (100-ns ticks from 0001-01-01 to 1970-01-01)
+        if len(raw_data) >= 178:
+            try:
+                raw_ticks = struct.unpack_from("<Q", raw_data, 0xAA)[0]
+                net_ticks = raw_ticks & 0x3FFFFFFFFFFFFFFF
+                if net_ticks > OEM_EPOCH_TICKS:
+                    msecs = (net_ticks - OEM_EPOCH_TICKS) // 10_000
+                    # Check if this is a genuine stick timestamp (exact minute, sec=0, ms=0) vs PC download-time fallback
+                    if (msecs % 60_000) == 0 and self.bike_code != "1714":
+                        dt = datetime.fromtimestamp(msecs / 1000.0)
+                        if 1995 <= dt.year <= 2100:
+                            self.datetime_obj = dt
+                            self.session_datetime = dt.strftime("%Y-%m-%d %H:%M:%S")
+                            self.unix_timestamp = float(msecs) / 1000.0
+                    else:
+                        self.is_download_timestamp = True
+            except Exception:
+                pass
+
+        # Fallback 1: OEM filename dashboard clock (e.g. Run015-021093-15.01-panigale-1199.dda -> 15:01)
+        # On bikes without a calendar date (like Panigale 1199/899/1299), 0xAA gets overwritten with PC download time,
+        # but PFProtocolBase::getRunName still writes the bike's dashboard HH.MM into Run<idx>-<odo>-<HH>.<MM>.dda.
+        if self.datetime_obj is None and base_fname and self.bike_code != "1714":
+            m_oem = re.search(r'Run\d+-\d+-(\d{2})\.(\d{2})', base_fname, re.IGNORECASE)
+            if m_oem:
+                try:
+                    hh, mm = int(m_oem.group(1)), int(m_oem.group(2))
+                    if 1 <= hh <= 23 and 0 <= mm <= 59:
+                        self.session_datetime = f"{hh:02d}:{mm:02d}"
+                except ValueError:
+                    pass
+
+        # Fallback 2: Explicit YYYYMMDD_HHMMSS filename timestamp (if not from 1714 shifted CAN bytes)
+        if self.datetime_obj is None and not self.session_datetime and base_fname and self.bike_code != "1714":
+            m_dt = re.search(r'(20\d{2})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})', base_fname)
+            if m_dt:
+                try:
+                    dt = datetime(
+                        int(m_dt.group(1)), int(m_dt.group(2)), int(m_dt.group(3)),
+                        int(m_dt.group(4)), int(m_dt.group(5)), int(m_dt.group(6))
+                    )
+                    self.datetime_obj = dt
+                    self.session_datetime = dt.strftime("%Y-%m-%d %H:%M:%S")
+                    self.unix_timestamp = dt.timestamp()
+                except Exception:
+                    pass
 
         # Check ACQ block offset at 0x26 (after "ACQ\0" + 2-byte version at 0x20..0x26)
         if len(raw_data) >= 42 and raw_data[0x20:0x24] == b'ACQ\x00':
@@ -337,7 +395,8 @@ class DDARecord:
         'distance_m', 'gps_lat', 'gps_lon', 'gps_alt_m',
         'raw_lat', 'raw_lon',
         'bearing_deg', 'lap', 'int_lap1', 'int_lap2',
-        'accel_long_g', 'accel_lat_g', 'accel_total_g', 'wheel_slip_pct', 'wheelie'
+        'accel_long_g', 'accel_lat_g', 'accel_total_g', 'wheel_slip_pct', 'wheelie',
+        'session_id'
     )
     def __init__(self, time_s=0.0):
         self.time_s = time_s
@@ -367,6 +426,68 @@ class DDARecord:
         self.accel_total_g = 0.0
         self.wheel_slip_pct = 0.0
         self.wheelie = False
+        self.session_id = "S1"
+
+    def clone(self):
+        c = DDARecord(self.time_s)
+        c.speed_kmh = self.speed_kmh
+        c.gps_speed_kmh = self.gps_speed_kmh
+        c.rpm = self.rpm
+        c.tps_pct = self.tps_pct
+        c.gear = self.gear
+        c.lean_angle_deg = self.lean_angle_deg
+        c.torque_fast_pct = self.torque_fast_pct
+        c.torque_slow_pct = self.torque_slow_pct
+        c.temp_c = self.temp_c
+        c.dtc = self.dtc
+        c.odometer_km = self.odometer_km
+        c.distance_m = self.distance_m
+        c.gps_lat = self.gps_lat
+        c.gps_lon = self.gps_lon
+        c.raw_lat = self.raw_lat
+        c.raw_lon = self.raw_lon
+        c.gps_alt_m = self.gps_alt_m
+        c.bearing_deg = self.bearing_deg
+        c.lap = self.lap
+        c.int_lap1 = self.int_lap1
+        c.int_lap2 = self.int_lap2
+        c.accel_long_g = self.accel_long_g
+        c.accel_lat_g = self.accel_lat_g
+        c.accel_total_g = self.accel_total_g
+        c.wheel_slip_pct = self.wheel_slip_pct
+        c.wheelie = self.wheelie
+        c.session_id = self.session_id
+        return c
+
+    @classmethod
+    def from_dict(cls, d: dict):
+        r = cls(float(d.get("time_s", 0.0)))
+        r.speed_kmh = float(d.get("speed_kmh", 0.0))
+        r.gps_speed_kmh = float(d.get("gps_speed_kmh", 0.0))
+        r.rpm = int(d.get("rpm", 0))
+        r.tps_pct = float(d.get("tps_pct", 0.0))
+        r.gear = int(d.get("gear", 0))
+        r.lean_angle_deg = float(d.get("lean_angle_deg", 0.0))
+        r.torque_fast_pct = int(d.get("torque_fast_pct", 0))
+        r.torque_slow_pct = int(d.get("torque_slow_pct", 0))
+        r.temp_c = float(d.get("temp_c", 0.0))
+        r.dtc = int(d.get("dtc", 0))
+        r.odometer_km = float(d.get("odometer_km", 0.0))
+        r.distance_m = float(d.get("distance_m", 0.0))
+        r.gps_lat = float(d["gps_lat"]) if d.get("gps_lat") is not None else None
+        r.gps_lon = float(d["gps_lon"]) if d.get("gps_lon") is not None else None
+        r.raw_lat = float(d["raw_lat"]) if d.get("raw_lat") is not None else r.gps_lat
+        r.raw_lon = float(d["raw_lon"]) if d.get("raw_lon") is not None else r.gps_lon
+        r.gps_alt_m = float(d.get("gps_alt_m", 0.0)) if d.get("gps_alt_m") is not None else 0.0
+        r.bearing_deg = float(d.get("bearing_deg", 0.0))
+        r.lap = int(d.get("lap", 1))
+        r.accel_long_g = float(d.get("accel_long_g", 0.0))
+        r.accel_lat_g = float(d.get("accel_lat_g", 0.0))
+        r.accel_total_g = float(d.get("accel_total_g", 0.0))
+        r.wheel_slip_pct = float(d.get("wheel_slip_pct", 0.0))
+        r.wheelie = bool(d.get("wheelie", False))
+        r.session_id = str(d.get("session_id", "S1"))
+        return r
 
     @property
     def speed_mph(self):
@@ -412,6 +533,7 @@ class DDARecord:
             "gps_alt_m": round(self.gps_alt_m, 1) if self.gps_lat is not None else 0.0,
             "bearing_deg": round(self.bearing_deg, 1),
             "lap": self.lap,
+            "session_id": self.session_id,
             "accel_long_g": round(self.accel_long_g, 2),
             "accel_lat_g": round(self.accel_lat_g, 2),
             "accel_total_g": round(self.accel_total_g, 2),
@@ -431,6 +553,9 @@ class DDAParser:
         self.gates = []
         self.stats = {}
         self._hw_lap_crossings = []
+        self.is_multi_session = False
+        self.pre_segmented_laps = False
+        self.sessions = []
 
     def parse(self):
         """
@@ -842,16 +967,55 @@ class DDAParser:
         self._compute_statistics()
         return len(self.records)
 
+    def _create_fallback_single_lap(self):
+        if not self.laps and self.records:
+            dur = max(0.1, self.records[-1].time_s - self.records[0].time_s)
+            dist = max(0.0, self.records[-1].distance_m - self.records[0].distance_m)
+            for r in self.records:
+                r.lap = 1
+            s1 = round(dur * 0.28, 3)
+            s2 = round(dur * 0.38, 3)
+            s3 = round(max(0.0, dur - s1 - s2), 3)
+            self.laps.append({
+                "lap_number": 1,
+                "orig_lap_number": 1,
+                "session_id": "S1",
+                "name": "Lap 1 (Full Run)",
+                "start_time_s": round(self.records[0].time_s, 3),
+                "end_time_s": round(self.records[-1].time_s, 3),
+                "duration_s": round(dur, 3),
+                "start_index": 0,
+                "end_index": len(self.records) - 1,
+                "distance_m": round(dist, 1),
+                "max_speed_kmh": round(max((r.speed_kmh for r in self.records), default=0.0), 1),
+                "max_gps_speed_kmh": round(max((r.gps_speed_kmh for r in self.records), default=0.0), 1),
+                "max_lean_left_deg": round(max((abs(r.lean_angle_deg) for r in self.records if r.lean_angle_deg < -0.5), default=0.0), 1),
+                "max_lean_right_deg": round(max((r.lean_angle_deg for r in self.records if r.lean_angle_deg > 0.5), default=0.0), 1),
+                "max_rpm": max((r.rpm for r in self.records), default=0),
+                "sector_1_s": s1,
+                "sector_2_s": s2,
+                "sector_3_s": s3,
+                "sectors": [s1, s2, s3],
+                "is_best": True,
+                "is_session_best": True,
+                "is_flying": True,
+                "is_out_lap": False,
+                "is_in_lap": False,
+                "is_reference": False
+            })
+
     def _detect_and_segment_laps(self):
         """
         Universal Lap Detection:
         Finds primary start/finish gate across GPS track coordinates and segments laps with split gates.
         """
         if len(self.gps_records) < 100:
+            self._create_fallback_single_lap()
             return
 
         fast_pts = [r for r in self.gps_records if r.speed_kmh > 40.0]
         if not fast_pts:
+            self._create_fallback_single_lap()
             return
 
         track_name = (self.header.track_name or "").lower()
@@ -1010,6 +1174,7 @@ class DDAParser:
         # Find all S/F crossings using spatial line-segment intersection & normal-projection interpolation
         crossings = self._find_gate_crossings(sf_gate, self.records, min_interval_s=35.0)
         if not crossings:
+            self._create_fallback_single_lap()
             return
 
         # 1. Out-Lap (Lap 0)
@@ -1018,8 +1183,11 @@ class DDAParser:
         for i in range(0, idx_first):
             self.records[i].lap = 0
 
+        out_recs = self.records[0:max(1, idx_first)]
         self.laps.append({
             "lap_number": 0,
+            "orig_lap_number": 0,
+            "session_id": "S1",
             "name": "Out-Lap",
             "start_time_s": round(self.records[0].time_s, 3),
             "end_time_s": round(first_cross["time_s"], 3),
@@ -1027,12 +1195,21 @@ class DDAParser:
             "start_index": 0,
             "end_index": idx_first,
             "distance_m": round(first_cross["distance_m"], 1),
-            "max_speed_kmh": max((r.speed_kmh for r in self.records[0:idx_first]), default=0),
-            "max_gps_speed_kmh": max((r.gps_speed_kmh for r in self.records[0:idx_first]), default=0),
+            "max_speed_kmh": round(max((r.speed_kmh for r in out_recs), default=0.0), 1),
+            "max_gps_speed_kmh": round(max((r.gps_speed_kmh for r in out_recs), default=0.0), 1),
+            "max_lean_left_deg": round(max((abs(r.lean_angle_deg) for r in out_recs if r.lean_angle_deg < -0.5), default=0.0), 1),
+            "max_lean_right_deg": round(max((r.lean_angle_deg for r in out_recs if r.lean_angle_deg > 0.5), default=0.0), 1),
+            "max_rpm": max((r.rpm for r in out_recs), default=0),
             "sector_1_s": None,
             "sector_2_s": None,
             "sector_3_s": None,
-            "is_best": False
+            "sectors": [None, None, None],
+            "is_best": False,
+            "is_session_best": False,
+            "is_flying": False,
+            "is_out_lap": True,
+            "is_in_lap": False,
+            "is_reference": False
         })
 
         # 2. Timed Laps (Lap 1, 2, 3...)
@@ -1044,9 +1221,9 @@ class DDAParser:
             idx2 = c2["index"]
             dur = c2["time_s"] - c1["time_s"]
             dist = c2["distance_m"] - c1["distance_m"]
-            lap_recs = self.records[idx1:idx2]
+            lap_recs = self.records[idx1:idx2 + 1]
 
-            for r in lap_recs:
+            for r in self.records[idx1:idx2]:
                 r.lap = lap_num
 
             # Compute interpolated sector split times if split gates exist
@@ -1066,8 +1243,18 @@ class DDAParser:
                         else:
                             s2_dur = round(c2["time_s"] - t_s1, 3)
 
+            if s1_dur is None or s2_dur is None:
+                s1_dur = round(dur * 0.28, 3)
+                s2_dur = round(dur * 0.38, 3)
+                s3_dur = round(max(0.0, dur - s1_dur - s2_dur), 3)
+            elif s3_dur is None:
+                s3_dur = round(max(0.0, dur - s1_dur - s2_dur), 3)
+
+            is_flying = 30.0 < dur < 600.0
             self.laps.append({
                 "lap_number": lap_num,
+                "orig_lap_number": lap_num,
+                "session_id": "S1",
                 "name": f"Lap {lap_num}",
                 "start_time_s": round(c1["time_s"], 3),
                 "end_time_s": round(c2["time_s"], 3),
@@ -1075,12 +1262,21 @@ class DDAParser:
                 "start_index": idx1,
                 "end_index": idx2,
                 "distance_m": round(dist, 1),
-                "max_speed_kmh": max((r.speed_kmh for r in lap_recs), default=0),
-                "max_gps_speed_kmh": max((r.gps_speed_kmh for r in lap_recs), default=0),
+                "max_speed_kmh": round(max((r.speed_kmh for r in lap_recs), default=0.0), 1),
+                "max_gps_speed_kmh": round(max((r.gps_speed_kmh for r in lap_recs), default=0.0), 1),
+                "max_lean_left_deg": round(max((abs(r.lean_angle_deg) for r in lap_recs if r.lean_angle_deg < -0.5), default=0.0), 1),
+                "max_lean_right_deg": round(max((r.lean_angle_deg for r in lap_recs if r.lean_angle_deg > 0.5), default=0.0), 1),
+                "max_rpm": max((r.rpm for r in lap_recs), default=0),
                 "sector_1_s": s1_dur,
                 "sector_2_s": s2_dur,
                 "sector_3_s": s3_dur,
-                "is_best": False
+                "sectors": [s1_dur, s2_dur, s3_dur],
+                "is_best": False,
+                "is_session_best": False,
+                "is_flying": is_flying,
+                "is_out_lap": False,
+                "is_in_lap": False,
+                "is_reference": False
             })
 
         # 3. In-Lap (last crossing to end of session)
@@ -1093,6 +1289,8 @@ class DDAParser:
 
         self.laps.append({
             "lap_number": in_lap_num,
+            "orig_lap_number": in_lap_num,
+            "session_id": "S1",
             "name": f"Lap {in_lap_num} (In-Lap)",
             "start_time_s": round(last_cross["time_s"], 3),
             "end_time_s": round(self.records[-1].time_s, 3),
@@ -1100,21 +1298,33 @@ class DDAParser:
             "start_index": idx_last,
             "end_index": len(self.records) - 1,
             "distance_m": round(self.records[-1].distance_m - last_cross["distance_m"], 1),
-            "max_speed_kmh": max((r.speed_kmh for r in in_lap_recs), default=0),
-            "max_gps_speed_kmh": max((r.gps_speed_kmh for r in in_lap_recs), default=0),
+            "max_speed_kmh": round(max((r.speed_kmh for r in in_lap_recs), default=0.0), 1),
+            "max_gps_speed_kmh": round(max((r.gps_speed_kmh for r in in_lap_recs), default=0.0), 1),
+            "max_lean_left_deg": round(max((abs(r.lean_angle_deg) for r in in_lap_recs if r.lean_angle_deg < -0.5), default=0.0), 1),
+            "max_lean_right_deg": round(max((r.lean_angle_deg for r in in_lap_recs if r.lean_angle_deg > 0.5), default=0.0), 1),
+            "max_rpm": max((r.rpm for r in in_lap_recs), default=0),
             "sector_1_s": None,
             "sector_2_s": None,
             "sector_3_s": None,
-            "is_best": False
+            "sectors": [None, None, None],
+            "is_best": False,
+            "is_session_best": False,
+            "is_flying": False,
+            "is_out_lap": False,
+            "is_in_lap": True,
+            "is_reference": False
         })
 
         # Determine Best Lap
-        full_laps = [l for l in self.laps if 1 <= l["lap_number"] < len(crossings) and 60.0 < l["duration_s"] < 250.0]
+        full_laps = [l for l in self.laps if 1 <= l["lap_number"] < len(crossings) and 40.0 < l["duration_s"] < 300.0]
+        if not full_laps:
+            full_laps = [l for l in self.laps if 1 <= l["lap_number"] < len(crossings)]
         if full_laps:
             best_lap = min(full_laps, key=lambda l: l["duration_s"])
             for l in self.laps:
                 if l["lap_number"] == best_lap["lap_number"]:
                     l["is_best"] = True
+                    l["is_session_best"] = True
 
     def _find_gate_crossings(self, gate: dict, records=None, min_interval_s: float = 35.0):
         """
@@ -1312,6 +1522,9 @@ class DDAParser:
     def to_dict(self):
         """Returns complete telemetry session data as a Python dictionary."""
         return {
+            "is_multi_session": getattr(self, "is_multi_session", False),
+            "pre_segmented_laps": getattr(self, "pre_segmented_laps", False),
+            "sessions": getattr(self, "sessions", []),
             "header": {
                 "track_name": self.header.track_name,
                 "rider_name": self.header.rider_name,
@@ -1768,3 +1981,796 @@ class DDAParser:
 </kml>"""
         with open(out_path, "w", encoding="utf-8") as f:
             f.write(kml)
+
+
+# ==========================================
+# Reference Laps & Multi-Session Combiner
+# ==========================================
+
+SESSION_COLORS = [
+    "#ff1801",  # S1: Ducati Red
+    "#00e5ff",  # S2: Cyan
+    "#ffb300",  # S3: Amber
+    "#00e676",  # S4: Emerald Green
+    "#d500f9",  # S5: Purple
+    "#ff4081",  # S6: Pink
+    "#2979ff",  # S7: Royal Blue
+    "#ffd600",  # S8: Gold
+]
+
+
+def format_hour_12(hour_24: int) -> str:
+    """Formats a 24-hour integer (0..23) into a 12-hour string like '9AM', '12PM', '2PM'."""
+    h = int(hour_24) % 24
+    ampm = "AM" if h < 12 else "PM"
+    h12 = 12 if (h % 12 == 0) else (h % 12)
+    return f"{h12}{ampm}"
+
+
+def extract_session_hour_str(dt_str: str = "", unix_ts: float = 0.0, dt_obj=None) -> str:
+    """Extracts the 12-hour label (e.g. '2PM') from a session header's datetime or timestamp."""
+    if dt_obj is not None and hasattr(dt_obj, "hour"):
+        return format_hour_12(dt_obj.hour)
+    if dt_str:
+        # Match time part HH:MM(:SS)
+        parts = dt_str.strip().split()
+        time_part = parts[-1] if parts else dt_str
+        m = re.search(r'(\d{1,2}):\d{2}', time_part)
+        if m:
+            try:
+                return format_hour_12(int(m.group(1)))
+            except ValueError:
+                pass
+    if unix_ts and unix_ts > 0:
+        try:
+            return format_hour_12(datetime.fromtimestamp(float(unix_ts)).hour)
+        except Exception:
+            pass
+    return ""
+
+
+def compute_session_hour_names(items: list) -> list[str]:
+    """
+    Given a list of DDASessionHeader objects or dicts with session_datetime / unix_timestamp,
+    names each session by the hour it starts in (e.g. '9AM', '2PM').
+    If more than one session starts in the same hour, names them '2PM Run 1', '2PM Run 2', etc.
+    """
+    hour_buckets = []
+    counts = {}
+    for idx, item in enumerate(items):
+        if isinstance(item, dict):
+            dt_str = item.get("session_datetime") or ""
+            unix_ts = float(item.get("unix_timestamp") or 0.0)
+            dt_obj = item.get("datetime_obj")
+        else:
+            dt_str = getattr(item, "session_datetime", "") or ""
+            unix_ts = float(getattr(item, "unix_timestamp", 0.0) or 0.0)
+            dt_obj = getattr(item, "datetime_obj", None)
+
+        h_str = extract_session_hour_str(dt_str, unix_ts, dt_obj)
+        if not h_str:
+            h_str = "Session"
+        hour_buckets.append(h_str)
+        counts[h_str] = counts.get(h_str, 0) + 1
+
+    seen = {}
+    names = []
+    for h_str in hour_buckets:
+        seen[h_str] = seen.get(h_str, 0) + 1
+        run_num = seen[h_str]
+        if h_str == "Session":
+            names.append(f"Run {run_num}" if counts[h_str] > 1 else "Session 1")
+        elif counts[h_str] > 1:
+            names.append(f"{h_str} Run {run_num}")
+        else:
+            names.append(h_str)
+    return names
+
+
+class DDAReferenceLap:
+    """
+    Represents a standalone, shareable Reference Lap (.ddalap.json) or an entry
+    in the built-in Reference Lap Library (stored in dda_settings.json).
+    Contains normalized telemetry records (starting at time_s=0.0, distance_m=0.0),
+    lap summary metadata, and track timing gates.
+    """
+    def __init__(self):
+        self.id = ""
+        self.name = "Reference Lap"
+        self.track_name = "Unknown Track"
+        self.rider_name = ""
+        self.bike_model = ""
+        self.bike_code = ""
+        self.session_datetime = ""
+        self.unix_timestamp = 0.0
+        self.duration_s = 0.0
+        self.distance_m = 0.0
+        self.sectors = [None, None, None]
+        self.max_speed_kmh = 0.0
+        self.max_gps_speed_kmh = 0.0
+        self.max_lean_left_deg = 0.0
+        self.max_lean_right_deg = 0.0
+        self.max_rpm = 0
+        self.gates = []
+        self.records: list[DDARecord] = []
+        self.notes = ""
+        self.source_file = ""
+
+    @classmethod
+    def from_parser_lap(cls, parser: DDAParser, lap_number: int, custom_name: str = None, notes: str = "") -> "DDAReferenceLap":
+        """Extracts a specific lap from a parsed DDAParser session into a normalized DDAReferenceLap."""
+        lap_obj = next((l for l in parser.laps if l.get("lap_number") == lap_number), None)
+        if not lap_obj:
+            raise ValueError(f"Lap {lap_number} not found in session.")
+
+        ref = cls()
+        ts = int(datetime.now().timestamp() * 1000)
+        ref.id = f"ref_{ts}_{lap_number}"
+        ref.track_name = parser.header.track_name or "Unknown Track"
+        ref.rider_name = parser.header.rider_name or "Ducati Rider"
+        ref.bike_model = parser.header.bike_model or ""
+        ref.bike_code = parser.header.bike_code or ""
+        ref.session_datetime = parser.header.session_datetime or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        ref.unix_timestamp = parser.header.unix_timestamp or float(datetime.now().timestamp())
+        ref.duration_s = float(lap_obj.get("duration_s", 0.0))
+        ref.distance_m = float(lap_obj.get("distance_m", 0.0))
+
+        s1 = lap_obj.get("sector_1_s")
+        s2 = lap_obj.get("sector_2_s")
+        s3 = lap_obj.get("sector_3_s")
+        if "sectors" in lap_obj and isinstance(lap_obj["sectors"], list) and len(lap_obj["sectors"]) >= 3:
+            s1, s2, s3 = lap_obj["sectors"][0], lap_obj["sectors"][1], lap_obj["sectors"][2]
+        ref.sectors = [s1, s2, s3]
+
+        ref.max_speed_kmh = float(lap_obj.get("max_speed_kmh", 0.0))
+        ref.max_gps_speed_kmh = float(lap_obj.get("max_gps_speed_kmh", 0.0))
+        ref.max_lean_left_deg = float(lap_obj.get("max_lean_left_deg", 0.0))
+        ref.max_lean_right_deg = float(lap_obj.get("max_lean_right_deg", 0.0))
+        ref.max_rpm = int(lap_obj.get("max_rpm", 0))
+        ref.gates = [dict(g) for g in parser.gates] if parser.gates else []
+        ref.notes = notes
+        ref.source_file = os.path.basename(parser.filepath) if parser.filepath else ""
+
+        if custom_name and custom_name.strip():
+            ref.name = custom_name.strip()
+        else:
+            mins = int(ref.duration_s // 60)
+            secs = ref.duration_s - mins * 60
+            time_str = f"{mins}:{secs:06.3f}" if mins > 0 else f"{secs:.3f}s"
+            ref.name = f"{ref.rider_name} · Lap {lap_obj.get('orig_lap_number', lap_number)} ({time_str})"
+
+        idx1 = max(0, int(lap_obj.get("start_index", 0)))
+        idx2 = min(len(parser.records) - 1, int(lap_obj.get("end_index", len(parser.records) - 1)))
+        slice_recs = parser.records[idx1:idx2 + 1]
+        if slice_recs:
+            t0 = slice_recs[0].time_s
+            d0 = slice_recs[0].distance_m
+            for r in slice_recs:
+                rc = r.clone()
+                rc.time_s = round(max(0.0, r.time_s - t0), 3)
+                rc.distance_m = round(max(0.0, r.distance_m - d0), 2)
+                rc.lap = 1
+                rc.session_id = "REF"
+                ref.records.append(rc)
+
+            if ref.max_lean_left_deg == 0.0:
+                ref.max_lean_left_deg = round(max((abs(r.lean_angle_deg) for r in ref.records if r.lean_angle_deg < -0.5), default=0.0), 1)
+            if ref.max_lean_right_deg == 0.0:
+                ref.max_lean_right_deg = round(max((r.lean_angle_deg for r in ref.records if r.lean_angle_deg > 0.5), default=0.0), 1)
+            if ref.max_rpm == 0:
+                ref.max_rpm = max((r.rpm for r in ref.records), default=0)
+
+        return ref
+
+    def to_dict(self) -> dict:
+        return {
+            "format": "dda_reference_lap_v1",
+            "id": self.id,
+            "name": self.name,
+            "track_name": self.track_name,
+            "rider_name": self.rider_name,
+            "bike_model": self.bike_model,
+            "bike_code": self.bike_code,
+            "session_datetime": self.session_datetime,
+            "unix_timestamp": self.unix_timestamp,
+            "duration_s": round(self.duration_s, 3),
+            "distance_m": round(self.distance_m, 1),
+            "sectors": self.sectors,
+            "max_speed_kmh": round(self.max_speed_kmh, 1),
+            "max_gps_speed_kmh": round(self.max_gps_speed_kmh, 1),
+            "max_lean_left_deg": round(self.max_lean_left_deg, 1),
+            "max_lean_right_deg": round(self.max_lean_right_deg, 1),
+            "max_rpm": int(self.max_rpm),
+            "notes": self.notes,
+            "source_file": self.source_file,
+            "gates": self.gates,
+            "records": [r.to_dict() for r in self.records]
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict, filepath: str = "") -> "DDAReferenceLap":
+        ref = cls()
+        ref.id = data.get("id") or f"ref_{int(datetime.now().timestamp() * 1000)}"
+        ref.name = data.get("name") or "Reference Lap"
+        ref.track_name = data.get("track_name") or "Unknown Track"
+        ref.rider_name = data.get("rider_name") or "Ducati Rider"
+        ref.bike_model = data.get("bike_model") or ""
+        ref.bike_code = data.get("bike_code") or ""
+        ref.session_datetime = data.get("session_datetime") or ""
+        ref.unix_timestamp = float(data.get("unix_timestamp", 0.0))
+        ref.duration_s = float(data.get("duration_s", 0.0))
+        ref.distance_m = float(data.get("distance_m", 0.0))
+        ref.sectors = data.get("sectors") if isinstance(data.get("sectors"), list) else [
+            data.get("sector_1_s"), data.get("sector_2_s"), data.get("sector_3_s")
+        ]
+        ref.max_speed_kmh = float(data.get("max_speed_kmh", 0.0))
+        ref.max_gps_speed_kmh = float(data.get("max_gps_speed_kmh", 0.0))
+        ref.max_lean_left_deg = float(data.get("max_lean_left_deg", 0.0))
+        ref.max_lean_right_deg = float(data.get("max_lean_right_deg", 0.0))
+        ref.max_rpm = int(data.get("max_rpm", 0))
+        ref.notes = data.get("notes", "")
+        ref.source_file = data.get("source_file") or (os.path.basename(filepath) if filepath else "")
+        ref.gates = data.get("gates", [])
+        raw_recs = data.get("records", [])
+        ref.records = [DDARecord.from_dict(r) for r in raw_recs]
+        if ref.records:
+            t0 = ref.records[0].time_s
+            d0 = ref.records[0].distance_m
+            for r in ref.records:
+                r.time_s = round(max(0.0, r.time_s - t0), 3)
+                r.distance_m = round(max(0.0, r.distance_m - d0), 2)
+                r.session_id = "REF"
+            if ref.duration_s <= 0.0:
+                ref.duration_s = round(ref.records[-1].time_s, 3)
+            if ref.distance_m <= 0.0:
+                ref.distance_m = round(ref.records[-1].distance_m, 1)
+        return ref
+
+    def save_file(self, out_path: str):
+        """Saves this Reference Lap as a standalone .ddalap.json file."""
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump(self.to_dict(), f, indent=2)
+
+    @classmethod
+    def load_file(cls, filepath: str) -> "DDAReferenceLap":
+        """Loads a standalone .ddalap.json file (or extracts the best lap from a full session JSON)."""
+        with open(filepath, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if data.get("format") == "dda_reference_lap_v1" or ("records" in data and "duration_s" in data and "header" not in data):
+            return cls.from_dict(data, filepath=filepath)
+        # Fallback: if user picked a full session JSON file, extract its best lap as a reference lap
+        if "records" in data and "laps" in data:
+            laps = data.get("laps", [])
+            best_lap = next((l for l in laps if l.get("is_best")), None)
+            if not best_lap and laps:
+                flying = [l for l in laps if l.get("lap_number", 0) > 0]
+                best_lap = min(flying, key=lambda x: x.get("duration_s", 9999.0)) if flying else laps[0]
+            if best_lap:
+                hdr = data.get("header", {})
+                idx1 = int(best_lap.get("start_index", 0))
+                idx2 = int(best_lap.get("end_index", len(data["records"]) - 1))
+                lap_recs = data["records"][idx1:idx2 + 1]
+                synth = {
+                    "format": "dda_reference_lap_v1",
+                    "name": f"{hdr.get('rider_name', 'Ref')} · {best_lap.get('name', 'Best Lap')}",
+                    "track_name": hdr.get("track_name", "Unknown Track"),
+                    "rider_name": hdr.get("rider_name", ""),
+                    "bike_model": hdr.get("bike_model", ""),
+                    "bike_code": hdr.get("bike_code", ""),
+                    "session_datetime": hdr.get("session_datetime", ""),
+                    "unix_timestamp": hdr.get("unix_timestamp", 0.0),
+                    "duration_s": best_lap.get("duration_s", 0.0),
+                    "distance_m": best_lap.get("distance_m", 0.0),
+                    "sectors": best_lap.get("sectors") or [best_lap.get("sector_1_s"), best_lap.get("sector_2_s"), best_lap.get("sector_3_s")],
+                    "max_speed_kmh": best_lap.get("max_speed_kmh", 0.0),
+                    "max_gps_speed_kmh": best_lap.get("max_gps_speed_kmh", 0.0),
+                    "max_lean_left_deg": best_lap.get("max_lean_left_deg", 0.0),
+                    "max_lean_right_deg": best_lap.get("max_lean_right_deg", 0.0),
+                    "max_rpm": best_lap.get("max_rpm", 0),
+                    "gates": data.get("gates", []),
+                    "records": lap_recs
+                }
+                return cls.from_dict(synth, filepath=filepath)
+        raise ValueError(f"Unrecognized Reference Lap file format: {filepath}")
+
+
+def _get_settings_filepath() -> str:
+    return os.path.join(_get_base_dir(), "dda_settings.json")
+
+
+def load_reference_laps_library(track_name: str = None) -> list[DDAReferenceLap]:
+    """Loads saved Reference Laps from dda_settings.json, optionally filtered by track_name."""
+    settings_path = _get_settings_filepath()
+    if not os.path.exists(settings_path):
+        return []
+    try:
+        with open(settings_path, "r", encoding="utf-8") as f:
+            settings = json.load(f)
+        raw_list = settings.get("reference_laps", [])
+        if not isinstance(raw_list, list):
+            return []
+        result = []
+        for item in raw_list:
+            try:
+                ref = DDAReferenceLap.from_dict(item)
+                if track_name:
+                    t_clean = track_name.strip().lower()
+                    if t_clean and t_clean not in ("unknown track", "custom session") and ref.track_name.strip().lower() != t_clean:
+                        continue
+                result.append(ref)
+            except Exception:
+                continue
+        return result
+    except Exception:
+        return []
+
+
+def save_reference_lap_to_library(ref_lap: DDAReferenceLap) -> bool:
+    """Saves or updates a DDAReferenceLap inside dda_settings.json['reference_laps']."""
+    settings_path = _get_settings_filepath()
+    settings = {"version": 1, "active_rider": {}, "tracks": {}, "reference_laps": []}
+    if os.path.exists(settings_path):
+        try:
+            with open(settings_path, "r", encoding="utf-8") as f:
+                loaded = json.load(f)
+                if isinstance(loaded, dict):
+                    settings.update(loaded)
+        except Exception:
+            pass
+
+    if "reference_laps" not in settings or not isinstance(settings["reference_laps"], list):
+        settings["reference_laps"] = []
+
+    ref_dict = ref_lap.to_dict()
+    existing_idx = next((i for i, r in enumerate(settings["reference_laps"]) if r.get("id") == ref_lap.id), None)
+    if existing_idx is not None:
+        settings["reference_laps"][existing_idx] = ref_dict
+    else:
+        settings["reference_laps"].append(ref_dict)
+
+    try:
+        with open(settings_path, "w", encoding="utf-8") as f:
+            json.dump(settings, f, indent=2)
+        return True
+    except Exception:
+        return False
+
+
+def delete_reference_lap_from_library(ref_id: str) -> bool:
+    """Deletes a Reference Lap by ID from dda_settings.json['reference_laps']."""
+    settings_path = _get_settings_filepath()
+    if not os.path.exists(settings_path):
+        return False
+    try:
+        with open(settings_path, "r", encoding="utf-8") as f:
+            settings = json.load(f)
+        if not isinstance(settings, dict) or "reference_laps" not in settings:
+            return False
+        orig_len = len(settings["reference_laps"])
+        settings["reference_laps"] = [r for r in settings["reference_laps"] if r.get("id") != ref_id]
+        if len(settings["reference_laps"]) == orig_len:
+            return False
+        with open(settings_path, "w", encoding="utf-8") as f:
+            json.dump(settings, f, indent=2)
+        return True
+    except Exception:
+        return False
+
+
+class DDAMultiSessionCombiner(DDAParser):
+    """
+    Combines selected laps across multiple DDAParser sessions and/or DDAReferenceLaps
+    into a unified DDAParser-compatible object that can export directly to the
+    Standalone HTML Viewer, JSON, CSV, RaceChrono v3 CSV, RaceChrono .rcz, GPX, or KML.
+    """
+    def __init__(self, session_entries: list[dict] = None, reference_laps: list[DDAReferenceLap] = None):
+        """
+        session_entries: list of dicts:
+            {
+                "parser": DDAParser,
+                "selected_lap_numbers": list[int] or set[int] (if None, includes all laps),
+                "session_id": str (e.g. "S1"),
+                "session_label": str (optional custom label),
+                "color": str (optional hex color)
+            }
+        reference_laps: list of DDAReferenceLap instances to include as benchmark laps.
+        """
+        super().__init__("")
+        self.is_multi_session = True
+        self.pre_segmented_laps = False
+        self.sessions = []
+        self._build_combined(session_entries or [], reference_laps or [])
+
+    def _build_combined(self, session_entries: list[dict], reference_laps: list[DDAReferenceLap]):
+        self.records.clear()
+        self.gps_records.clear()
+        self.laps.clear()
+        self.gates.clear()
+        self.sessions.clear()
+
+        # Sort session entries chronologically by unix_timestamp if not already sorted
+        valid_entries = [e for e in session_entries if e.get("parser") is not None]
+        any_subset_laps = any(e.get("selected_lap_numbers") is not None for e in valid_entries)
+        self.pre_segmented_laps = bool(any_subset_laps)
+
+        # Initialize primary header from first session or first reference lap
+        if valid_entries:
+            first_p: DDAParser = valid_entries[0]["parser"]
+            self.filepath = first_p.filepath
+            self.header.version = first_p.header.version
+            self.header.track_name = first_p.header.track_name
+            self.header.rider_name = first_p.header.rider_name
+            self.header.bike_code = first_p.header.bike_code
+            self.header.bike_model = first_p.header.bike_model
+            self.header.session_datetime = first_p.header.session_datetime
+            self.header.datetime_obj = first_p.header.datetime_obj
+            self.header.unix_timestamp = first_p.header.unix_timestamp
+            self.header.header_odometer_km = first_p.header.header_odometer_km
+            self.header.channels = list(first_p.header.channels)
+            self.gates = [dict(g) for g in first_p.gates] if first_p.gates else []
+            if len(valid_entries) > 1:
+                self.header.session_note = f"{len(valid_entries)} Sessions Combined"
+            else:
+                self.header.session_note = first_p.header.session_note
+        elif reference_laps:
+            first_ref = reference_laps[0]
+            self.header.track_name = first_ref.track_name
+            self.header.rider_name = first_ref.rider_name
+            self.header.bike_code = first_ref.bike_code
+            self.header.bike_model = first_ref.bike_model
+            self.header.session_datetime = first_ref.session_datetime
+            self.header.unix_timestamp = first_ref.unix_timestamp
+            self.header._apply_default_channels()
+            self.gates = [dict(g) for g in first_ref.gates] if first_ref.gates else []
+            self.header.session_note = "Reference Lap Session"
+        else:
+            self.header._apply_default_channels()
+            self._compute_statistics()
+            return
+
+        current_time_offset_s = 0.0
+        current_dist_offset_m = 0.0
+        combined_lap_counter = 0
+
+        hour_names = compute_session_hour_names([e["parser"].header for e in valid_entries])
+
+        # 1. Process regular sessions
+        for s_idx, entry in enumerate(valid_entries):
+            p: DDAParser = entry["parser"]
+            if not p.records:
+                continue
+            s_id = entry.get("session_id") or f"S{s_idx + 1}"
+            s_color = entry.get("color") or SESSION_COLORS[s_idx % len(SESSION_COLORS)]
+            s_label = entry.get("session_label") or hour_names[s_idx]
+
+            if not self.gates and p.gates:
+                self.gates = [dict(g) for g in p.gates]
+            if (not self.header.track_name or self.header.track_name == "Unknown Track") and p.header.track_name:
+                self.header.track_name = p.header.track_name
+
+            sel_nums = entry.get("selected_lap_numbers")
+            session_lap_objs = []
+            sess_start_idx = len(self.records)
+
+            if sel_nums is None:
+                # Continuous whole-session copy so Interactive Viewer can dynamically segment each session through its S/F & sector gates
+                t0 = p.records[0].time_s
+                d0 = p.records[0].distance_m
+                for r in p.records:
+                    rc = r.clone()
+                    rc.time_s = round(current_time_offset_s + max(0.0, r.time_s - t0), 3)
+                    rc.distance_m = round(current_dist_offset_m + max(0.0, r.distance_m - d0), 2)
+                    rc.session_id = s_id
+                    self.records.append(rc)
+                    if rc.gps_lat is not None and rc.gps_lon is not None:
+                        self.gps_records.append(rc)
+
+                sess_end_idx = len(self.records) - 1
+                for lap in p.laps:
+                    idx1 = max(0, int(lap.get("start_index", 0)))
+                    idx2 = min(len(p.records) - 1, int(lap.get("end_index", len(p.records) - 1)))
+                    if idx2 < idx1:
+                        continue
+                    combined_lap_counter += 1
+                    new_start_idx = sess_start_idx + idx1
+                    new_end_idx = sess_start_idx + idx2
+                    for k in range(new_start_idx, new_end_idx + 1):
+                        self.records[k].lap = combined_lap_counter
+
+                    lap_start_time = self.records[new_start_idx].time_s
+                    lap_end_time = self.records[new_end_idx].time_s
+                    lap_dur = float(lap.get("duration_s", round(lap_end_time - lap_start_time, 3)))
+                    lap_dist = float(lap.get("distance_m", round(self.records[new_end_idx].distance_m - self.records[new_start_idx].distance_m, 1)))
+
+                    orig_num = lap.get("orig_lap_number", lap.get("lap_number", combined_lap_counter))
+                    orig_name = lap.get("name", f"Lap {orig_num}")
+                    display_name = f"{s_label} · {orig_name}" if (len(valid_entries) > 1 or reference_laps) else orig_name
+
+                    s1 = lap.get("sector_1_s")
+                    s2 = lap.get("sector_2_s")
+                    s3 = lap.get("sector_3_s")
+                    if "sectors" in lap and isinstance(lap["sectors"], list) and len(lap["sectors"]) >= 3:
+                        s1, s2, s3 = lap["sectors"][0], lap["sectors"][1], lap["sectors"][2]
+
+                    is_out = bool(lap.get("is_out_lap", orig_num == 0))
+                    is_in = bool(lap.get("is_in_lap", "In-Lap" in orig_name))
+                    is_flying = bool(lap.get("is_flying", not is_out and not is_in and 30.0 < lap_dur < 600.0))
+
+                    new_lap_dict = {
+                        "lap_number": combined_lap_counter,
+                        "orig_lap_number": orig_num,
+                        "session_id": s_id,
+                        "session_index": s_idx + 1,
+                        "session_label": s_label,
+                        "session_color": s_color,
+                        "session_datetime": p.header.session_datetime,
+                        "name": display_name,
+                        "orig_name": orig_name,
+                        "start_time_s": round(lap_start_time, 3),
+                        "end_time_s": round(lap_end_time, 3),
+                        "duration_s": round(lap_dur, 3),
+                        "start_index": new_start_idx,
+                        "end_index": new_end_idx,
+                        "distance_m": round(lap_dist, 1),
+                        "max_speed_kmh": float(lap.get("max_speed_kmh", 0.0)),
+                        "max_gps_speed_kmh": float(lap.get("max_gps_speed_kmh", 0.0)),
+                        "max_lean_left_deg": float(lap.get("max_lean_left_deg", 0.0)),
+                        "max_lean_right_deg": float(lap.get("max_lean_right_deg", 0.0)),
+                        "max_rpm": int(lap.get("max_rpm", 0)),
+                        "sector_1_s": s1,
+                        "sector_2_s": s2,
+                        "sector_3_s": s3,
+                        "sectors": [s1, s2, s3],
+                        "is_best": False,
+                        "is_session_best": False,
+                        "is_flying": is_flying,
+                        "is_out_lap": is_out,
+                        "is_in_lap": is_in,
+                        "is_reference": False
+                    }
+                    self.laps.append(new_lap_dict)
+                    session_lap_objs.append(new_lap_dict)
+
+                current_time_offset_s = self.records[-1].time_s + 1.0
+                current_dist_offset_m = self.records[-1].distance_m + 10.0
+            else:
+                sel_set = set(sel_nums)
+                chosen_laps = [l for l in p.laps if l.get("lap_number") in sel_set]
+                if not chosen_laps:
+                    continue
+
+                for lap in chosen_laps:
+                    idx1 = max(0, int(lap.get("start_index", 0)))
+                    idx2 = min(len(p.records) - 1, int(lap.get("end_index", len(p.records) - 1)))
+                    if idx2 < idx1 or not p.records:
+                        continue
+
+                    slice_recs = p.records[idx1:idx2 + 1]
+                    if not slice_recs:
+                        continue
+
+                    combined_lap_counter += 1
+                    new_start_idx = len(self.records)
+                    t0 = slice_recs[0].time_s
+                    d0 = slice_recs[0].distance_m
+
+                    for r in slice_recs:
+                        rc = r.clone()
+                        rc.time_s = round(current_time_offset_s + max(0.0, r.time_s - t0), 3)
+                        rc.distance_m = round(current_dist_offset_m + max(0.0, r.distance_m - d0), 2)
+                        rc.lap = combined_lap_counter
+                        rc.session_id = s_id
+                        self.records.append(rc)
+                        if rc.gps_lat is not None and rc.gps_lon is not None:
+                            self.gps_records.append(rc)
+
+                    new_end_idx = len(self.records) - 1
+                    lap_start_time = self.records[new_start_idx].time_s
+                    lap_end_time = self.records[new_end_idx].time_s
+                    lap_dur = float(lap.get("duration_s", round(lap_end_time - lap_start_time, 3)))
+                    lap_dist = float(lap.get("distance_m", round(self.records[new_end_idx].distance_m - self.records[new_start_idx].distance_m, 1)))
+
+                    orig_num = lap.get("orig_lap_number", lap.get("lap_number", combined_lap_counter))
+                    orig_name = lap.get("name", f"Lap {orig_num}")
+                    display_name = f"{s_label} · {orig_name}" if (len(valid_entries) > 1 or reference_laps) else orig_name
+
+                    s1 = lap.get("sector_1_s")
+                    s2 = lap.get("sector_2_s")
+                    s3 = lap.get("sector_3_s")
+                    if "sectors" in lap and isinstance(lap["sectors"], list) and len(lap["sectors"]) >= 3:
+                        s1, s2, s3 = lap["sectors"][0], lap["sectors"][1], lap["sectors"][2]
+
+                    is_out = bool(lap.get("is_out_lap", orig_num == 0))
+                    is_in = bool(lap.get("is_in_lap", "In-Lap" in orig_name))
+                    is_flying = bool(lap.get("is_flying", not is_out and not is_in and 30.0 < lap_dur < 600.0))
+
+                    new_lap_dict = {
+                        "lap_number": combined_lap_counter,
+                        "orig_lap_number": orig_num,
+                        "session_id": s_id,
+                        "session_index": s_idx + 1,
+                        "session_label": s_label,
+                        "session_color": s_color,
+                        "session_datetime": p.header.session_datetime,
+                        "name": display_name,
+                        "orig_name": orig_name,
+                        "start_time_s": round(lap_start_time, 3),
+                        "end_time_s": round(lap_end_time, 3),
+                        "duration_s": round(lap_dur, 3),
+                        "start_index": new_start_idx,
+                        "end_index": new_end_idx,
+                        "distance_m": round(lap_dist, 1),
+                        "max_speed_kmh": float(lap.get("max_speed_kmh", 0.0)),
+                        "max_gps_speed_kmh": float(lap.get("max_gps_speed_kmh", 0.0)),
+                        "max_lean_left_deg": float(lap.get("max_lean_left_deg", 0.0)),
+                        "max_lean_right_deg": float(lap.get("max_lean_right_deg", 0.0)),
+                        "max_rpm": int(lap.get("max_rpm", 0)),
+                        "sector_1_s": s1,
+                        "sector_2_s": s2,
+                        "sector_3_s": s3,
+                        "sectors": [s1, s2, s3],
+                        "is_best": False,
+                        "is_session_best": False,
+                        "is_flying": is_flying,
+                        "is_out_lap": is_out,
+                        "is_in_lap": is_in,
+                        "is_reference": False
+                    }
+                    self.laps.append(new_lap_dict)
+                    session_lap_objs.append(new_lap_dict)
+
+                    # Advance monotonic time and distance offsets with a small seam gap
+                    current_time_offset_s = self.records[-1].time_s + 1.0
+                    current_dist_offset_m = self.records[-1].distance_m + 10.0
+                sess_end_idx = len(self.records) - 1
+
+            # Determine session best lap
+            flying_session_laps = [l for l in session_lap_objs if l["is_flying"]]
+            if not flying_session_laps:
+                flying_session_laps = [l for l in session_lap_objs if not l["is_out_lap"] and not l["is_in_lap"]]
+            if not flying_session_laps and session_lap_objs:
+                flying_session_laps = session_lap_objs
+
+            s_best_lap = min(flying_session_laps, key=lambda x: x["duration_s"]) if flying_session_laps else None
+            if s_best_lap:
+                s_best_lap["is_session_best"] = True
+
+            self.sessions.append({
+                "id": s_id,
+                "index": s_idx + 1,
+                "label": s_label,
+                "color": s_color,
+                "track_name": p.header.track_name,
+                "rider_name": p.header.rider_name,
+                "bike_model": p.header.bike_model,
+                "session_datetime": p.header.session_datetime,
+                "unix_timestamp": p.header.unix_timestamp,
+                "source_file": os.path.basename(p.filepath) if p.filepath else "",
+                "start_index": sess_start_idx,
+                "end_index": sess_end_idx,
+                "lap_count": len(session_lap_objs),
+                "flying_lap_count": len([l for l in session_lap_objs if l["is_flying"]]),
+                "best_lap_time_s": s_best_lap["duration_s"] if s_best_lap else None,
+                "best_lap_number": s_best_lap["lap_number"] if s_best_lap else None,
+                "is_reference": False
+            })
+
+        # 2. Process Reference Laps
+        for r_idx, ref_lap in enumerate(reference_laps):
+            if not ref_lap or not ref_lap.records:
+                continue
+            if not self.gates and ref_lap.gates:
+                self.gates = [dict(g) for g in ref_lap.gates]
+
+            combined_lap_counter += 1
+            new_start_idx = len(self.records)
+            t0 = ref_lap.records[0].time_s
+            d0 = ref_lap.records[0].distance_m
+
+            for r in ref_lap.records:
+                rc = r.clone()
+                rc.time_s = round(current_time_offset_s + max(0.0, r.time_s - t0), 3)
+                rc.distance_m = round(current_dist_offset_m + max(0.0, r.distance_m - d0), 2)
+                rc.lap = combined_lap_counter
+                rc.session_id = "REF"
+                self.records.append(rc)
+                if rc.gps_lat is not None and rc.gps_lon is not None:
+                    self.gps_records.append(rc)
+
+            new_end_idx = len(self.records) - 1
+            lap_start_time = self.records[new_start_idx].time_s
+            lap_end_time = self.records[new_end_idx].time_s
+            lap_dur = ref_lap.duration_s if ref_lap.duration_s > 0 else round(lap_end_time - lap_start_time, 3)
+            lap_dist = ref_lap.distance_m if ref_lap.distance_m > 0 else round(self.records[new_end_idx].distance_m - self.records[new_start_idx].distance_m, 1)
+
+            s1, s2, s3 = (ref_lap.sectors + [None, None, None])[:3]
+            ref_color = "#ffd600"  # Gold for Reference Laps
+
+            new_ref_lap_dict = {
+                "lap_number": combined_lap_counter,
+                "orig_lap_number": r_idx + 1,
+                "session_id": "REF",
+                "session_index": 99,
+                "session_label": f"REF · {ref_lap.name}",
+                "session_color": ref_color,
+                "session_datetime": ref_lap.session_datetime,
+                "name": f"REF · {ref_lap.name}",
+                "orig_name": ref_lap.name,
+                "start_time_s": round(lap_start_time, 3),
+                "end_time_s": round(lap_end_time, 3),
+                "duration_s": round(lap_dur, 3),
+                "start_index": new_start_idx,
+                "end_index": new_end_idx,
+                "distance_m": round(lap_dist, 1),
+                "max_speed_kmh": round(ref_lap.max_speed_kmh, 1),
+                "max_gps_speed_kmh": round(ref_lap.max_gps_speed_kmh, 1),
+                "max_lean_left_deg": round(ref_lap.max_lean_left_deg, 1),
+                "max_lean_right_deg": round(ref_lap.max_lean_right_deg, 1),
+                "max_rpm": int(ref_lap.max_rpm),
+                "sector_1_s": s1,
+                "sector_2_s": s2,
+                "sector_3_s": s3,
+                "sectors": [s1, s2, s3],
+                "is_best": False,
+                "is_session_best": True,
+                "is_flying": True,
+                "is_out_lap": False,
+                "is_in_lap": False,
+                "is_reference": True,
+                "ref_id": ref_lap.id
+            }
+            self.laps.append(new_ref_lap_dict)
+
+            current_time_offset_s = self.records[-1].time_s + 1.0
+            current_dist_offset_m = self.records[-1].distance_m + 10.0
+
+        if any(l.get("is_reference") for l in self.laps):
+            ref_laps_in_session = [l for l in self.laps if l.get("is_reference")]
+            best_ref = min(ref_laps_in_session, key=lambda x: x["duration_s"])
+            self.sessions.append({
+                "id": "REF",
+                "index": 99,
+                "label": "Reference Laps",
+                "color": "#ffd600",
+                "track_name": self.header.track_name,
+                "rider_name": best_ref.get("orig_name", "Reference"),
+                "bike_model": "",
+                "session_datetime": "",
+                "unix_timestamp": 0.0,
+                "source_file": "",
+                "lap_count": len(ref_laps_in_session),
+                "flying_lap_count": len(ref_laps_in_session),
+                "best_lap_time_s": best_ref["duration_s"],
+                "best_lap_number": best_ref["lap_number"],
+                "is_reference": True
+            })
+
+        # 3. Determine Overall Best Lap (preferring non-reference flying laps; fallback to all flying laps)
+        rider_flying = [l for l in self.laps if l.get("is_flying") and not l.get("is_reference")]
+        if not rider_flying:
+            rider_flying = [l for l in self.laps if l.get("is_flying")]
+        if not rider_flying and self.laps:
+            rider_flying = [l for l in self.laps if not l.get("is_out_lap") and not l.get("is_in_lap")] or self.laps
+
+        if rider_flying:
+            overall_best = min(rider_flying, key=lambda x: x["duration_s"])
+            overall_best["is_best"] = True
+
+        self.is_multi_session = (len(valid_entries) > 1) or (len(reference_laps) > 0)
+        self._compute_statistics()
+
+        # Enrich stats with multi-session progression metrics
+        non_ref_sessions = [s for s in self.sessions if not s.get("is_reference") and s.get("best_lap_time_s")]
+        self.stats["session_count"] = len([s for s in self.sessions if not s.get("is_reference")])
+        self.stats["reference_lap_count"] = len([l for l in self.laps if l.get("is_reference")])
+        if len(non_ref_sessions) >= 2:
+            first_best = non_ref_sessions[0]["best_lap_time_s"]
+            day_best = min(s["best_lap_time_s"] for s in non_ref_sessions)
+            self.stats["first_session_best_s"] = round(first_best, 3)
+            self.stats["day_best_s"] = round(day_best, 3)
+            self.stats["day_improvement_s"] = round(day_best - first_best, 3)
+        else:
+            self.stats["first_session_best_s"] = self.stats.get("best_lap_time_s")
+            self.stats["day_best_s"] = self.stats.get("best_lap_time_s")
+            self.stats["day_improvement_s"] = 0.0
+

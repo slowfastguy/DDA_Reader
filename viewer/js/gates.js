@@ -335,6 +335,63 @@ function renderTrackLibrary() {
 
     dom.tracksListContainer.appendChild(card);
   });
+
+  // Also render Saved Reference Laps section if any exist in state.referenceLaps
+  if (Array.isArray(state.referenceLaps) && state.referenceLaps.length > 0) {
+    const refSection = document.createElement('div');
+    refSection.className = 'track-card';
+    refSection.style.borderColor = 'rgba(255, 214, 0, 0.35)';
+    refSection.innerHTML = `
+      <div class="track-card-top">
+        <div class="track-card-info">
+          <h4 style="color:#ffd600;">⭐ Saved Reference Laps Library (${state.referenceLaps.length})</h4>
+          <p>Attach a saved benchmark lap directly into your active telemetry session or export as a shareable .ddalap.json file.</p>
+        </div>
+      </div>
+      <div class="turn-chips-grid" style="margin-top:8px;">
+        ${state.referenceLaps.map((ref, rIdx) => `
+          <div class="turn-chip" style="border-color:rgba(255,214,0,0.4); display:flex; align-items:center; gap:6px;">
+            <strong style="color:#ffd600;">⭐ ${escapeHTML(ref.name || 'Ref Lap')}</strong>
+            <span class="text-muted">(${escapeHTML(ref.track_name || 'Track')} · ${formatTime(ref.duration_s || 0)})</span>
+            <button type="button" class="btn-xs btn-load-saved-ref" data-ridx="${rIdx}" style="background:#262010; color:#ffd600; border:1px solid #ffd600;">⚡ Load into Session</button>
+            <button type="button" class="btn-xs btn-export-saved-ref" data-ridx="${rIdx}">💾 .ddalap</button>
+            <button type="button" class="btn-xs btn-del-saved-ref text-danger" data-ridx="${rIdx}">✕</button>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    refSection.querySelectorAll('.btn-load-saved-ref').forEach(btn => {
+      btn.onclick = () => {
+        const idx = parseInt(btn.dataset.ridx, 10);
+        const ref = state.referenceLaps[idx];
+        if (ref && typeof appendReferenceLapToSession === 'function') {
+          appendReferenceLapToSession(ref);
+          if (dom.modalSettings) dom.modalSettings.style.display = 'none';
+        }
+      };
+    });
+    refSection.querySelectorAll('.btn-export-saved-ref').forEach(btn => {
+      btn.onclick = () => {
+        const idx = parseInt(btn.dataset.ridx, 10);
+        const ref = state.referenceLaps[idx];
+        if (ref && typeof downloadReferenceLapFile === 'function') {
+          downloadReferenceLapFile(ref);
+        }
+      };
+    });
+    refSection.querySelectorAll('.btn-del-saved-ref').forEach(btn => {
+      btn.onclick = () => {
+        const idx = parseInt(btn.dataset.ridx, 10);
+        const ref = state.referenceLaps[idx];
+        if (ref && confirm(`Delete Reference Lap "${ref.name}" from browser library?`)) {
+          state.referenceLaps.splice(idx, 1);
+          saveSettingsToStorage();
+          renderTrackLibrary();
+        }
+      };
+    });
+    dom.tracksListContainer.appendChild(refSection);
+  }
 }
 
 function autoDetectTrackFromGps() {
@@ -990,136 +1047,495 @@ function findGateCrossings(gate, records, minIntervalS = 35.0) {
   return crossings;
 }
 
-function recalculateLapsAndSectors() {
-  const sfGate = state.gates.find(g => g.type === 'sf');
-  if (!sfGate) return;
-
-  const splitGates = state.gates.filter(g => g.type === 'split');
-  const crossings = findGateCrossings(sfGate, state.records, 40.0);
-
-  if (crossings.length === 0) {
-    renderMapGates();
-    return;
-  }
-
-  const newLaps = [];
-  // Out Lap
-  newLaps.push({
-    lap_number: 0,
-    name: 'Out-Lap',
-    start_time_s: state.records[0].time_s,
-    end_time_s: crossings[0].time_s,
-    duration_s: crossings[0].time_s - state.records[0].time_s,
-    start_index: 0,
-    end_index: crossings[0].index,
-    distance_m: crossings[0].distance_m,
-    sectors: [null, null, null],
-    is_best: false
-  });
-
-  // Timed Laps
-  for (let i = 0; i < crossings.length - 1; i++) {
-    const c1 = crossings[i];
-    const c2 = crossings[i + 1];
-    const lapNum = i + 1;
-    const dur = c2.time_s - c1.time_s;
-    const dist = c2.distance_m - c1.distance_m;
-
-    const lapRecs = state.records.slice(c1.index, c2.index + 1);
-    const sectors = [];
-    const maxLapSpeed = lapRecs.reduce((max, r) => (r.speed_kmh || 0) > max ? (r.speed_kmh || 0) : max, 0);
-    const maxLapGpsSpeed = lapRecs.reduce((max, r) => (r.gps_speed_kmh || 0) > max ? (r.gps_speed_kmh || 0) : max, 0);
-
-    if (splitGates.length >= 2) {
-      let splitCrossings = [];
-      splitGates.slice(0, 2).forEach(sg => {
-        const scList = findGateCrossings(sg, lapRecs, 5.0);
-        if (scList.length > 0) {
-          splitCrossings.push({ time_s: scList[0].time_s });
-        } else {
-          // Fallback closest point
-          let closestPt = null;
-          let minD = 999;
-          for (const lr of lapRecs) {
-            if (lr.gps_lat !== null) {
-              const d = haversineDistanceM(sg.lat, sg.lon, lr.gps_lat, lr.gps_lon);
-              if (d < 45.0 && d < minD) {
-                minD = d;
-                closestPt = lr;
-              }
+function computeLapSectorsFromGates(lapRecs, startTimeS, endTimeS, dur, splitGates) {
+  const sectors = [];
+  if (splitGates && splitGates.length >= 2 && lapRecs && lapRecs.length > 2) {
+    const splitCrossings = [];
+    splitGates.slice(0, 2).forEach(sg => {
+      const scList = findGateCrossings(sg, lapRecs, 5.0);
+      if (scList.length > 0) {
+        splitCrossings.push({ time_s: scList[0].time_s });
+      } else {
+        let closestPt = null;
+        let minD = 999;
+        for (const lr of lapRecs) {
+          if (lr.gps_lat !== null) {
+            const d = haversineDistanceM(sg.lat, sg.lon, lr.gps_lat, lr.gps_lon);
+            if (d < 45.0 && d < minD) {
+              minD = d;
+              closestPt = lr;
             }
           }
-          if (closestPt) {
-            splitCrossings.push({ time_s: closestPt.time_s });
-          }
         }
-      });
-
-      splitCrossings.sort((a, b) => a.time_s - b.time_s);
-
-      if (splitCrossings.length === 2 && splitCrossings[0].time_s > c1.time_s + 4.0 && splitCrossings[1].time_s > splitCrossings[0].time_s + 4.0 && splitCrossings[1].time_s < c2.time_s - 4.0) {
-        const s1 = splitCrossings[0].time_s - c1.time_s;
-        const s2 = splitCrossings[1].time_s - splitCrossings[0].time_s;
-        const s3 = c2.time_s - splitCrossings[1].time_s;
-        sectors.push(s1, s2, s3);
-      } else {
-        const s1 = dur * 0.28;
-        const s2 = dur * 0.38;
-        const s3 = dur - s1 - s2;
-        sectors.push(s1, s2, s3);
+        if (closestPt) {
+          splitCrossings.push({ time_s: closestPt.time_s });
+        }
       }
+    });
+
+    splitCrossings.sort((a, b) => a.time_s - b.time_s);
+
+    if (
+      splitCrossings.length === 2 &&
+      splitCrossings[0].time_s > startTimeS + 4.0 &&
+      splitCrossings[1].time_s > splitCrossings[0].time_s + 4.0 &&
+      splitCrossings[1].time_s < endTimeS - 4.0
+    ) {
+      const s1 = splitCrossings[0].time_s - startTimeS;
+      const s2 = splitCrossings[1].time_s - splitCrossings[0].time_s;
+      const s3 = endTimeS - splitCrossings[1].time_s;
+      sectors.push(s1, s2, s3);
     } else {
       const s1 = dur * 0.28;
       const s2 = dur * 0.38;
       const s3 = dur - s1 - s2;
       sectors.push(s1, s2, s3);
     }
-
-    newLaps.push({
-      lap_number: lapNum,
-      name: `Lap ${lapNum}`,
-      start_time_s: c1.time_s,
-      end_time_s: c2.time_s,
-      duration_s: dur,
-      start_index: c1.index,
-      end_index: c2.index,
-      distance_m: dist,
-      sectors: sectors,
-      max_speed_kmh: maxLapSpeed,
-      max_gps_speed_kmh: maxLapGpsSpeed,
-      is_best: false
-    });
+  } else {
+    const s1 = dur * 0.28;
+    const s2 = dur * 0.38;
+    const s3 = dur - s1 - s2;
+    sectors.push(s1, s2, s3);
   }
+  return sectors;
+}
 
-  // In Lap
-  const lastCross = crossings[crossings.length - 1];
-  const inLapRecs = state.records.slice(lastCross.index);
-  const maxInLapSpeed = inLapRecs.reduce((max, r) => (r.speed_kmh || 0) > max ? (r.speed_kmh || 0) : max, 0);
-  const maxInLapGpsSpeed = inLapRecs.reduce((max, r) => (r.gps_speed_kmh || 0) > max ? (r.gps_speed_kmh || 0) : max, 0);
-  newLaps.push({
-    lap_number: crossings.length,
-    name: `Lap ${crossings.length} (In-Lap)`,
-    start_time_s: lastCross.time_s,
-    end_time_s: state.records[state.records.length - 1].time_s,
-    duration_s: state.records[state.records.length - 1].time_s - lastCross.time_s,
-    start_index: lastCross.index,
-    end_index: state.records.length - 1,
-    distance_m: state.records[state.records.length - 1].distance_m - lastCross.distance_m,
-    sectors: [null, null, null],
-    max_speed_kmh: maxInLapSpeed,
-    max_gps_speed_kmh: maxInLapGpsSpeed,
-    is_best: false
+function getLapPeakMetrics(lapRecs) {
+  let maxSpd = 0, maxGpsSpd = 0, maxLeanL = 0, maxLeanR = 0, maxRpm = 0;
+  for (let i = 0; i < lapRecs.length; i++) {
+    const r = lapRecs[i];
+    if ((r.speed_kmh || 0) > maxSpd) maxSpd = r.speed_kmh || 0;
+    if ((r.gps_speed_kmh || 0) > maxGpsSpd) maxGpsSpd = r.gps_speed_kmh || 0;
+    const lean = r.lean_angle_deg || 0;
+    if (lean < -0.5 && Math.abs(lean) > maxLeanL) maxLeanL = Math.abs(lean);
+    if (lean > 0.5 && lean > maxLeanR) maxLeanR = lean;
+    if ((r.rpm || 0) > maxRpm) maxRpm = r.rpm || 0;
+  }
+  return { maxSpd, maxGpsSpd, maxLeanL, maxLeanR, maxRpm };
+}
+
+function isLapIncluded(lap) {
+  if (!lap) return false;
+  if (state.hideOutInLaps && (lap.is_out_lap || lap.is_in_lap)) return false;
+  if (state.excludedLapKeys && lap.lap_key && state.excludedLapKeys.has(lap.lap_key)) return false;
+  return true;
+}
+
+function formatHour12(hour24) {
+  const h = ((parseInt(hour24, 10) % 24) + 24) % 24;
+  const ampm = h < 12 ? 'AM' : 'PM';
+  const h12 = (h % 12 === 0) ? 12 : (h % 12);
+  return `${h12}${ampm}`;
+}
+
+function extractSessionHourStr(sessMeta) {
+  const isSingleSession = !state.sessions || state.sessions.filter(s => !s.is_reference && s.id !== 'REF').length <= 1;
+  const hdr = (isSingleSession && state.sessionData && state.sessionData.header) ? state.sessionData.header : {};
+  const dtStr = (sessMeta && sessMeta.session_datetime) || hdr.session_datetime || '';
+  if (dtStr) {
+    const parts = dtStr.trim().split(/\s+/);
+    const timePart = parts[parts.length - 1] || dtStr;
+    const m = timePart.match(/^(\d{1,2}):\d{2}$/);
+    if (m) {
+      return formatHour12(parseInt(m[1], 10));
+    }
+    const mSec = timePart.match(/^(\d{1,2}):\d{2}:(\d{2})$/);
+    if (mSec && mSec[2] === '00') {
+      return formatHour12(parseInt(mSec[1], 10));
+    }
+  }
+  const unixTs = (sessMeta && sessMeta.unix_timestamp) || hdr.unix_timestamp || 0;
+  if (unixTs > 0 && (Math.round(unixTs * 1000) % 60000) === 0) {
+    const d = new Date(unixTs * 1000);
+    if (!isNaN(d.getTime())) {
+      return formatHour12(d.getHours());
+    }
+  }
+  return '';
+}
+
+function assignSessionHourLabels(sessions) {
+  if (!Array.isArray(sessions)) return;
+  const regSessions = sessions.filter(s => !s.is_reference && s.id !== 'REF');
+  const buckets = [];
+  const counts = {};
+
+  regSessions.forEach(s => {
+    const hStr = extractSessionHourStr(s) || 'Session';
+    buckets.push(hStr);
+    counts[hStr] = (counts[hStr] || 0) + 1;
   });
 
-  const validLaps = newLaps.filter(l => l.lap_number >= 1 && l.lap_number < crossings.length && l.duration_s > 60.0 && l.duration_s < 250.0);
-  if (validLaps.length > 0) {
-    const best = validLaps.reduce((min, l) => l.duration_s < min.duration_s ? l : min, validLaps[0]);
+  const seen = {};
+  regSessions.forEach((s, idx) => {
+    const hStr = buckets[idx];
+    seen[hStr] = (seen[hStr] || 0) + 1;
+    const runNum = seen[hStr];
+    if (hStr === 'Session') {
+      s.hour_name = counts[hStr] > 1 ? `Run ${runNum}` : 'Session 1';
+    } else if (counts[hStr] > 1) {
+      s.hour_name = `${hStr} Run ${runNum}`;
+    } else {
+      s.hour_name = hStr;
+    }
+    s.label = s.hour_name;
+  });
+}
+
+function recalculateLapsAndSectors() {
+  if (!state.records || state.records.length === 0) return;
+
+  const sfGate = state.gates.find(g => g.type === 'sf');
+  const splitGates = state.gates.filter(g => g.type === 'split');
+
+  // Preserve any existing Reference Laps (single benchmark laps attached to the workspace)
+  const existingRefLaps = (state.laps || []).filter(l => !l.is_optimal && (l.is_reference || l.session_id === 'REF'));
+
+  // Partition state.records into contiguous non-reference session blocks (S1, S2, S3...)
+  const sessionBlocks = [];
+  let curBlock = null;
+  for (let i = 0; i < state.records.length; i++) {
+    const r = state.records[i];
+    const sid = r.session_id || 'S1';
+    if (sid === 'REF') continue;
+    if (!curBlock || curBlock.id !== sid) {
+      if (curBlock) sessionBlocks.push(curBlock);
+      curBlock = { id: sid, startIdx: i, endIdx: i };
+    } else {
+      curBlock.endIdx = i;
+    }
+  }
+  if (curBlock) sessionBlocks.push(curBlock);
+
+  const isMulti = sessionBlocks.length > 1 || existingRefLaps.length > 0;
+  const palette = ['#ff1801', '#00e5ff', '#ffb300', '#00e676', '#d500f9', '#ff4081', '#2979ff', '#ffd600'];
+
+  if (!Array.isArray(state.sessions)) state.sessions = [];
+  let newLaps = [];
+  let globalLapCounter = 0;
+
+  // Ensure every session block has a session metadata entry & compute hour-based session names ("2PM", "2PM Run 1", "2PM Run 2")
+  sessionBlocks.forEach((block, bIdx) => {
+    let sessMeta = state.sessions.find(s => s.id === block.id);
+    if (!sessMeta) {
+      sessMeta = {
+        id: block.id,
+        index: bIdx + 1,
+        label: block.id,
+        color: palette[bIdx % palette.length],
+        track_name: (state.sessionData && state.sessionData.header && state.sessionData.header.track_name) || '',
+        rider_name: (state.sessionData && state.sessionData.header && state.sessionData.header.rider_name) || '',
+        session_datetime: (state.sessionData && state.sessionData.header && state.sessionData.header.session_datetime) || '',
+        unix_timestamp: (state.sessionData && state.sessionData.header && state.sessionData.header.unix_timestamp) || 0,
+        start_index: block.startIdx,
+        end_index: block.endIdx,
+        is_reference: false
+      };
+      state.sessions.push(sessMeta);
+    } else {
+      sessMeta.start_index = block.startIdx;
+      sessMeta.end_index = block.endIdx;
+      if (!sessMeta.color) sessMeta.color = palette[bIdx % palette.length];
+    }
+  });
+  assignSessionHourLabels(state.sessions);
+
+  // 1. Dynamically slice each session (S1, S2, S3...) independently through the S/F & sector gates
+  sessionBlocks.forEach((block, bIdx) => {
+    const sessMeta = state.sessions.find(s => s.id === block.id);
+    const sDisplay = sessMeta.label || block.id;
+
+    const sessRecs = state.records.slice(block.startIdx, block.endIdx + 1);
+    const crossings = sfGate ? findGateCrossings(sfGate, sessRecs, 35.0) : [];
+    const sessLaps = [];
+
+    if (crossings.length >= 1) {
+      // Out-Lap
+      const outStartIdx = block.startIdx;
+      const outEndIdx = block.startIdx + crossings[0].index;
+      const outRecs = state.records.slice(outStartIdx, outEndIdx + 1);
+      const outLapNum = isMulti ? (++globalLapCounter) : 0;
+      for (let k = outStartIdx; k <= outEndIdx; k++) {
+        state.records[k].lap = outLapNum;
+      }
+      const outPeaks = getLapPeakMetrics(outRecs);
+      const outKey = `${block.id}:out_0`;
+      const outLapObj = {
+        lap_number: outLapNum,
+        orig_lap_number: 0,
+        lap_key: outKey,
+        session_id: block.id,
+        session_index: bIdx + 1,
+        session_label: sDisplay,
+        session_color: sessMeta.color,
+        session_datetime: sessMeta.session_datetime || '',
+        name: isMulti ? `${sDisplay} · Out-Lap` : 'Out-Lap',
+        orig_name: 'Out-Lap',
+        start_time_s: state.records[outStartIdx].time_s,
+        end_time_s: crossings[0].time_s,
+        duration_s: Math.max(0, crossings[0].time_s - state.records[outStartIdx].time_s),
+        start_index: outStartIdx,
+        end_index: outEndIdx,
+        distance_m: Math.max(0, crossings[0].distance_m - (state.records[outStartIdx].distance_m || 0)),
+        sectors: [null, null, null],
+        sector_1_s: null,
+        sector_2_s: null,
+        sector_3_s: null,
+        max_speed_kmh: outPeaks.maxSpd,
+        max_gps_speed_kmh: outPeaks.maxGpsSpd,
+        max_lean_left_deg: outPeaks.maxLeanL,
+        max_lean_right_deg: outPeaks.maxLeanR,
+        max_rpm: outPeaks.maxRpm,
+        is_flying: false,
+        is_out_lap: true,
+        is_in_lap: false,
+        is_reference: false,
+        is_session_best: false,
+        is_best: false
+      };
+      outLapObj.included = isLapIncluded(outLapObj);
+      newLaps.push(outLapObj);
+      sessLaps.push(outLapObj);
+
+      // Timed Laps (Lap 1 .. N)
+      for (let i = 0; i < crossings.length - 1; i++) {
+        const c1 = crossings[i];
+        const c2 = crossings[i + 1];
+        const origLapNum = i + 1;
+        const lapNum = isMulti ? (++globalLapCounter) : origLapNum;
+        const startIdx = block.startIdx + c1.index;
+        const endIdx = block.startIdx + c2.index;
+        const dur = Math.max(0, c2.time_s - c1.time_s);
+        const dist = Math.max(0, c2.distance_m - c1.distance_m);
+
+        const lapRecs = state.records.slice(startIdx, endIdx + 1);
+        for (let k = startIdx; k <= endIdx; k++) {
+          state.records[k].lap = lapNum;
+        }
+        const sectors = computeLapSectorsFromGates(lapRecs, c1.time_s, c2.time_s, dur, splitGates);
+        const peaks = getLapPeakMetrics(lapRecs);
+        const lapKey = `${block.id}:${origLapNum}`;
+
+        const timedLapObj = {
+          lap_number: lapNum,
+          orig_lap_number: origLapNum,
+          lap_key: lapKey,
+          session_id: block.id,
+          session_index: bIdx + 1,
+          session_label: sDisplay,
+          session_color: sessMeta.color,
+          session_datetime: sessMeta.session_datetime || '',
+          name: isMulti ? `${sDisplay} · Lap ${origLapNum}` : `Lap ${origLapNum}`,
+          orig_name: `Lap ${origLapNum}`,
+          start_time_s: c1.time_s,
+          end_time_s: c2.time_s,
+          duration_s: dur,
+          start_index: startIdx,
+          end_index: endIdx,
+          distance_m: dist,
+          sectors: sectors,
+          sector_1_s: sectors[0],
+          sector_2_s: sectors[1],
+          sector_3_s: sectors[2],
+          max_speed_kmh: peaks.maxSpd,
+          max_gps_speed_kmh: peaks.maxGpsSpd,
+          max_lean_left_deg: peaks.maxLeanL,
+          max_lean_right_deg: peaks.maxLeanR,
+          max_rpm: peaks.maxRpm,
+          is_flying: dur > 30.0 && dur < 600.0,
+          is_out_lap: false,
+          is_in_lap: false,
+          is_reference: false,
+          is_session_best: false,
+          is_best: false
+        };
+        timedLapObj.included = isLapIncluded(timedLapObj);
+        newLaps.push(timedLapObj);
+        sessLaps.push(timedLapObj);
+      }
+
+      // In-Lap
+      const lastCross = crossings[crossings.length - 1];
+      const origInNum = crossings.length;
+      const inLapNum = isMulti ? (++globalLapCounter) : origInNum;
+      const inStartIdx = block.startIdx + lastCross.index;
+      const inEndIdx = block.endIdx;
+      const inRecs = state.records.slice(inStartIdx, inEndIdx + 1);
+      for (let k = inStartIdx; k <= inEndIdx; k++) {
+        state.records[k].lap = inLapNum;
+      }
+      const inPeaks = getLapPeakMetrics(inRecs);
+      const inKey = `${block.id}:in_${origInNum}`;
+      const inLapObj = {
+        lap_number: inLapNum,
+        orig_lap_number: origInNum,
+        lap_key: inKey,
+        session_id: block.id,
+        session_index: bIdx + 1,
+        session_label: sDisplay,
+        session_color: sessMeta.color,
+        session_datetime: sessMeta.session_datetime || '',
+        name: isMulti ? `${sDisplay} · Lap ${origInNum} (In-Lap)` : `Lap ${origInNum} (In-Lap)`,
+        orig_name: `Lap ${origInNum} (In-Lap)`,
+        start_time_s: lastCross.time_s,
+        end_time_s: state.records[inEndIdx].time_s,
+        duration_s: Math.max(0, state.records[inEndIdx].time_s - lastCross.time_s),
+        start_index: inStartIdx,
+        end_index: inEndIdx,
+        distance_m: Math.max(0, (state.records[inEndIdx].distance_m || 0) - lastCross.distance_m),
+        sectors: [null, null, null],
+        sector_1_s: null,
+        sector_2_s: null,
+        sector_3_s: null,
+        max_speed_kmh: inPeaks.maxSpd,
+        max_gps_speed_kmh: inPeaks.maxGpsSpd,
+        max_lean_left_deg: inPeaks.maxLeanL,
+        max_lean_right_deg: inPeaks.maxLeanR,
+        max_rpm: inPeaks.maxRpm,
+        is_flying: false,
+        is_out_lap: false,
+        is_in_lap: true,
+        is_reference: false,
+        is_session_best: false,
+        is_best: false
+      };
+      inLapObj.included = isLapIncluded(inLapObj);
+      newLaps.push(inLapObj);
+      sessLaps.push(inLapObj);
+    } else {
+      // Fallback single full-session lap if S/F gate hasn't intersected this session yet
+      const fbLapNum = isMulti ? (++globalLapCounter) : 1;
+      for (let k = block.startIdx; k <= block.endIdx; k++) {
+        state.records[k].lap = fbLapNum;
+      }
+      const fbPeaks = getLapPeakMetrics(sessRecs);
+      const startT = state.records[block.startIdx].time_s || 0;
+      const endT = state.records[block.endIdx].time_s || 0;
+      const dur = Math.max(0, endT - startT);
+      const dist = Math.max(0, (state.records[block.endIdx].distance_m || 0) - (state.records[block.startIdx].distance_m || 0));
+      const fbKey = `${block.id}:full_1`;
+      const fbLapObj = {
+        lap_number: fbLapNum,
+        orig_lap_number: 1,
+        lap_key: fbKey,
+        session_id: block.id,
+        session_index: bIdx + 1,
+        session_label: sDisplay,
+        session_color: sessMeta.color,
+        session_datetime: sessMeta.session_datetime || '',
+        name: isMulti ? `${sDisplay} · Full Session` : 'Full Session',
+        orig_name: 'Full Session',
+        start_time_s: startT,
+        end_time_s: endT,
+        duration_s: dur,
+        start_index: block.startIdx,
+        end_index: block.endIdx,
+        distance_m: dist,
+        sectors: [null, null, null],
+        sector_1_s: null,
+        sector_2_s: null,
+        sector_3_s: null,
+        max_speed_kmh: fbPeaks.maxSpd,
+        max_gps_speed_kmh: fbPeaks.maxGpsSpd,
+        max_lean_left_deg: fbPeaks.maxLeanL,
+        max_lean_right_deg: fbPeaks.maxLeanR,
+        max_rpm: fbPeaks.maxRpm,
+        is_flying: true,
+        is_out_lap: false,
+        is_in_lap: false,
+        is_reference: false,
+        is_session_best: false,
+        is_best: false
+      };
+      fbLapObj.included = isLapIncluded(fbLapObj);
+      newLaps.push(fbLapObj);
+      sessLaps.push(fbLapObj);
+    }
+
+    // Update session best lap & counts from dynamic gate segmentation
+    const includedFlying = sessLaps.filter(l => l.included !== false && l.is_flying && l.duration_s > 25.0);
+    const fallbackPool = includedFlying.length > 0
+      ? includedFlying
+      : sessLaps.filter(l => l.included !== false && !l.is_out_lap && !l.is_in_lap);
+    const bestInSess = fallbackPool.length > 0
+      ? fallbackPool.reduce((min, l) => l.duration_s < min.duration_s ? l : min, fallbackPool[0])
+      : null;
+    if (bestInSess) {
+      bestInSess.is_session_best = true;
+    }
+    sessMeta.lap_count = sessLaps.length;
+    sessMeta.flying_lap_count = sessLaps.filter(l => l.is_flying).length;
+    sessMeta.best_lap_time_s = bestInSess ? bestInSess.duration_s : null;
+    sessMeta.best_lap_number = bestInSess ? bestInSess.lap_number : null;
+  });
+
+  // 2. Append any Reference Laps (REF) with dynamically recalculated sector splits
+  existingRefLaps.forEach((refLap, rIdx) => {
+    const refLapNum = ++globalLapCounter;
+    const lapRecs = state.records.slice(refLap.start_index, refLap.end_index + 1);
+    for (let k = refLap.start_index; k <= refLap.end_index; k++) {
+      if (state.records[k]) state.records[k].lap = refLapNum;
+    }
+    const startT = lapRecs.length > 0 ? lapRecs[0].time_s : refLap.start_time_s;
+    const endT = lapRecs.length > 0 ? lapRecs[lapRecs.length - 1].time_s : refLap.end_time_s;
+    const dur = refLap.duration_s || Math.max(0, endT - startT);
+    const sectors = lapRecs.length > 2
+      ? computeLapSectorsFromGates(lapRecs, startT, endT, dur, splitGates)
+      : (refLap.sectors || [null, null, null]);
+    const peaks = getLapPeakMetrics(lapRecs);
+    const refKey = refLap.lap_key || `REF:${refLap.ref_id || (rIdx + 1)}`;
+
+    const updatedRef = Object.assign({}, refLap, {
+      lap_number: refLapNum,
+      orig_lap_number: rIdx + 1,
+      lap_key: refKey,
+      session_id: 'REF',
+      session_color: '#ffd600',
+      start_time_s: startT,
+      end_time_s: endT,
+      duration_s: dur,
+      sectors: sectors,
+      sector_1_s: sectors[0],
+      sector_2_s: sectors[1],
+      sector_3_s: sectors[2],
+      max_speed_kmh: peaks.maxSpd || refLap.max_speed_kmh || 0,
+      max_gps_speed_kmh: peaks.maxGpsSpd || refLap.max_gps_speed_kmh || 0,
+      max_lean_left_deg: peaks.maxLeanL || refLap.max_lean_left_deg || 0,
+      max_lean_right_deg: peaks.maxLeanR || refLap.max_lean_right_deg || 0,
+      max_rpm: peaks.maxRpm || refLap.max_rpm || 0,
+      is_reference: true,
+      is_flying: true,
+      is_out_lap: false,
+      is_in_lap: false,
+      is_session_best: true,
+      is_best: false
+    });
+    updatedRef.included = isLapIncluded(updatedRef);
+    newLaps.push(updatedRef);
+  });
+
+  // 3. Determine Overall Best Lap and Best Sectors across included laps (respecting activeSessionFilter if set)
+  const filterSid = state.activeSessionFilter || 'ALL';
+  const candidateLaps = newLaps.filter(l => {
+    if (l.included === false) return false;
+    const validTiming = !l.is_out_lap && !l.is_in_lap && l.duration_s > 30.0 && l.duration_s < 400.0;
+    if (!validTiming) return false;
+    if (filterSid !== 'ALL' && (l.session_id || 'S1') !== filterSid) return false;
+    return true;
+  });
+
+  const nonRefCandidates = candidateLaps.filter(l => !l.is_reference);
+  const bestPool = nonRefCandidates.length > 0 ? nonRefCandidates : candidateLaps;
+
+  if (bestPool.length > 0) {
+    const best = bestPool.reduce((min, l) => l.duration_s < min.duration_s ? l : min, bestPool[0]);
     best.is_best = true;
+    best.is_session_best = true;
     if (dom.dataBestLapBadge) dom.dataBestLapBadge.textContent = `🏆 Best: ${formatTime(best.duration_s)}`;
 
     state.bestSectors = [null, null, null];
     for (let sIdx = 0; sIdx < 3; sIdx++) {
-      const sTimes = validLaps.map(l => l.sectors && l.sectors[sIdx]).filter(t => t !== null && t > 3.0);
+      const sTimes = candidateLaps.map(l => l.sectors && l.sectors[sIdx]).filter(t => t !== null && t !== undefined && t > 3.0);
       if (sTimes.length > 0) {
         state.bestSectors[sIdx] = Math.min(...sTimes);
       }
@@ -1134,11 +1550,17 @@ function recalculateLapsAndSectors() {
 
   state.laps = newLaps;
   if (dom.metaDuration) {
-    const timedCount = newLaps.filter(l => l.lap_number >= 1 && !l.is_optimal && !(l.name && l.name.includes('In-Lap'))).length;
+    const timedCount = newLaps.filter(l => l.included !== false && l.lap_number >= 1 && !l.is_optimal && !l.is_out_lap && !l.is_in_lap && !(l.name && l.name.includes('In-Lap'))).length;
     const totalCount = timedCount > 0 ? timedCount : newLaps.filter(l => !l.is_optimal).length;
-    dom.metaDuration.textContent = `🏁 ${totalCount} ${totalCount === 1 ? 'Lap' : 'Laps'}`;
+    const sessCount = sessionBlocks.length;
+    if (sessCount > 1) {
+      dom.metaDuration.textContent = `🏁 ${sessCount} Sessions · ${totalCount} Laps`;
+    } else {
+      dom.metaDuration.textContent = `🏁 ${totalCount} ${totalCount === 1 ? 'Lap' : 'Laps'}`;
+    }
   }
   if (typeof generateTheoreticalOptimalLap === 'function') generateTheoreticalOptimalLap();
+  if (typeof renderSessionFilterBar === 'function') renderSessionFilterBar();
   if (typeof renderLapListTable === 'function') renderLapListTable();
   renderMapGates();
   if (typeof selectLap === 'function') selectLap(state.selectedLapNum, false);

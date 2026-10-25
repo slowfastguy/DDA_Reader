@@ -581,7 +581,8 @@ class DDADevice:
             inf_block[64:64+len(r_bytes)] = r_bytes
         if run_info and run_info.datetime:
             try:
-                net_ticks = int((run_info.datetime - datetime(1, 1, 1)).total_seconds() * 10_000_000)
+                unix_sec = int(round(run_info.datetime.timestamp()))
+                net_ticks = (unix_sec * 10_000_000) + 0x089F7FF5F7B58000
                 struct.pack_into('<Q', inf_block, 128, net_ticks)
             except Exception:
                 pass

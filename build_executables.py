@@ -34,6 +34,26 @@ def main():
     else:
         mode_arg = "--onefile" if "--onefile" in sys.argv else ("--onedir" if "--onedir" in sys.argv else "--onefile")
 
+    # On Windows, if the old executable is still running, os.remove() fails with WinError 5,
+    # whereas renaming it to .old.exe frees the target path so PyInstaller can write the new binary.
+    if sys.platform.startswith("win"):
+        exe_target = os.path.join("dist", "Ducati DDA Reader.exe")
+        old_target = os.path.join("dist", "Ducati DDA Reader.old.exe")
+        if os.path.exists(old_target):
+            try:
+                os.remove(old_target)
+            except OSError:
+                pass
+        if os.path.exists(exe_target):
+            try:
+                os.remove(exe_target)
+            except PermissionError:
+                try:
+                    os.rename(exe_target, old_target)
+                    print("[*] Existing Ducati DDA Reader.exe is in use; renamed to Ducati DDA Reader.old.exe")
+                except OSError:
+                    pass
+
     cmd = [
         sys.executable, "-m", "PyInstaller",
         "--name=Ducati DDA Reader",
