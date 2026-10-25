@@ -154,16 +154,38 @@ class DDAHeader:
         except Exception:
             self.session_note = ""
 
-        # Check ACQ block size at offset 0x24
-        if len(raw_data) >= 28:
-            acq_size = struct.unpack_from("<I", raw_data, 0x24)[0]
-            if 500 <= acq_size <= 4096:
+        # Check ACQ block offset at 0x26 (after "ACQ\0" + 2-byte version at 0x20..0x26)
+        if len(raw_data) >= 42 and raw_data[0x20:0x24] == b'ACQ\x00':
+            acq_size = struct.unpack_from("<I", raw_data, 0x26)[0]
+            if 500 <= acq_size <= 8192:
                 self.header_size = acq_size
+        elif len(raw_data) >= 28:
+            acq_size = struct.unpack_from("<I", raw_data, 0x24)[0]
+            if 500 <= acq_size <= 8192:
+                self.header_size = acq_size
+
+        # Map descriptor byte 21 high nibble -> sampling period in 10ms ticks (100Hz clock)
+        rate_ticks_map = {
+            7: 2,    # 50 Hz (0.02s)
+            6: 5,    # 20 Hz (0.05s)
+            5: 10,   # 10 Hz (0.10s)
+            4: 20,   # 5 Hz  (0.20s)
+            3: 25,   # 4 Hz  (0.25s)
+            2: 50,   # 2 Hz  (0.50s)
+            0: 100,  # 1 Hz  (1.00s)
+        }
+        # Map descriptor byte 21 low nibble -> channel width in bytes
+        byte_size_map = {
+            0x1: 1, 0x8: 1, 0x9: 1,
+            0x3: 2, 0xB: 2,
+            0x7: 3, 0xC: 3,
+            0xF: 4,
+        }
 
         # Extract 80-byte channel descriptors if present
         self.channels.clear()
         ch_start = 510
-        if self.header_size >= 1000 and len(raw_data) >= self.header_size:
+        if self.header_size >= 590 and len(raw_data) >= self.header_size:
             pos = ch_start
             while pos + 80 <= self.header_size:
                 ch_block = raw_data[pos : pos + 80]
@@ -174,41 +196,45 @@ class DDAHeader:
                 if not name:
                     break
 
-                can_id = struct.unpack_from("<I", ch_block, 16)[0]
+                can_id = struct.unpack_from("<H", ch_block, 16)[0]
+                b21 = ch_block[21]
+                hi_nib = (b21 >> 4) & 0x0F
+                lo_nib = b21 & 0x0F
+                ticks = rate_ticks_map.get(hi_nib, 10)
+                interval_s = ticks * 0.01
+                byte_size = byte_size_map.get(lo_nib, 2)
+
                 desc_parts = ch_block[22:54].split(b'\x00')
                 long_name = desc_parts[0].decode('latin1', errors='ignore').strip() if len(desc_parts) > 0 else ""
                 unit = desc_parts[1].decode('latin1', errors='ignore').strip() if len(desc_parts) > 1 else ""
+                f60, f64 = struct.unpack_from("<ff", ch_block, 60)
 
                 if name == "SPEED":
-                    ch = DDAChannelDescriptor(name, long_name, "km/h", can_id, byte_size=2, interval_s=0.10, multiplier=0.065625)
+                    ch = DDAChannelDescriptor(name, long_name, "km/h", can_id, byte_size=byte_size, interval_s=interval_s, multiplier=0.065625)
                 elif name == "RPM":
-                    ch = DDAChannelDescriptor(name, long_name, "rpm", can_id, byte_size=2, interval_s=0.02, multiplier=1.0)
+                    ch = DDAChannelDescriptor(name, long_name, "rpm", can_id, byte_size=byte_size, interval_s=interval_s, multiplier=1.0)
+                elif name == "TEMP":
+                    ch = DDAChannelDescriptor(name, long_name, "C", can_id, byte_size=byte_size, interval_s=interval_s, multiplier=1.0, offset=-40.0)
                 elif name == "GAS":
-                    ch = DDAChannelDescriptor(name, long_name, "%", can_id, byte_size=1, interval_s=0.05, multiplier=0.5)
+                    ch = DDAChannelDescriptor(name, long_name, "%", can_id, byte_size=byte_size, interval_s=interval_s, multiplier=0.5)
                 elif name == "DIST":
-                    ch = DDAChannelDescriptor(name, long_name, "km", can_id, byte_size=3, interval_s=1.00, multiplier=1.0)
+                    ch = DDAChannelDescriptor(name, long_name, "km", can_id, byte_size=byte_size, interval_s=interval_s, multiplier=1.0)
                 elif name == "GEAR":
-                    ch = DDAChannelDescriptor(name, long_name, "#", can_id, byte_size=1, interval_s=0.05, multiplier=1.0)
+                    ch = DDAChannelDescriptor(name, long_name, "#", can_id, byte_size=byte_size, interval_s=interval_s, multiplier=1.0)
                 elif name == "PSI_LEAN_ANGLE":
-                    ch = DDAChannelDescriptor(name, long_name, "deg", can_id, byte_size=2, interval_s=0.02, multiplier=0.05493164, offset=-450.0)
-                elif name == "TORQUE_FAST":
-                    ch = DDAChannelDescriptor(name, long_name, "%", can_id, byte_size=1, interval_s=0.05, multiplier=1.0)
-                elif name == "TORQUE_SLOW":
-                    ch = DDAChannelDescriptor(name, long_name, "%", can_id, byte_size=1, interval_s=0.05, multiplier=1.0)
+                    ch = DDAChannelDescriptor(name, long_name, "deg", can_id, byte_size=byte_size, interval_s=interval_s, multiplier=0.05493164, offset=-450.0)
+                elif name in ("TORQUE_FAST", "TORQUE_SLOW", "DTC"):
+                    ch = DDAChannelDescriptor(name, long_name, unit or "%", can_id, byte_size=byte_size, interval_s=interval_s, multiplier=1.0)
                 elif name == "GPS_ALT":
-                    ch = DDAChannelDescriptor(name, long_name, "m", can_id, byte_size=2, interval_s=0.10, multiplier=0.1)
-                elif name == "GPS_LON":
-                    ch = DDAChannelDescriptor(name, long_name, "deg", can_id, byte_size=4, interval_s=0.10, multiplier=1e-6, signed=True)
-                elif name == "GPS_LAT":
-                    ch = DDAChannelDescriptor(name, long_name, "deg", can_id, byte_size=4, interval_s=0.10, multiplier=1e-6, signed=True)
-                elif name == "LAP":
-                    ch = DDAChannelDescriptor(name, long_name, "sec", can_id, byte_size=1, interval_s=1.00, multiplier=1.0)
-                elif name == "INT_LAP1":
-                    ch = DDAChannelDescriptor(name, long_name, "sec", can_id, byte_size=1, interval_s=1.00, multiplier=1.0)
-                elif name == "INT_LAP2":
-                    ch = DDAChannelDescriptor(name, long_name, "sec", can_id, byte_size=1, interval_s=1.00, multiplier=1.0)
+                    ch = DDAChannelDescriptor(name, long_name, "m", can_id, byte_size=byte_size, interval_s=interval_s, multiplier=0.1)
+                elif name in ("GPS_LON", "GPS_LAT"):
+                    ch = DDAChannelDescriptor(name, long_name, "deg", can_id, byte_size=byte_size, interval_s=interval_s, multiplier=1e-6, signed=True)
+                elif name in ("LAP", "INT_LAP1", "INT_LAP2"):
+                    ch = DDAChannelDescriptor(name, long_name, "sec", can_id, byte_size=byte_size, interval_s=interval_s, multiplier=1.0)
                 else:
-                    ch = DDAChannelDescriptor(name, long_name, unit, can_id, byte_size=2, interval_s=0.10, multiplier=1.0)
+                    mult = f60 if (f60 != 0.0 and not math.isnan(f60)) else 1.0
+                    offs = f64 if not math.isnan(f64) else 0.0
+                    ch = DDAChannelDescriptor(name, long_name, unit, can_id, byte_size=byte_size, interval_s=interval_s, multiplier=mult, offset=offs)
 
                 self.channels.append(ch)
                 pos += 80
@@ -240,6 +266,7 @@ class DDARecord:
     __slots__ = (
         'time_s', 'speed_kmh', 'gps_speed_kmh', 'rpm', 'tps_pct', 'gear',
         'lean_angle_deg', 'torque_fast_pct', 'torque_slow_pct',
+        'temp_c', 'dtc',
         'distance_m', 'gps_lat', 'gps_lon', 'gps_alt_m',
         'raw_lat', 'raw_lon',
         'bearing_deg', 'lap', 'int_lap1', 'int_lap2',
@@ -255,6 +282,8 @@ class DDARecord:
         self.lean_angle_deg = 0.0
         self.torque_fast_pct = 0
         self.torque_slow_pct = 0
+        self.temp_c = 0.0
+        self.dtc = 0
         self.distance_m = 0.0
         self.gps_lat = None
         self.gps_lon = None
@@ -304,6 +333,8 @@ class DDARecord:
             "lean_angle_deg": round(self.lean_angle_deg, 1),
             "torque_fast_pct": self.torque_fast_pct,
             "torque_slow_pct": self.torque_slow_pct,
+            "temp_c": round(self.temp_c, 1),
+            "dtc": self.dtc,
             "distance_m": round(self.distance_m, 1),
             "gps_lat": round(self.gps_lat, 7) if self.gps_lat is not None else None,
             "gps_lon": round(self.gps_lon, 7) if self.gps_lon is not None else None,
@@ -330,11 +361,13 @@ class DDAParser:
         self.laps = []
         self.gates = []
         self.stats = {}
+        self._hw_lap_crossings = []
 
     def parse(self):
         """
-        Parses DDA telemetry, directly decoding CAN sensor channels from binary stream,
-        applying Gaussian smoothing to GPS coordinates, and segmenting laps.
+        Parses DDA telemetry across any Ducati model using the universal header-driven
+        100Hz (10ms tick) Time-Division Multiplexed (TDM) schedule, applying Gaussian
+        smoothing to GPS coordinates, deriving vehicle dynamics, and segmenting laps.
         """
         if not os.path.exists(self.filepath):
             raise FileNotFoundError(f"DDA file not found: {self.filepath}")
@@ -342,9 +375,9 @@ class DDAParser:
         with open(self.filepath, "rb") as f:
             data = f.read()
 
-        # 1. Parse Header
+        # 1. Parse Header & Channel Descriptors
         self.header.parse(data)
-        
+
         hdr_size = self.header.header_size
         payload = data[hdr_size:]
         payload_len = len(payload)
@@ -353,183 +386,140 @@ class DDAParser:
         self.gps_records.clear()
         self.laps.clear()
         self.gates.clear()
+        self._hw_lap_crossings = []
 
-        # 2. Universal GPS Spatial Chain Discovery
-        cand_map = {}
-        for off in range(12, payload_len - 8):
-            lon_raw = struct.unpack_from("<i", payload, off)[0]
-            lat_raw = struct.unpack_from("<i", payload, off + 4)[0]
-            if lon_raw not in (0, 8388608, -8388608) and lat_raw not in (0, 8388608, -8388608):
-                lon_c = lon_raw * 1e-6
-                lat_c = lat_raw * 1e-6
-                if (-90.0 <= lat_c <= 90.0) and (-180.0 <= lon_c <= 180.0):
-                    cand_map[off] = (lon_c, lat_c)
+        channels = self.header.channels
+        has_imu_lean = any(ch.name == "PSI_LEAN_ANGLE" for ch in channels)
+        has_torque_fast = any(ch.name == "TORQUE_FAST" for ch in channels)
 
-        # Trace continuous spatial chains:
-        visited = set()
-        longest_gps_chain = []
+        # Precompute active channel lists for each tick in the 100-tick (1.0s) superframe
+        superframe_schedule = []
+        for t_mod in range(100):
+            active = [
+                (ch.name, ch.byte_size, ch.signed)
+                for ch in channels
+                if (t_mod % ch.ticks) == 0
+            ]
+            step_bytes = sum(item[1] for item in active)
+            superframe_schedule.append((active, step_bytes))
 
-        for off in sorted(cand_map.keys()):
-            if off in visited:
-                continue
-            chain = [(off, cand_map[off][0], cand_map[off][1])]
-            cur = off
-            while True:
-                visited.add(cur)
-                cur_lon, cur_lat = cand_map[cur]
-                next_found = False
-                for step in (33, 36, 39):
-                    nxt = cur + step
-                    if nxt in cand_map:
-                        n_lon, n_lat = cand_map[nxt]
-                        if haversine_distance_m(cur_lat, cur_lon, n_lat, n_lon) <= 50.0:
-                            chain.append((nxt, n_lon, n_lat))
-                            cur = nxt
-                            next_found = True
-                            break
-                if not next_found:
-                    break
-            if len(chain) > len(longest_gps_chain):
-                longest_gps_chain = chain
-
-        first_gps_off = longest_gps_chain[0][0] if longest_gps_chain else payload_len
-        
-        # 3. Dynamic Pre-GPS Phase (from offset 0 to first GPS fix)
-        ts_a_anchors = []
-        off = 0
-        while off < first_gps_off - 16:
-            if payload[off+1] == 0x20 and payload[off+2] == 0x00 and payload[off+3] == 0x00:
-                tps = payload[off - 1]
-                if tps <= 200:
-                    has_sub_b = False
-                    for dt in (14, 15, 16, 17, 18):
-                        if off + dt + 3 < first_gps_off:
-                            if payload[off+dt+1] == 0x20 and payload[off+dt+2] == 0x00 and payload[off+dt+3] == 0x00:
-                                has_sub_b = True
-                                step_to_next_a = dt + 19
-                                break
-                    if has_sub_b:
-                        ts_a_anchors.append(off)
-                        off += (step_to_next_a - 5)
-                        continue
-            off += 1
-
-        current_time = 0.0
-
-        for ts_off in ts_a_anchors:
-            spd_raw = struct.unpack_from("<H", payload, ts_off - 13)[0] if ts_off >= 13 else 0
-            rpm1_raw = struct.unpack_from("<H", payload, ts_off - 5)[0] if ts_off >= 5 else 0
-            tps_raw = payload[ts_off - 1] if ts_off >= 1 else 0
-            
-            spd = spd_raw * 0.065625
-            rpm = rpm1_raw
-            tps = tps_raw * 0.5
-
-            rec = DDARecord(current_time)
-            rec.speed_kmh = 0.0
-            rec.rpm = rpm
-            rec.tps_pct = tps
-            rec.gear = 0
-            rec.lean_angle_deg = 0.0
-            rec.torque_fast_pct = 0
-            rec.torque_slow_pct = 0
-            rec.distance_m = 0.0
-            rec.gps_lat = None
-            rec.gps_lon = None
-            rec.gps_alt_m = 0.0
-            rec.bearing_deg = 0.0
-
-            self.records.append(rec)
-            current_time += 0.10
-
-        # 4. GPS-Locked Phase (10 Hz Dynamic Telemetry)
-        last_speed = 0.0
-        last_rpm = self.records[-1].rpm if self.records else 0
-        last_tps = 0.0
-        last_gear = 0
+        # 2. Universal 100Hz TDM Stream Decoder
+        cur_state = {ch.name: 0 for ch in channels}
+        offset = 0
+        tick = 0
         last_lean = 0.0
-        last_dist = 0.0
+        last_speed = 0.0
+        last_rpm = 0
+        prev_hw_lap = 255
 
         raw_lats = []
         raw_lons = []
         speeds_list = []
         gps_rec_list = []
 
-        for off, lon, lat in longest_gps_chain:
-            alt_raw = struct.unpack_from("<H", payload, off - 2)[0]
-            
-            spd1_raw = struct.unpack_from("<H", payload, off - 12)[0] if off >= 12 else 0
-            rpm1_raw = struct.unpack_from("<H", payload, off - 10)[0] if off >= 10 else 0
-            tps1_raw = payload[off - 8] if off >= 8 else 0
-            gear1_raw = payload[off - 7] if off >= 7 else 0
-            
-            spd2_raw = struct.unpack_from("<H", payload, off - 15)[0] if off >= 15 else 0
-            rpm2_raw = struct.unpack_from("<H", payload, off - 13)[0] if off >= 13 else 0
-            tps2_raw = payload[off - 11] if off >= 11 else 0
-            dist2_raw = (payload[off-10] | (payload[off-9] << 8) | (payload[off-8] << 16)) if off >= 10 else 0
-            gear2_raw = payload[off - 7] if off >= 7 else 0
+        while offset < payload_len:
+            active, step_bytes = superframe_schedule[tick % 100]
+            if offset + step_bytes > payload_len:
+                break
 
-            spd1 = spd1_raw * 0.065625
-            spd2 = spd2_raw * 0.065625
+            for name, sz, is_signed in active:
+                if sz == 1:
+                    val = struct.unpack_from("<b" if is_signed else "<B", payload, offset)[0]
+                elif sz == 2:
+                    val = struct.unpack_from("<h" if is_signed else "<H", payload, offset)[0]
+                elif sz == 3:
+                    b0 = payload[offset]
+                    b1 = payload[offset + 1]
+                    b2 = payload[offset + 2]
+                    val = b0 | (b1 << 8) | (b2 << 16)
+                    if is_signed and (val & 0x800000):
+                        val -= 0x1000000
+                elif sz == 4:
+                    val = struct.unpack_from("<i" if is_signed else "<I", payload, offset)[0]
+                else:
+                    val = 0
+                offset += sz
+                cur_state[name] = val
 
-            v1_valid = (spd1 <= 320.0 and 400 <= rpm1_raw <= 16000 and tps1_raw <= 200)
-            v2_valid = (spd2 <= 320.0 and 400 <= rpm2_raw <= 16000 and tps2_raw <= 200)
+            # Emit synchronized 10Hz telemetry frame every 10 ticks (0.10s)
+            if (tick % 10) == 0:
+                current_time = tick * 0.01
+                rec = DDARecord(current_time)
 
-            if v1_valid and v2_valid:
-                cost1 = abs(spd1 - last_speed) + abs(rpm1_raw - last_rpm) * 0.01
-                cost2 = abs(spd2 - last_speed) + abs(rpm2_raw - last_rpm) * 0.01
-                use_dist = (cost2 < cost1)
-            elif v2_valid and not v1_valid:
-                use_dist = True
-            else:
-                use_dist = False
+                spd_raw = cur_state.get("SPEED", 0)
+                spd = spd_raw * 0.065625
+                if 0.0 <= spd <= 350.0:
+                    last_speed = spd
+                rec.speed_kmh = last_speed
 
-            if use_dist:
-                last_speed = spd2
-                last_rpm = rpm2_raw
-                last_tps = min(100.0, tps2_raw * 0.5)
-                last_gear = gear2_raw if 0 <= gear2_raw <= 6 else 0
-                if dist2_raw != 0xFFFFFF and dist2_raw > 0:
-                    last_dist = dist2_raw
-            else:
-                if v1_valid:
-                    last_speed = spd1
-                    last_rpm = rpm1_raw
-                    last_tps = min(100.0, tps1_raw * 0.5)
-                    last_gear = gear1_raw if 0 <= gear1_raw <= 6 else 0
+                rpm_raw = cur_state.get("RPM", 0)
+                if 0 <= rpm_raw <= 20000:
+                    last_rpm = rpm_raw
+                rec.rpm = last_rpm
 
-            raw_lean = struct.unpack_from("<H", payload, off - 6)[0]
-            if 6500 <= raw_lean <= 9800:
-                last_lean = (raw_lean * 0.05493164) - 450.0
-                last_lean = max(-60.0, min(60.0, last_lean))
+                gas_raw = cur_state.get("GAS", 0)
+                rec.tps_pct = min(100.0, max(0.0, gas_raw * 0.5)) if gas_raw <= 220 else 0.0
 
-            fast_raw = payload[off - 4]
-            slow_raw = payload[off - 3]
-            last_dtc_fast = fast_raw if 0 <= fast_raw <= 100 else 0
-            last_dtc_slow = slow_raw if 0 <= slow_raw <= 100 else 0
-            alt_val = alt_raw * 0.1
+                gear_raw = cur_state.get("GEAR", 0)
+                rec.gear = gear_raw if 0 <= gear_raw <= 6 else 0
 
-            rec = DDARecord(current_time)
-            rec.speed_kmh = last_speed
-            rec.rpm = last_rpm
-            rec.tps_pct = last_tps
-            rec.gear = last_gear
-            rec.lean_angle_deg = last_lean
-            rec.torque_fast_pct = last_dtc_fast
-            rec.torque_slow_pct = last_dtc_slow
-            rec.raw_lat = lat
-            rec.raw_lon = lon
-            rec.gps_alt_m = alt_val
+                if "TEMP" in cur_state:
+                    t_raw = cur_state["TEMP"]
+                    rec.temp_c = float(t_raw - 40) if t_raw > 0 else 0.0
 
-            self.records.append(rec)
-            gps_rec_list.append(rec)
-            raw_lats.append(lat)
-            raw_lons.append(lon)
-            speeds_list.append(last_speed)
+                if has_imu_lean:
+                    raw_lean = cur_state.get("PSI_LEAN_ANGLE", 0)
+                    if 6500 <= raw_lean <= 9800:
+                        last_lean = (raw_lean * 0.05493164) - 450.0
+                        last_lean = max(-60.0, min(60.0, last_lean))
+                    rec.lean_angle_deg = last_lean
 
-            current_time += 0.10
+                dtc_val = cur_state.get("DTC", 0)
+                rec.dtc = dtc_val if 0 <= dtc_val <= 100 else 0
 
-        # Apply 5-point Gaussian smoothing to eliminate GNSS jitter
+                if has_torque_fast:
+                    fast_raw = cur_state.get("TORQUE_FAST", 0)
+                    slow_raw = cur_state.get("TORQUE_SLOW", 0)
+                    rec.torque_fast_pct = fast_raw if 0 <= fast_raw <= 100 else 0
+                    rec.torque_slow_pct = slow_raw if 0 <= slow_raw <= 100 else 0
+                else:
+                    rec.torque_fast_pct = rec.dtc
+                    rec.torque_slow_pct = 0
+
+                hw_lap = cur_state.get("LAP", 255)
+                rec.int_lap1 = cur_state.get("INT_LAP1", 0) if cur_state.get("INT_LAP1", 255) != 255 else 0
+                rec.int_lap2 = cur_state.get("INT_LAP2", 0) if cur_state.get("INT_LAP2", 255) != 255 else 0
+
+                # Check GPS coordinate fix validity
+                alt_raw = cur_state.get("GPS_ALT", 0x8000)
+                lon_raw = cur_state.get("GPS_LON", 0)
+                lat_raw = cur_state.get("GPS_LAT", 0)
+
+                if (
+                    alt_raw != 0x8000
+                    and lon_raw not in (0, 0x00800000, -0x00800000)
+                    and lat_raw not in (0, 0x00800000, -0x00800000)
+                ):
+                    lon_c = lon_raw * 1e-6
+                    lat_c = lat_raw * 1e-6
+                    if (-90.0 <= lat_c <= 90.0) and (-180.0 <= lon_c <= 180.0) and (abs(lat_c) > 0.5 or abs(lon_c) > 0.5):
+                        rec.raw_lat = lat_c
+                        rec.raw_lon = lon_c
+                        rec.gps_alt_m = alt_raw * 0.1
+                        gps_rec_list.append(rec)
+                        raw_lats.append(lat_c)
+                        raw_lons.append(lon_c)
+                        speeds_list.append(rec.speed_kmh)
+
+                        if hw_lap != 255 and prev_hw_lap == 255:
+                            self._hw_lap_crossings.append(rec)
+
+                prev_hw_lap = hw_lap
+                self.records.append(rec)
+
+            tick += 1
+
+        # 3. Apply 5-point Gaussian smoothing to eliminate GNSS jitter
         smooth_lats, smooth_lons = smooth_gps_series(raw_lats, raw_lons, speeds_list, window_size=5)
 
         cum_dist = 0.0
@@ -547,10 +537,11 @@ class DDAParser:
                 step_d = haversine_distance_m(prev_lat, prev_lon, s_lat, s_lon)
                 cum_dist += step_d
                 if step_d > 0.05:
-                    d_lat = math.radians(s_lat - prev_lat)
+                    lat1_r = math.radians(prev_lat)
+                    lat2_r = math.radians(s_lat)
                     d_lon = math.radians(s_lon - prev_lon)
-                    y = math.sin(d_lon) * math.cos(math.radians(s_lat))
-                    x = math.cos(math.radians(prev_lat)) * math.sin(math.radians(s_lat)) - math.sin(math.radians(prev_lat)) * math.cos(d_lon)
+                    y = math.sin(d_lon) * math.cos(lat2_r)
+                    x = math.cos(lat1_r) * math.sin(lat2_r) - math.sin(lat1_r) * math.cos(lat2_r) * math.cos(d_lon)
                     prev_bearing = (math.degrees(math.atan2(y, x)) + 360.0) % 360.0
 
             rec.distance_m = cum_dist
@@ -558,6 +549,15 @@ class DDAParser:
             prev_lat = s_lat
             prev_lon = s_lon
             self.gps_records.append(rec)
+
+        # Backfill initial bearing for the first stationary GPS points
+        if len(self.gps_records) > 1:
+            first_moving_brg = next((r.bearing_deg for r in self.gps_records if r.bearing_deg != 0.0), 0.0)
+            for r in self.gps_records:
+                if r.bearing_deg == 0.0:
+                    r.bearing_deg = first_moving_brg
+                else:
+                    break
 
         # 4a. Calculate Robust Filtered GPS Ground Speed
         n_gps = len(gps_rec_list)
@@ -598,7 +598,44 @@ class DDAParser:
                     filtered_v = 0.25 * clean_gps_speeds[i - 1] + 0.50 * clean_gps_speeds[i] + 0.25 * clean_gps_speeds[i + 1]
                 gps_rec_list[i].gps_speed_kmh = max(0.0, filtered_v)
 
-        # 4b. Derive Acceleration Kinematics & Wheel Slip
+        # 4b. Kinematic Lean Angle Derivation for Non-IMU Bikes (e.g., Panigale 1199 / 899 / 1098 / 1198)
+        if not has_imu_lean and n_gps >= 10:
+            chord_brgs = [0.0] * n_gps
+            for i in range(n_gps):
+                i0 = max(0, i - 5)
+                i1 = min(n_gps - 1, i + 5)
+                lat1_r = math.radians(gps_rec_list[i0].gps_lat)
+                lat2_r = math.radians(gps_rec_list[i1].gps_lat)
+                d_lon = math.radians(gps_rec_list[i1].gps_lon - gps_rec_list[i0].gps_lon)
+                y = math.sin(d_lon) * math.cos(lat2_r)
+                x = math.cos(lat1_r) * math.sin(lat2_r) - math.sin(lat1_r) * math.cos(lat2_r) * math.cos(d_lon)
+                if abs(x) > 1e-9 or abs(y) > 1e-9:
+                    chord_brgs[i] = (math.degrees(math.atan2(y, x)) + 360.0) % 360.0
+                elif i > 0:
+                    chord_brgs[i] = chord_brgs[i - 1]
+
+            raw_kin_leans = []
+            for i in range(n_gps):
+                i0 = max(0, i - 5)
+                i1 = min(n_gps - 1, i + 5)
+                dt = gps_rec_list[i1].time_s - gps_rec_list[i0].time_s
+                spd_k = min(gps_rec_list[i].speed_kmh, gps_rec_list[i].gps_speed_kmh) if gps_rec_list[i].gps_speed_kmh > 10.0 else gps_rec_list[i].speed_kmh
+                if dt > 0.1 and spd_k > 15.0:
+                    db = (chord_brgs[i1] - chord_brgs[i0] + 180.0) % 360.0 - 180.0
+                    omega_rads = math.radians(db) / dt
+                    v_ms = spd_k / 3.6
+                    a_lat_g = (v_ms * omega_rads) / 9.80665
+                    lean_deg = math.degrees(math.atan(a_lat_g))
+                    lean_deg = max(-52.0, min(52.0, lean_deg))
+                else:
+                    lean_deg = 0.0
+                raw_kin_leans.append(lean_deg)
+
+            for i in range(n_gps):
+                w = raw_kin_leans[max(0, i - 4) : min(n_gps, i + 5)]
+                gps_rec_list[i].lean_angle_deg = sum(w) / len(w)
+
+        # 4c. Derive Acceleration Kinematics & Wheel Slip
         n_recs = len(self.records)
         for i in range(n_recs):
             rec = self.records[i]
@@ -689,6 +726,18 @@ class DDAParser:
                     {"id": "s1", "name": "Sector 1 (The Cyclone)", "type": "split", "lat": 39.544100, "lon": -122.336200, "bearing": 270.0},
                     {"id": "s2", "name": "Sector 2 (Turn 9/10)", "type": "split", "lat": 39.538500, "lon": -122.337800, "bearing": 160.0}
                 ]
+            },
+            "grattan_raceway": {
+                "id": "grattan_raceway",
+                "name": "Grattan Raceway",
+                "center_lat": 43.095400,
+                "center_lon": -85.384500,
+                "radius_m": 3500,
+                "gates": [
+                    {"id": "sf", "name": "Start / Finish", "type": "sf", "lat": 43.096178, "lon": -85.383956, "bearing": 77.0},
+                    {"id": "s1", "name": "Sector 1 (Bowl)", "type": "split", "lat": 43.095766, "lon": -85.381598, "bearing": 205.0},
+                    {"id": "s2", "name": "Sector 2 (Back Esses)", "type": "split", "lat": 43.094968, "lon": -85.388314, "bearing": 225.0}
+                ]
             }
         }
 
@@ -728,8 +777,17 @@ class DDAParser:
             sf_brg = sf_gate.get("bearing", 0.0)
             if not self.header.track_name:
                 self.header.track_name = matched_track.get("name", "")
+        elif len(self._hw_lap_crossings) >= 2:
+            # 3a. Use hardware GPS finish-line crossing events recorded in the LAP channel
+            hw_ref = self._hw_lap_crossings[len(self._hw_lap_crossings) // 2]
+            sf_lat = hw_ref.gps_lat
+            sf_lon = hw_ref.gps_lon
+            sf_brg = hw_ref.bearing_deg
+            self.gates = [
+                {"id": "sf", "name": "Start / Finish", "type": "sf", "lat": sf_lat, "lon": sf_lon, "bearing": sf_brg}
+            ]
         else:
-            # 3. Auto-detection for unknown tracks
+            # 3b. Auto-detection for unknown tracks
             # S/F lines are located on straightaways with high speed and low lean angle, never slow corner apexes.
             max_spd = max((r.speed_kmh for r in fast_pts), default=100.0)
             spd_thresh = max(55.0, max_spd * 0.40)
@@ -907,6 +965,7 @@ class DDAParser:
             "max_throttle_pct": max(tps_list) if tps_list else 0.0,
             "max_dtc_fast_pct": max(r.torque_fast_pct for r in self.records),
             "max_dtc_slow_pct": max(r.torque_slow_pct for r in self.records),
+            "max_temp_c": max((r.temp_c for r in self.records), default=0.0),
             "start_gps": (self.gps_records[0].gps_lat, self.gps_records[0].gps_lon) if self.gps_records else (None, None),
             "end_gps": (self.gps_records[-1].gps_lat, self.gps_records[-1].gps_lon) if self.gps_records else (None, None),
             "min_alt_m": min(r.gps_alt_m for r in self.gps_records) if self.gps_records else 0.0,
