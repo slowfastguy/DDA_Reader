@@ -5,6 +5,14 @@ A high-performance reverse-engineering suite, hardware downloader, telemetry con
 Compatible with all Ducati models equipped with DDA and DDA+ GPS systems (Panigale V4/V2, 1199/1299/899/959, Streetfighter V4/V2, SuperSport 939/950, Monster, Hypermotard, Multistrada, and SBK 1098/1198).
 
 ---
+UPDATE 10-24-26
+Trying to expand compatibility, confirmed compatible models as of right now are:
+2020-2024 Pangiale / Streetfighter V2
+2013-2015 Panigale 899
+2013-2014 Panigale 1199
+
+If you test the app with a different model and are missing data or it doesn't work, open an issue and upload a sample DDA file for analysis!
+---
 
 ## 📦 Pre-Built Executables & Quick Download
 

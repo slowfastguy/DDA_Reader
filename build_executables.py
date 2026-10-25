@@ -29,7 +29,10 @@ def main():
     data_settings = f"dda_settings.json{sep}."
     data_driver = f"driver{sep}driver"
 
-    mode_arg = "--onefile" if "--onefile" in sys.argv else ("--onedir" if "--onedir" in sys.argv else "--onefile")
+    if sys.platform == "darwin":
+        mode_arg = "--onefile" if "--onefile" in sys.argv else "--onedir"
+    else:
+        mode_arg = "--onefile" if "--onefile" in sys.argv else ("--onedir" if "--onedir" in sys.argv else "--onefile")
 
     cmd = [
         sys.executable, "-m", "PyInstaller",
