@@ -46,6 +46,22 @@ const DEFAULT_SETTINGS = {
       elevation: false,
       temp: false,
       lineDelta: true
+    },
+    channelLanes: {
+      speedA: 1,
+      speedGps: 1,
+      speedB: 1,
+      rpm: 1,
+      tps: 2,
+      dtc: 2,
+      lean: 3,
+      gLong: 3,
+      gLat: 3,
+      gear: 4,
+      elevation: 4,
+      temp: 4,
+      deltaT: 4,
+      lineDelta: 4
     }
   },
   tracks: {
@@ -250,6 +266,22 @@ const state = {
     temp: false,
     lineDelta: true
   },
+  channelLanes: {
+    speedA: 1,
+    speedGps: 1,
+    speedB: 1,
+    rpm: 1,
+    tps: 2,
+    dtc: 2,
+    lean: 3,
+    gLong: 3,
+    gLat: 3,
+    gear: 4,
+    elevation: 4,
+    temp: 4,
+    deltaT: 4,
+    lineDelta: 4
+  },
   video: {
     hasVideo: false,
     file: null,
@@ -296,6 +328,8 @@ const state = {
     chartsHeight: 280,
     topSplitPct: 50,
     compareSplitPct: 48,
+    mapCollapsed: false,
+    videoCollapsed: true,
     sidebarCollapsed: false,
     chartsCollapsed: false,
     maximizedPanel: null
@@ -334,8 +368,25 @@ const dom = {
   resizerCharts: document.getElementById('resizer-charts'),
   resizerTopSplit: document.getElementById('resizer-top-split'),
   resizerCompare: document.getElementById('resizer-compare'),
+  btnPanelToggleMap: document.getElementById('btn-panel-toggle-map'),
+  btnPanelToggleVideo: document.getElementById('btn-panel-toggle-video'),
+  btnPanelToggleCharts: document.getElementById('btn-panel-toggle-charts'),
+  btnPanelToggleData: document.getElementById('btn-panel-toggle-data'),
+  btnMinimizeMap: document.getElementById('btn-minimize-map'),
+  btnMinimizeVideo: document.getElementById('btn-minimize-video'),
+  btnMinimizeCharts: document.getElementById('btn-minimize-charts'),
+  btnMinimizeData: document.getElementById('btn-minimize-data'),
   btnMaximizeMap: document.getElementById('btn-maximize-map'),
+  btnMaximizeVideo: document.getElementById('btn-maximize-video'),
   btnMaximizeCharts: document.getElementById('btn-maximize-charts'),
+  btnMaximizeData: document.getElementById('btn-maximize-data'),
+  btnVideoPipToggle: document.getElementById('btn-video-pip-toggle'),
+  btnClearSectionCharts: document.getElementById('btn-clear-section-charts'),
+  channelsStripeBar: document.getElementById('channels-stripe-bar'),
+  settingsSessionDuration: document.getElementById('settings-session-duration'),
+  settingsSessionFrames: document.getElementById('settings-session-frames'),
+  settingsSessionDist: document.getElementById('settings-session-dist'),
+  settingsSessionOdo: document.getElementById('settings-session-odo'),
   btnCollapseCharts: document.getElementById('btn-collapse-charts'),
   btnCollapseSidebar: document.getElementById('btn-collapse-sidebar'),
   btnFloatingSidebarExpand: document.getElementById('btn-floating-sidebar-expand'),
@@ -684,6 +735,7 @@ function initSettings() {
   if (loaded) {
     if (loaded.preferences) Object.assign(base.preferences, loaded.preferences);
     if (loaded.preferences && loaded.preferences.channels) Object.assign(base.preferences.channels, loaded.preferences.channels);
+    if (loaded.preferences && loaded.preferences.channelLanes) Object.assign(base.preferences.channelLanes, loaded.preferences.channelLanes);
     if (loaded.preferences && loaded.preferences.motogp) Object.assign(base.preferences.motogp, loaded.preferences.motogp);
     if (loaded.tracks) {
       for (const trackKey in loaded.tracks) {
@@ -712,6 +764,7 @@ function initSettings() {
   state.playbackSpeed = p.playbackSpeed || 1.0;
   if (p.motogp) Object.assign(state.motogp, p.motogp);
   if (p.channels) Object.assign(state.channels, p.channels);
+  if (p.channelLanes) Object.assign(state.channelLanes, p.channelLanes);
 
   // Sync UI controls
   if (dom.lblUnitToggle) dom.lblUnitToggle.textContent = state.unitMph ? 'MPH' : 'KM/H';
@@ -763,7 +816,7 @@ function initSettings() {
     dom.lblMenuChartTurns.textContent = state.showChartTurnMarkers !== false ? 'Chart Turn Markers: ON' : 'Chart Turn Markers: OFF';
   }
 
-  // Sync channel toggle buttons
+  // Sync channel toggle buttons & lane pickers
   document.querySelectorAll('.channel-toggle-btn').forEach(btn => {
     const ch = btn.dataset.channel;
     if (ch && state.channels[ch] !== undefined) {
@@ -771,6 +824,14 @@ function initSettings() {
       btn.classList.toggle('channel-off', !state.channels[ch]);
     }
   });
+  document.querySelectorAll('.channel-lane-picker').forEach(picker => {
+    const ch = picker.dataset.channel;
+    const lane = (state.channelLanes && state.channelLanes[ch]) || 1;
+    picker.querySelectorAll('.btn-lane-pick').forEach(b => {
+      b.classList.toggle('active', parseInt(b.dataset.lane, 10) === lane);
+    });
+  });
+  if (typeof updateChannelsStripeUI === 'function') updateChannelsStripeUI();
 
   if (typeof renderTrackLibrary === 'function') renderTrackLibrary();
 }
@@ -792,7 +853,8 @@ function saveSettingsToStorage() {
       followBike: state.followBike,
       playbackSpeed: state.playbackSpeed,
       motogp: state.motogp,
-      channels: state.channels
+      channels: state.channels,
+      channelLanes: state.channelLanes
     },
     tracks: state.tracks
   };
@@ -820,7 +882,8 @@ function exportSettingsFile() {
       followBike: state.followBike,
       playbackSpeed: state.playbackSpeed,
       motogp: state.motogp,
-      channels: state.channels
+      channels: state.channels,
+      channelLanes: state.channelLanes
     },
     tracks: state.tracks
   };
@@ -841,6 +904,7 @@ function importSettingsFile(file) {
       const data = JSON.parse(e.target.result);
       if (data.preferences) {
         Object.assign(state.channels, data.preferences.channels || {});
+        if (data.preferences.channelLanes) Object.assign(state.channelLanes, data.preferences.channelLanes);
         state.unitMph = data.preferences.unitMph !== undefined ? data.preferences.unitMph : state.unitMph;
         state.smoothingLevel = data.preferences.smoothingLevel || state.smoothingLevel;
         state.currentLayer = data.preferences.currentLayer || state.currentLayer;

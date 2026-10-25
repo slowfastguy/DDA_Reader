@@ -1133,6 +1133,11 @@ function recalculateLapsAndSectors() {
   }
 
   state.laps = newLaps;
+  if (dom.metaDuration) {
+    const timedCount = newLaps.filter(l => l.lap_number >= 1 && !l.is_optimal && !(l.name && l.name.includes('In-Lap'))).length;
+    const totalCount = timedCount > 0 ? timedCount : newLaps.filter(l => !l.is_optimal).length;
+    dom.metaDuration.textContent = `🏁 ${totalCount} ${totalCount === 1 ? 'Lap' : 'Laps'}`;
+  }
   if (typeof generateTheoreticalOptimalLap === 'function') generateTheoreticalOptimalLap();
   if (typeof renderLapListTable === 'function') renderLapListTable();
   renderMapGates();

@@ -223,44 +223,23 @@ function loadVideoFile(file, isLapB = false) {
 
 function setVideoViewMode(mode) {
   state.video.viewMode = mode;
-  const grid = dom.mainWorkspace || document.querySelector('.workspace-grid');
-  const panelVideo = dom.panelVideo;
-  const panelMap = dom.panelMap;
-  const resizerTop = dom.resizerTopSplit;
-
-  if (!grid || !panelVideo) return;
-
-  // Update ALL view mode switcher buttons across Map header, Video header, and top menu
-  document.querySelectorAll('[data-vmode]').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.vmode === mode);
-  });
-  if (dom.btnMenuViewMap) dom.btnMenuViewMap.classList.toggle('active', mode === 'map-only');
-  if (dom.btnMenuViewSplit) dom.btnMenuViewSplit.classList.toggle('active', mode === 'split');
-  if (dom.btnMenuViewVideo) dom.btnMenuViewVideo.classList.toggle('active', mode === 'video-only');
-  if (dom.btnMenuViewPip) dom.btnMenuViewPip.classList.toggle('active', mode === 'pip');
-
-  grid.classList.remove('video-split-active', 'video-primary-active');
-  panelVideo.classList.remove('video-pip-mode');
 
   if (mode === 'map-only') {
-    panelVideo.style.display = 'none';
-    if (panelMap) panelMap.style.display = 'flex';
-    if (resizerTop) resizerTop.style.display = 'none';
+    state.layout.mapCollapsed = false;
+    state.layout.videoCollapsed = true;
   } else if (mode === 'split') {
-    panelVideo.style.display = 'flex';
-    if (panelMap) panelMap.style.display = 'flex';
-    if (resizerTop) resizerTop.style.display = 'flex';
-    grid.classList.add('video-split-active');
+    state.layout.mapCollapsed = false;
+    state.layout.videoCollapsed = false;
   } else if (mode === 'video-only') {
-    panelVideo.style.display = 'flex';
-    if (panelMap) panelMap.style.display = 'none';
-    if (resizerTop) resizerTop.style.display = 'none';
-    grid.classList.add('video-primary-active');
+    state.layout.mapCollapsed = true;
+    state.layout.videoCollapsed = false;
   } else if (mode === 'pip') {
-    panelVideo.style.display = 'flex';
-    if (panelMap) panelMap.style.display = 'flex';
-    if (resizerTop) resizerTop.style.display = 'none';
-    panelVideo.classList.add('video-pip-mode');
+    state.layout.mapCollapsed = false;
+    state.layout.videoCollapsed = false;
+  }
+
+  if (typeof syncWorkspacePanelsUI === 'function') {
+    syncWorkspacePanelsUI();
   }
 
   // Trigger layout, map, and canvas resizes

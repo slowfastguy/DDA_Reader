@@ -257,7 +257,7 @@ function initDropdownMenus() {
     // Close menu when standard action items are clicked
     wrap.querySelectorAll('.dropdown-item').forEach(item => {
       item.addEventListener('click', () => {
-        if (item.id === 'btn-toggle-density' || item.classList.contains('channel-toggle-btn')) return;
+        if (item.id === 'btn-toggle-density' || item.classList.contains('channel-toggle-btn') || item.closest('#menu-channels')) return;
         wrap.classList.remove('open');
       });
     });
@@ -490,19 +490,126 @@ function triggerLayoutResize() {
   }
 }
 
-function toggleSidebarCollapse(force) {
-  state.layout.sidebarCollapsed = (force !== undefined) ? force : !state.layout.sidebarCollapsed;
-  if (dom.mainWorkspace) dom.mainWorkspace.classList.toggle('sidebar-collapsed', state.layout.sidebarCollapsed);
-  if (dom.btnFloatingSidebarExpand) dom.btnFloatingSidebarExpand.style.display = state.layout.sidebarCollapsed ? 'flex' : 'none';
+function syncWorkspacePanelsUI() {
+  const grid = dom.mainWorkspace || document.querySelector('.workspace-grid');
+  if (!grid) return;
+
+  // Ensure at least one panel remains visible if not maximized
+  if (state.layout.mapCollapsed && state.layout.videoCollapsed && state.layout.chartsCollapsed && state.layout.sidebarCollapsed) {
+    state.layout.mapCollapsed = false;
+  }
+
+  const maxP = state.layout.maximizedPanel;
+  const mapOpen = !state.layout.mapCollapsed;
+  const videoOpen = !state.layout.videoCollapsed;
+  const chartsOpen = !state.layout.chartsCollapsed;
+  const dataOpen = !state.layout.sidebarCollapsed;
+  const isPip = videoOpen && state.video && state.video.viewMode === 'pip';
+
+  grid.classList.toggle('map-collapsed', !mapOpen);
+  grid.classList.toggle('video-collapsed', !videoOpen);
+  grid.classList.toggle('charts-collapsed', !chartsOpen);
+  grid.classList.toggle('sidebar-collapsed', !dataOpen);
+  grid.classList.toggle('top-row-collapsed', !mapOpen && (!videoOpen || isPip));
+
+  grid.classList.toggle('panel-maximized-map', maxP === 'map');
+  grid.classList.toggle('panel-maximized-video', maxP === 'video');
+  grid.classList.toggle('panel-maximized-charts', maxP === 'charts');
+  grid.classList.toggle('panel-maximized-data', maxP === 'data');
+
+  // Synchronize Map & Video Top Row
+  const panelMap = dom.panelMap;
+  const panelVideo = dom.panelVideo;
+  const resizerTop = dom.resizerTopSplit;
+
+  grid.classList.remove('video-split-active', 'video-primary-active');
+  if (panelVideo) panelVideo.classList.remove('video-pip-mode');
+
+  if (isPip && maxP !== 'video') {
+    if (panelVideo) {
+      panelVideo.style.display = 'flex';
+      panelVideo.classList.add('video-pip-mode');
+    }
+    if (panelMap) panelMap.style.display = mapOpen ? 'flex' : 'none';
+    if (resizerTop) resizerTop.style.display = 'none';
+  } else if (mapOpen && videoOpen) {
+    if (panelMap) panelMap.style.display = 'flex';
+    if (panelVideo) panelVideo.style.display = 'flex';
+    if (resizerTop) resizerTop.style.display = 'flex';
+    grid.classList.add('video-split-active');
+  } else if (mapOpen && !videoOpen) {
+    if (panelMap) panelMap.style.display = 'flex';
+    if (panelVideo) panelVideo.style.display = 'none';
+    if (resizerTop) resizerTop.style.display = 'none';
+  } else if (!mapOpen && videoOpen) {
+    if (panelMap) panelMap.style.display = 'none';
+    if (panelVideo) panelVideo.style.display = 'flex';
+    if (resizerTop) resizerTop.style.display = 'none';
+    grid.classList.add('video-primary-active');
+  } else {
+    if (panelMap) panelMap.style.display = 'none';
+    if (panelVideo) panelVideo.style.display = 'none';
+    if (resizerTop) resizerTop.style.display = 'none';
+  }
+
+  // Synchronize Top-Header Workspace Panel Switcher Pills
+  if (dom.btnPanelToggleMap) dom.btnPanelToggleMap.classList.toggle('active', maxP ? maxP === 'map' : mapOpen);
+  if (dom.btnPanelToggleVideo) dom.btnPanelToggleVideo.classList.toggle('active', maxP ? maxP === 'video' : videoOpen);
+  if (dom.btnPanelToggleCharts) dom.btnPanelToggleCharts.classList.toggle('active', maxP ? maxP === 'charts' : chartsOpen);
+  if (dom.btnPanelToggleData) dom.btnPanelToggleData.classList.toggle('active', maxP ? maxP === 'data' : dataOpen);
+
+  // Synchronize Maximize Icons on all 4 panels
+  if (dom.btnMaximizeMap) dom.btnMaximizeMap.classList.toggle('active', maxP === 'map');
+  if (dom.btnMaximizeVideo) dom.btnMaximizeVideo.classList.toggle('active', maxP === 'video');
+  if (dom.btnMaximizeCharts) dom.btnMaximizeCharts.classList.toggle('active', maxP === 'charts');
+  if (dom.btnMaximizeData) dom.btnMaximizeData.classList.toggle('active', maxP === 'data');
+  if (dom.btnVideoPipToggle) dom.btnVideoPipToggle.classList.toggle('active', isPip);
+}
+
+function togglePanelVisibility(panelId, forceVisible) {
+  // If another panel is currently maximized and user clicks a panel pill in top header, exit maximize
+  if (state.layout.maximizedPanel) {
+    if (state.layout.maximizedPanel === panelId && forceVisible === false) {
+      state.layout.maximizedPanel = null;
+    } else if (forceVisible === undefined) {
+      const wasThisMax = state.layout.maximizedPanel === panelId;
+      state.layout.maximizedPanel = null;
+      if (!wasThisMax) {
+        if (panelId === 'map') state.layout.mapCollapsed = false;
+        if (panelId === 'video') state.layout.videoCollapsed = false;
+        if (panelId === 'charts') state.layout.chartsCollapsed = false;
+        if (panelId === 'data') state.layout.sidebarCollapsed = false;
+        syncWorkspacePanelsUI();
+        saveLayoutState();
+        triggerLayoutResize();
+        return;
+      }
+    }
+  }
+
+  if (panelId === 'map') {
+    state.layout.mapCollapsed = forceVisible !== undefined ? !forceVisible : !state.layout.mapCollapsed;
+  } else if (panelId === 'video') {
+    state.layout.videoCollapsed = forceVisible !== undefined ? !forceVisible : !state.layout.videoCollapsed;
+  } else if (panelId === 'charts') {
+    state.layout.chartsCollapsed = forceVisible !== undefined ? !forceVisible : !state.layout.chartsCollapsed;
+  } else if (panelId === 'data') {
+    state.layout.sidebarCollapsed = forceVisible !== undefined ? !forceVisible : !state.layout.sidebarCollapsed;
+  }
+
+  syncWorkspacePanelsUI();
   saveLayoutState();
-  triggerLayoutResize();
+  setTimeout(() => triggerLayoutResize(), 40);
+}
+
+function toggleSidebarCollapse(force) {
+  const nextCollapsed = (force !== undefined) ? force : !state.layout.sidebarCollapsed;
+  togglePanelVisibility('data', !nextCollapsed);
 }
 
 function toggleChartsCollapse(force) {
-  state.layout.chartsCollapsed = (force !== undefined) ? force : !state.layout.chartsCollapsed;
-  if (dom.mainWorkspace) dom.mainWorkspace.classList.toggle('charts-collapsed', state.layout.chartsCollapsed);
-  saveLayoutState();
-  triggerLayoutResize();
+  const nextCollapsed = (force !== undefined) ? force : !state.layout.chartsCollapsed;
+  togglePanelVisibility('charts', !nextCollapsed);
 }
 
 function maximizePanel(panelId) {
@@ -510,17 +617,15 @@ function maximizePanel(panelId) {
     state.layout.maximizedPanel = null;
   } else {
     state.layout.maximizedPanel = panelId;
+    if (panelId === 'map') state.layout.mapCollapsed = false;
+    if (panelId === 'video') state.layout.videoCollapsed = false;
+    if (panelId === 'charts') state.layout.chartsCollapsed = false;
+    if (panelId === 'data') state.layout.sidebarCollapsed = false;
   }
 
-  if (dom.mainWorkspace) {
-    dom.mainWorkspace.classList.toggle('panel-maximized-map', state.layout.maximizedPanel === 'map');
-    dom.mainWorkspace.classList.toggle('panel-maximized-charts', state.layout.maximizedPanel === 'charts');
-  }
-  if (dom.btnMaximizeMap) dom.btnMaximizeMap.classList.toggle('active', state.layout.maximizedPanel === 'map');
-  if (dom.btnMaximizeCharts) dom.btnMaximizeCharts.classList.toggle('active', state.layout.maximizedPanel === 'charts');
-
+  syncWorkspacePanelsUI();
   saveLayoutState();
-  triggerLayoutResize();
+  setTimeout(() => triggerLayoutResize(), 40);
 }
 
 function applyLayoutPreset(presetName) {
@@ -529,15 +634,19 @@ function applyLayoutPreset(presetName) {
     state.layout.chartsHeight = 280;
     state.layout.topSplitPct = 50;
     state.layout.compareSplitPct = 48;
+    state.layout.mapCollapsed = false;
+    state.layout.videoCollapsed = !(state.video && state.video.hasVideo);
     state.layout.sidebarCollapsed = false;
     state.layout.chartsCollapsed = false;
     state.layout.maximizedPanel = null;
     state.cardsConfig.compactDensity = false;
   } else if (presetName === 'track_focus') {
+    state.layout.mapCollapsed = false;
     state.layout.sidebarCollapsed = true;
     state.layout.chartsCollapsed = true;
     state.layout.maximizedPanel = null;
   } else if (presetName === 'telemetry_focus') {
+    state.layout.mapCollapsed = false;
     state.layout.sidebarCollapsed = false;
     state.layout.chartsCollapsed = false;
     state.layout.chartsHeight = Math.min(480, Math.round(window.innerHeight * 0.48));
@@ -546,6 +655,7 @@ function applyLayoutPreset(presetName) {
     state.cardsConfig.order = ['cluster', 'timing', 'laptimes', 'lean', 'gg', 'phases'];
     state.layout.maximizedPanel = null;
   } else if (presetName === 'laptop') {
+    state.layout.mapCollapsed = false;
     state.layout.sidebarCollapsed = false;
     state.layout.chartsCollapsed = false;
     state.layout.sidebarWidth = 340;
@@ -560,19 +670,7 @@ function applyLayoutPreset(presetName) {
   document.documentElement.style.setProperty('--top-split-pct', `${state.layout.topSplitPct}%`);
   document.documentElement.style.setProperty('--compare-split-pct', `${state.layout.compareSplitPct || 48}%`);
 
-  // Apply Workspace Layout Classes
-  if (dom.mainWorkspace) {
-    dom.mainWorkspace.classList.toggle('sidebar-collapsed', state.layout.sidebarCollapsed);
-    dom.mainWorkspace.classList.toggle('charts-collapsed', state.layout.chartsCollapsed);
-    dom.mainWorkspace.classList.toggle('panel-maximized-map', false);
-    dom.mainWorkspace.classList.toggle('panel-maximized-charts', false);
-  }
-  if (dom.btnFloatingSidebarExpand) {
-    dom.btnFloatingSidebarExpand.style.display = state.layout.sidebarCollapsed ? 'flex' : 'none';
-  }
-  if (dom.btnMaximizeMap) dom.btnMaximizeMap.classList.remove('active');
-  if (dom.btnMaximizeCharts) dom.btnMaximizeCharts.classList.remove('active');
-
+  syncWorkspacePanelsUI();
   applyCardsConfigToUI();
   saveLayoutState();
   saveCardsConfig();
@@ -598,6 +696,8 @@ function saveLayoutState() {
       chartsHeight: state.layout.chartsHeight,
       topSplitPct: state.layout.topSplitPct,
       compareSplitPct: state.layout.compareSplitPct,
+      mapCollapsed: state.layout.mapCollapsed,
+      videoCollapsed: state.layout.videoCollapsed,
       sidebarCollapsed: state.layout.sidebarCollapsed,
       chartsCollapsed: state.layout.chartsCollapsed
     }));
@@ -629,19 +729,23 @@ function loadLayoutState() {
         state.layout.compareSplitPct = Math.max(15, Math.min(85, parsed.compareSplitPct));
         document.documentElement.style.setProperty('--compare-split-pct', `${state.layout.compareSplitPct}%`);
       }
+      if (parsed.mapCollapsed !== undefined) {
+        state.layout.mapCollapsed = !!parsed.mapCollapsed;
+      }
+      if (parsed.videoCollapsed !== undefined) {
+        state.layout.videoCollapsed = !!parsed.videoCollapsed;
+      }
       if (parsed.sidebarCollapsed !== undefined) {
         state.layout.sidebarCollapsed = !!parsed.sidebarCollapsed;
-        if (dom.mainWorkspace) dom.mainWorkspace.classList.toggle('sidebar-collapsed', state.layout.sidebarCollapsed);
-        if (dom.btnFloatingSidebarExpand) dom.btnFloatingSidebarExpand.style.display = state.layout.sidebarCollapsed ? 'flex' : 'none';
       }
       if (parsed.chartsCollapsed !== undefined) {
         state.layout.chartsCollapsed = !!parsed.chartsCollapsed;
-        if (dom.mainWorkspace) dom.mainWorkspace.classList.toggle('charts-collapsed', state.layout.chartsCollapsed);
       }
     }
   } catch (err) {
     console.warn('Could not load layout state from localStorage:', err);
   }
+  syncWorkspacePanelsUI();
 }
 
 function renderLapListTable() {
@@ -819,7 +923,16 @@ function loadSessionData(jsonObj) {
     if (h.bike_model) state.motogp.bikeName = h.bike_model;
     syncMotoGPConfigToUI();
   }
-  if (dom.metaDuration) dom.metaDuration.textContent = `${(s.duration_min || 0).toFixed(1)} min (${state.records.length.toLocaleString()} frames)`;
+  if (dom.metaDuration) {
+    const lapCnt = (state.laps || []).filter(l => !l.is_optimal).length;
+    dom.metaDuration.textContent = `🏁 ${lapCnt} ${lapCnt === 1 ? 'Lap' : 'Laps'}`;
+  }
+  if (dom.settingsSessionDuration) dom.settingsSessionDuration.textContent = `${(s.duration_min || 0).toFixed(1)} min`;
+  if (dom.settingsSessionFrames) dom.settingsSessionFrames.textContent = state.records.length.toLocaleString();
+  const totalDistKm = (state.records[state.records.length - 1]?.distance_m || 0) / 1000.0;
+  if (dom.settingsSessionDist) dom.settingsSessionDist.textContent = `${totalDistKm.toFixed(2)} km`;
+  const odoKm = s.odometer_end_km || h.header_odometer_km || 0;
+  if (dom.settingsSessionOdo) dom.settingsSessionOdo.textContent = odoKm > 0 ? `${Math.round(odoKm).toLocaleString()} km` : '-- km';
 
   if (dom.peakLeanLeft) dom.peakLeanLeft.textContent = `${(s.max_lean_left_deg || 0).toFixed(1)}°`;
   if (dom.peakLeanRight) dom.peakLeanRight.textContent = `${(s.max_lean_right_deg || 0).toFixed(1)}°`;
@@ -1295,17 +1408,50 @@ function bindEvents() {
     dom.btnRenderVideo.addEventListener('click', exportOverlayVideo);
   }
 
-  // Channel Toggle Buttons
+  // Channel Toggle Buttons & Lane Assignment Pickers
   document.querySelectorAll('.channel-toggle-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
       const ch = btn.dataset.channel;
       if (ch && state.channels[ch] !== undefined) {
         state.channels[ch] = !state.channels[ch];
         btn.classList.toggle('active', state.channels[ch]);
         btn.classList.toggle('channel-off', !state.channels[ch]);
+        if (typeof updateChannelsStripeUI === 'function') updateChannelsStripeUI();
         saveSettingsToStorage();
         renderCharts();
       }
+    });
+  });
+
+  document.querySelectorAll('.channel-lane-picker .btn-lane-pick').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const picker = btn.closest('.channel-lane-picker');
+      const ch = picker ? picker.dataset.channel : null;
+      const lane = parseInt(btn.dataset.lane, 10);
+      if (!ch || isNaN(lane)) return;
+
+      if (!state.channelLanes) state.channelLanes = {};
+      state.channelLanes[ch] = lane;
+
+      picker.querySelectorAll('.btn-lane-pick').forEach(b => {
+        b.classList.toggle('active', parseInt(b.dataset.lane, 10) === lane);
+      });
+
+      // Automatically enable channel if user selects a lane for a disabled channel
+      if (!state.channels[ch]) {
+        state.channels[ch] = true;
+        const chBtn = document.querySelector(`.channel-toggle-btn[data-channel="${ch}"]`);
+        if (chBtn) {
+          chBtn.classList.add('active');
+          chBtn.classList.remove('channel-off');
+        }
+      }
+
+      if (typeof updateChannelsStripeUI === 'function') updateChannelsStripeUI();
+      saveSettingsToStorage();
+      renderCharts();
     });
   });
 
@@ -1823,6 +1969,11 @@ function bindEvents() {
       if (typeof clearSectionSelection === 'function') clearSectionSelection();
     });
   }
+  if (dom.btnClearSectionCharts) {
+    dom.btnClearSectionCharts.addEventListener('click', () => {
+      if (typeof clearSectionSelection === 'function') clearSectionSelection();
+    });
+  }
   const btnClearDrawer = document.getElementById('btn-clear-section-drawer');
   if (btnClearDrawer) {
     btnClearDrawer.addEventListener('click', () => {
@@ -1845,10 +1996,57 @@ function bindEvents() {
     dom.btnSyncDist.addEventListener('click', () => setSyncMode('dist'));
   }
 
-  // Layout Toggle & Panel Collapse / Maximize Controls
+  // Layout Toggle & Uniform Panel Minimize / Maximize / Top-Bar Switcher Controls
   if (dom.btnToggleLayout) {
     dom.btnToggleLayout.addEventListener('click', () => {
       if (typeof toggleWorkspaceLayout === 'function') toggleWorkspaceLayout();
+    });
+  }
+
+  // Top-Header Workspace Panel Switcher Pills
+  [
+    { el: dom.btnPanelToggleMap, id: 'map' },
+    { el: dom.btnPanelToggleVideo, id: 'video' },
+    { el: dom.btnPanelToggleCharts, id: 'charts' },
+    { el: dom.btnPanelToggleData, id: 'data' }
+  ].forEach(({ el, id }) => {
+    if (el) {
+      el.addEventListener('click', () => togglePanelVisibility(id));
+    }
+  });
+
+  // Uniform Panel Minimize Buttons (—)
+  [
+    { el: dom.btnMinimizeMap, id: 'map' },
+    { el: dom.btnMinimizeVideo, id: 'video' },
+    { el: dom.btnMinimizeCharts, id: 'charts' },
+    { el: dom.btnMinimizeData, id: 'data' }
+  ].forEach(({ el, id }) => {
+    if (el) {
+      el.addEventListener('click', () => togglePanelVisibility(id, false));
+    }
+  });
+
+  // Uniform Panel Maximize Buttons (⤢)
+  [
+    { el: dom.btnMaximizeMap, id: 'map' },
+    { el: dom.btnMaximizeVideo, id: 'video' },
+    { el: dom.btnMaximizeCharts, id: 'charts' },
+    { el: dom.btnMaximizeData, id: 'data' }
+  ].forEach(({ el, id }) => {
+    if (el) {
+      el.addEventListener('click', () => maximizePanel(id));
+    }
+  });
+
+  // Video PIP Toggle Button on Video Header
+  if (dom.btnVideoPipToggle) {
+    dom.btnVideoPipToggle.addEventListener('click', () => {
+      const nextPip = !(state.video && state.video.viewMode === 'pip');
+      if (state.video) state.video.viewMode = nextPip ? 'pip' : 'split';
+      state.layout.videoCollapsed = false;
+      syncWorkspacePanelsUI();
+      setTimeout(() => triggerLayoutResize(), 50);
     });
   }
 
@@ -1856,20 +2054,8 @@ function bindEvents() {
     dom.btnCollapseSidebar.addEventListener('click', () => toggleSidebarCollapse());
   }
 
-  if (dom.btnFloatingSidebarExpand) {
-    dom.btnFloatingSidebarExpand.addEventListener('click', () => toggleSidebarCollapse(false));
-  }
-
   if (dom.btnCollapseCharts) {
     dom.btnCollapseCharts.addEventListener('click', () => toggleChartsCollapse());
-  }
-
-  if (dom.btnMaximizeMap) {
-    dom.btnMaximizeMap.addEventListener('click', () => maximizePanel('map'));
-  }
-
-  if (dom.btnMaximizeCharts) {
-    dom.btnMaximizeCharts.addEventListener('click', () => maximizePanel('charts'));
   }
 
   // Keyboard Shortcuts

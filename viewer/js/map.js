@@ -799,6 +799,7 @@ function finalizeSectionSelection() {
   state.sectionSelection.isSelecting = false;
   if (dom.btnSelectSection) dom.btnSelectSection.classList.remove('active');
   if (dom.btnClearSection) dom.btnClearSection.style.display = 'inline-flex';
+  if (dom.btnClearSectionCharts) dom.btnClearSectionCharts.style.display = 'inline-flex';
   if (dom.gateInstructionToast && !state.gateEditMode) dom.gateInstructionToast.style.display = 'none';
 
   const container = document.getElementById('map-container');
@@ -904,6 +905,7 @@ function selectCornerSection(turnIndex) {
   state.sectionSelection.isSelecting = false;
   if (dom.btnSelectSection) dom.btnSelectSection.classList.remove('active');
   if (dom.btnClearSection) dom.btnClearSection.style.display = 'inline-flex';
+  if (dom.btnClearSectionCharts) dom.btnClearSectionCharts.style.display = 'inline-flex';
   if (dom.gateInstructionToast && !state.gateEditMode) dom.gateInstructionToast.style.display = 'none';
 
   const container = document.getElementById('map-container');
@@ -1206,6 +1208,7 @@ function clearSectionSelection() {
 
   if (dom.btnSelectSection) dom.btnSelectSection.classList.remove('active');
   if (dom.btnClearSection) dom.btnClearSection.style.display = 'none';
+  if (dom.btnClearSectionCharts) dom.btnClearSectionCharts.style.display = 'none';
   if (dom.sectionAnalysisDrawer) dom.sectionAnalysisDrawer.style.display = 'none';
 
   // Restore full circuit track on map

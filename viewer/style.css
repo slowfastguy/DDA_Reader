@@ -877,46 +877,132 @@ body.dark-theme {
   box-shadow: var(--shadow-lg), 0 0 18px rgba(0, 229, 255, 0.4);
 }
 
-/* Sidebar Collapsed State */
+/* Sidebar Collapsed State (Minimized) */
 .sidebar-collapsed #panel-data,
 .sidebar-collapsed #resizer-sidebar {
   display: none !important;
 }
 
-/* Charts Collapsed State */
-.charts-collapsed #panel-charts {
-  height: 36px !important;
-  min-height: 36px !important;
-}
-.charts-collapsed #panel-charts .charts-scroll-area,
-.charts-collapsed #panel-charts .section-analysis-drawer,
-.charts-collapsed #panel-charts .chart-legend-row {
+/* Charts Collapsed State (Minimized - completely hidden, 0px space) */
+.charts-collapsed #panel-charts,
+.charts-collapsed #resizer-charts,
+.charts-collapsed #resizer-compare {
   display: none !important;
 }
-.charts-collapsed #panel-charts .icon-chevron-collapse {
-  transform: rotate(180deg);
-}
-
-/* Maximized States */
-.panel-maximized-map .panel-charts,
-.panel-maximized-map .resizer-h,
-.panel-maximized-map #resizer-compare {
-  display: none !important;
-}
-.panel-maximized-map .workspace-top-row {
+.charts-collapsed .workspace-top-row {
+  flex: 1 1 100% !important;
+  height: 100% !important;
   width: 100% !important;
   max-width: 100% !important;
 }
 
+/* Map or Video Minimized States */
+.map-collapsed #panel-map,
+.map-collapsed #resizer-top-split {
+  display: none !important;
+}
+.map-collapsed #panel-video:not(.video-pip-mode) {
+  display: flex !important;
+  flex: 1 1 100% !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.video-collapsed #panel-video:not(.video-pip-mode),
+.video-collapsed #resizer-top-split {
+  display: none !important;
+}
+.video-collapsed #panel-map {
+  display: flex !important;
+  flex: 1 1 100% !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* Both Map & Video Minimized -> Telemetry fills entire left workspace */
+.top-row-collapsed .workspace-top-row,
+.top-row-collapsed #resizer-charts,
+.top-row-collapsed #resizer-compare {
+  display: none !important;
+}
+.top-row-collapsed #panel-charts {
+  flex: 1 1 100% !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  width: 100% !important;
+}
+
+/* Uniform Maximized States (Any of the 4 panels expands to 100% workspace) */
+.panel-maximized-map #panel-charts,
+.panel-maximized-map #panel-video:not(.video-pip-mode),
+.panel-maximized-map #panel-data,
+.panel-maximized-map .resizer-h,
+.panel-maximized-map .resizer-v,
+.panel-maximized-map .resizer-split,
+.panel-maximized-map #resizer-compare {
+  display: none !important;
+}
+.panel-maximized-map .workspace-left,
+.panel-maximized-map .workspace-top-row,
+.panel-maximized-map #panel-map {
+  display: flex !important;
+  flex: 1 1 100% !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  max-height: 100% !important;
+}
+
+.panel-maximized-video #panel-charts,
+.panel-maximized-video #panel-map,
+.panel-maximized-video #panel-data,
+.panel-maximized-video .resizer-h,
+.panel-maximized-video .resizer-v,
+.panel-maximized-video .resizer-split,
+.panel-maximized-video #resizer-compare {
+  display: none !important;
+}
+.panel-maximized-video .workspace-left,
+.panel-maximized-video .workspace-top-row,
+.panel-maximized-video #panel-video {
+  display: flex !important;
+  flex: 1 1 100% !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  position: relative !important;
+  inset: auto !important;
+}
+
 .panel-maximized-charts .workspace-top-row,
+.panel-maximized-charts #panel-data,
 .panel-maximized-charts .resizer-h,
+.panel-maximized-charts .resizer-v,
 .panel-maximized-charts #resizer-compare {
   display: none !important;
 }
-.panel-maximized-charts .panel-charts {
+.panel-maximized-charts .workspace-left,
+.panel-maximized-charts #panel-charts {
+  display: flex !important;
+  flex: 1 1 100% !important;
   width: 100% !important;
+  max-width: 100% !important;
   height: 100% !important;
   max-height: 100% !important;
+}
+
+.panel-maximized-data .workspace-left,
+.panel-maximized-data .resizer-v,
+.panel-maximized-data #resizer-sidebar {
+  display: none !important;
+}
+.panel-maximized-data #panel-data {
+  display: flex !important;
+  flex: 1 1 100% !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 100% !important;
 }
 
 /* Compare Mode Vertical Splitter */
@@ -1908,11 +1994,156 @@ body.dark-theme {
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
-  min-width: 230px;
-  max-height: 340px;
+  min-width: 340px;
+  max-height: 440px;
   overflow-y: auto;
   z-index: 2000;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.85), 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+/* Channels Button Bottom Per-Channel Color Stripe */
+.btn-channels-trigger {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 3px 8px 6px 8px !important;
+  overflow: hidden;
+}
+
+.btn-channels-top {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.channels-stripe-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3.5px;
+  display: flex;
+  gap: 1px;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.ch-stripe-seg {
+  flex: 1;
+  height: 100%;
+  background: var(--c, #888);
+  transition: opacity 0.15s ease, filter 0.15s ease;
+}
+
+.ch-stripe-seg.active {
+  opacity: 1;
+  filter: saturate(1.25) brightness(1.1);
+  box-shadow: 0 0 4px var(--c);
+}
+
+.ch-stripe-seg.inactive {
+  opacity: 0.15;
+  filter: saturate(0.4) brightness(0.6);
+}
+
+/* Consolidated Channels Menu Row & Lane Assignment Pills */
+.channels-menu-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.channel-menu-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 1px 2px;
+  border-radius: var(--radius-xs);
+}
+.channel-menu-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.channel-menu-row .dropdown-item.channel-toggle-btn {
+  flex: 1;
+  padding: 4px 7px;
+  width: auto;
+}
+
+.channel-lane-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 2px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+.btn-lane-pick {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 2px;
+  cursor: pointer;
+  line-height: 1.2;
+  transition: all 0.12s ease;
+}
+.btn-lane-pick:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+.btn-lane-pick.active {
+  background: rgba(0, 229, 255, 0.18);
+  color: var(--accent-cyan);
+  border-color: rgba(0, 229, 255, 0.45);
+  font-weight: 800;
+}
+
+/* Compact Transport Controls in Telemetry Header */
+.charts-transport-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(15, 18, 24, 0.75);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+}
+
+.btn-transport-sm {
+  width: 22px !important;
+  height: 22px !important;
+  border-radius: 4px !important;
+}
+
+.charts-time-readout {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  padding: 0 4px;
+  font-family: var(--font-mono);
+}
+
+.charts-time-readout .time-readout {
+  font-size: 11px;
+  min-width: 46px;
+}
+
+.charts-time-readout .time-sep {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.charts-time-readout .time-readout-dim {
+  font-size: 10px;
+  min-width: 42px;
 }
 
 .btn-xs {

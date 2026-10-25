@@ -30,9 +30,7 @@
           <span id="meta-rider-name" class="badge badge-rider">Ducati Rider</span>
           <span id="meta-bike-model" class="badge badge-dur" style="display: none;"></span>
           <span id="meta-session-date" class="badge badge-dur" style="display: none;"></span>
-          <span id="meta-duration" class="badge badge-dur">18:21.0 (11,010 frames)</span>
-          <span id="status-engine" class="indicator-dot dot-active"></span>
-          <span id="status-engine-text" class="text-green status-text">ECU 10Hz SYNC</span>
+          <span id="meta-duration" class="badge badge-dur">🏁 0 Laps</span>
         </div>
       </div>
     </div>
@@ -93,23 +91,11 @@
             <kbd>T</kbd>
           </button>
           <div class="dropdown-divider"></div>
-          <div class="dropdown-header">Track & Corner Tools</div>
-          <button id="btn-menu-select-section" class="dropdown-item" title="Click & Drag along track map to compare stacked corners">
-            <span class="dropdown-item-left">
-              <span class="dropdown-item-icon">✂️</span>
-              <span>Select Corner / Sector Stack</span>
-            </span>
-          </button>
+          <div class="dropdown-header">Theoretical & Ghost</div>
           <button id="btn-menu-optimal-lap" class="dropdown-item" title="Jump to Synthesized Theoretical Optimal Lap">
             <span class="dropdown-item-left">
               <span class="dropdown-item-icon">⚡</span>
               <span>View Optimal Lap Ghost</span>
-            </span>
-          </button>
-          <button id="btn-menu-add-turn" class="dropdown-item" title="Click on track to place/adjust a Turn Apex marker">
-            <span class="dropdown-item-left">
-              <span class="dropdown-item-icon">📍</span>
-              <span>Place / Add Turn Apex</span>
             </span>
           </button>
         </div>
@@ -165,60 +151,6 @@
             <kbd>U</kbd>
           </button>
           <div class="dropdown-divider"></div>
-          <div class="dropdown-header">Map & Display Options</div>
-          <button id="btn-menu-extrema" class="dropdown-item" title="Toggle Min Corner & Max Straight Speed Markers on Map">
-            <span class="dropdown-item-left">
-              <span class="dropdown-item-icon">⚡</span>
-              <span id="lbl-menu-extrema">Apex/Top Speeds: ON</span>
-            </span>
-          </button>
-          <button id="btn-toggle-apex-markers" class="dropdown-item" title="Toggle Track Apex Markers on Map (A)">
-            <span class="dropdown-item-left">
-              <span class="dropdown-item-icon">📍</span>
-              <span id="lbl-menu-apexes">Turn Apex Markers: ON</span>
-            </span>
-            <kbd>A</kbd>
-          </button>
-          <button id="btn-toggle-chart-turns" class="dropdown-item" title="Toggle Vertical Turn Markers on Telemetry Charts">
-            <span class="dropdown-item-left">
-              <span class="dropdown-item-icon">📊</span>
-              <span id="lbl-menu-chart-turns">Chart Turn Markers: ON</span>
-            </span>
-          </button>
-          <button id="btn-menu-fit-bounds" class="dropdown-item" title="Fit Entire Circuit on Screen (F)">
-            <span class="dropdown-item-left">
-              <span class="dropdown-item-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg></span>
-              <span>Fit Circuit Map</span>
-            </span>
-            <kbd>F</kbd>
-          </button>
-          <div class="dropdown-divider"></div>
-          <div class="dropdown-header">Workspace View Modes</div>
-          <button id="btn-view-mode-map" class="dropdown-item btn-vmode-map" data-vmode="map-only" title="Show Map Only">
-            <span class="dropdown-item-left">
-              <span class="dropdown-item-icon">🗺️</span>
-              <span>Map Only View</span>
-            </span>
-          </button>
-          <button id="btn-view-mode-split" class="dropdown-item btn-vmode-split active" data-vmode="split" title="Split Screen: Map & Video Side-by-Side">
-            <span class="dropdown-item-left">
-              <span class="dropdown-item-icon">◫</span>
-              <span>Split View (Map & Video)</span>
-            </span>
-          </button>
-          <button id="btn-view-mode-video" class="dropdown-item btn-vmode-video" data-vmode="video-only" title="Show Video Primary">
-            <span class="dropdown-item-left">
-              <span class="dropdown-item-icon">🎬</span>
-              <span>Video Primary View</span>
-            </span>
-          </button>
-          <button id="btn-view-mode-pip" class="dropdown-item btn-vmode-pip" data-vmode="pip" title="Floating Picture-in-Picture Video">
-            <span class="dropdown-item-left">
-              <span class="dropdown-item-icon">🗖</span>
-              <span>Picture-in-Picture (PIP)</span>
-            </span>
-          </button>
-          <div class="dropdown-divider"></div>
           <button id="btn-help-shortcuts" class="dropdown-item" title="Keyboard Shortcuts Reference">
             <span class="dropdown-item-left">
               <span class="dropdown-item-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
@@ -270,41 +202,16 @@
               <span class="dropdown-item-icon">🏁</span>
               <span id="lbl-motogp-status">MotoGP Live Card: ON</span>
             </span>
-          <div class="dropdown-divider"></div>
-          <div class="dropdown-header">Workspace View Modes</div>
-          <button id="btn-menu-view-map" class="dropdown-item" title="Show Full GPS Track Map">
-            <span class="dropdown-item-left">
-              <span class="dropdown-item-icon">🗺️</span>
-              <span>Map Only View</span>
-            </span>
-          </button>
-          <button id="btn-menu-view-split" class="dropdown-item active" title="Split Screen: GPS Map & Onboard Video Side-by-Side">
-            <span class="dropdown-item-left">
-              <span class="dropdown-item-icon">◫</span>
-              <span>Split View (Map & Video)</span>
-            </span>
-          </button>
-          <button id="btn-menu-view-video" class="dropdown-item" title="Full Video Viewport">
-            <span class="dropdown-item-left">
-              <span class="dropdown-item-icon">🎬</span>
-              <span>Video Primary View</span>
-            </span>
-          </button>
-          <button id="btn-menu-view-pip" class="dropdown-item btn-vmode-pip" data-vmode="pip" title="Floating Picture-in-Picture Video">
-            <span class="dropdown-item-left">
-              <span class="dropdown-item-icon">🗖</span>
-              <span>Picture-in-Picture (PIP)</span>
-            </span>
           </button>
         </div>
       </div>
 
-      <!-- Top Bar Workspace View Mode Switcher -->
-      <div class="header-view-mode-group" id="header-view-mode-group" title="Workspace View Modes">
-        <button class="btn-header-vmode btn-vmode-map" data-vmode="map-only" title="Show Map Only">🗺️ Map</button>
-        <button class="btn-header-vmode btn-vmode-split active" data-vmode="split" title="Split Screen: Map & Video Side-by-Side">◫ Split</button>
-        <button class="btn-header-vmode btn-vmode-video" data-vmode="video-only" title="Show Video Primary">🎬 Video</button>
-        <button class="btn-header-vmode btn-vmode-pip" data-vmode="pip" title="Floating Picture-in-Picture Video">🗖 PIP</button>
+      <!-- Top Bar Workspace Panel Switcher (Toggle / Restore Minimized Panels) -->
+      <div class="header-view-mode-group" id="header-panel-bar" title="Toggle / Restore Workspace Panels">
+        <button id="btn-panel-toggle-map" class="btn-header-vmode active" data-panel="map" title="Toggle / Restore GPS Map Panel">🗺️ Map</button>
+        <button id="btn-panel-toggle-video" class="btn-header-vmode" data-panel="video" title="Toggle / Restore Onboard Video Panel">🎬 Video</button>
+        <button id="btn-panel-toggle-charts" class="btn-header-vmode active" data-panel="charts" title="Toggle / Restore Telemetry Channels Panel ([)">📈 Telemetry</button>
+        <button id="btn-panel-toggle-data" class="btn-header-vmode active" data-panel="data" title="Toggle / Restore DATA Sidebar Panel (])">📊 Data</button>
       </div>
 
       <!-- Quick Action Buttons -->
@@ -469,9 +376,14 @@
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
                 </button>
 
-                <button id="btn-maximize-map" class="btn-icon" title="Maximize Map Viewport">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
-                </button>
+                <div class="panel-action-group">
+                  <button id="btn-minimize-map" class="btn-icon btn-panel-min" data-panel="map" title="Minimize Map Panel">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  </button>
+                  <button id="btn-maximize-map" class="btn-icon btn-panel-max" data-panel="map" title="Maximize / Restore Map Panel">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                  </button>
+                </div>
               </div>
             </div>
             <div id="map-container" class="map-container"></div>
@@ -545,10 +457,19 @@
             <div class="video-panel-controls">
               <button id="btn-open-video-sync" class="btn-tool-sm" title="Toggle Synchronization Calibration Drawer">⏱️ Sync</button>
               <button id="btn-toggle-video-overlay" class="btn-tool-sm active" title="Toggle Live Telemetry HUD Overlay on Video">📊 HUD: ON</button>
+              <button id="btn-video-pip-toggle" class="btn-tool-sm" title="Toggle Floating Picture-in-Picture (PIP) Video Mode">🗖 PIP</button>
               <button id="btn-toggle-video-mute" class="btn-icon" title="Toggle Video Audio (Mute/Unmute)">
                 <svg id="icon-vol-on" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
                 <svg id="icon-vol-off" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
               </button>
+              <div class="panel-action-group">
+                <button id="btn-minimize-video" class="btn-icon btn-panel-min" data-panel="video" title="Minimize Video Panel">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                </button>
+                <button id="btn-maximize-video" class="btn-icon btn-panel-max" data-panel="video" title="Maximize / Restore Video Panel">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -628,77 +549,266 @@
         <div class="panel-header">
           <div class="panel-title">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-            <span id="charts-panel-title">Synchronized Telemetry Channels</span>
+            <span id="charts-panel-title">Telemetry Channels</span>
+          </div>
+
+          <!-- Compact Integrated Transport & Lap Controls -->
+          <div class="charts-transport-group" id="charts-transport-group">
+            <button id="btn-play-pause" class="btn-transport-sm btn-play" title="Play/Pause (Space)">
+              <svg id="icon-play" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              <svg id="icon-pause" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="display: none;"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+            </button>
+            <button id="btn-step-prev" class="btn-transport-sm" title="Step Back 0.1s (Left Arrow)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <button id="btn-step-next" class="btn-transport-sm" title="Step Forward 0.1s (Right Arrow)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+            <select id="select-playback-speed" class="control-select-sm" title="Playback Speed">
+              <option value="0.25">0.25x</option>
+              <option value="0.5">0.5x</option>
+              <option value="1.0" selected>1.0x</option>
+              <option value="2.0">2.0x</option>
+              <option value="5.0">5.0x</option>
+              <option value="10.0">10.0x</option>
+            </select>
+            <div class="charts-time-readout" title="Current Time / Session Total">
+              <span id="lbl-time-current" class="time-readout">00:00.0</span>
+              <span class="time-sep">/</span>
+              <span id="lbl-time-total" class="time-readout-dim">00:00.0</span>
+            </div>
+            <select id="select-lap-jump" class="control-select-sm" title="Select Lap or Full Session">
+              <option value="-1">All Laps (Full Session)</option>
+            </select>
           </div>
           
           <div class="panel-header-right">
-            <!-- Toggleable Channel Filter Buttons -->
             <div class="chart-legend-row" id="chart-channel-toggles">
-              <button class="channel-toggle-btn active" data-channel="speedA" style="--c: #00e5ff;">
-                <span class="ch-dot"></span>Speed (Wheel)
-              </button>
-              <button class="channel-toggle-btn active" data-channel="speedGps" style="--c: #b388ff;">
-                <span class="ch-dot"></span>Speed (GPS)
-              </button>
-              <button class="channel-toggle-btn active" data-channel="speedB" id="leg-compare-spd" style="--c: #ffd600; display: none;">
-                <span class="ch-dot"></span>Speed (Lap B)
-              </button>
-              <button class="channel-toggle-btn active" data-channel="rpm" style="--c: #ff9100;">
-                <span class="ch-dot"></span>RPM
-              </button>
-              <button class="channel-toggle-btn active" data-channel="tps" style="--c: #00e676;">
-                <span class="ch-dot"></span>Throttle
-              </button>
-              <button class="channel-toggle-btn active" data-channel="lean" style="--c: #ff0055;">
-                <span class="ch-dot"></span>Lean
-              </button>
-              <button class="channel-toggle-btn active" data-channel="deltaT" id="leg-compare-delta" style="--c: #00e676; display: none;">
-                <span class="ch-dot"></span>Δt Time Delta
-              </button>
+              <button id="btn-clear-section-charts" class="btn-tool-sm btn-clear-section" style="display: none;" title="Clear corner/section selection">✕ Clear Section</button>
               <button id="btn-chart-turns-toggle" class="btn-tool-sm active" title="Toggle Vertical Turn Markers on Telemetry Graphs">📍 Turns: ON</button>
 
-              <!-- Additional & System Channels Dropdown -->
+              <!-- Unified Telemetry Channels & Lane Overlay Menu -->
               <div class="dropdown-wrapper" id="dropdown-channels-wrap">
-                <button id="btn-dropdown-channels" class="btn-tool-sm dropdown-trigger" title="Additional Telemetry Channels">
-                  <span>⚙️ Channels</span>
-                  <span class="dropdown-caret">▾</span>
+                <button id="btn-dropdown-channels" class="btn-tool-sm dropdown-trigger btn-channels-trigger" title="Configure Active Telemetry Channels & Lane Overlays">
+                  <span class="btn-channels-top">
+                    <span>⚙️ Channels</span>
+                    <span class="dropdown-caret">▾</span>
+                  </span>
+                  <span class="channels-stripe-bar" id="channels-stripe-bar"></span>
                 </button>
-                <div class="dropdown-menu dropdown-menu-right" id="menu-channels" style="min-width: 220px;">
-                  <div class="dropdown-header">Dynamics & System Channels</div>
-                  <button class="dropdown-item channel-toggle-btn active" data-channel="dtc" style="--c: #ffd600;">
-                    <span class="dropdown-item-left"><span class="ch-dot"></span><span>DTC Cut (Traction Control)</span></span>
-                  </button>
-                  <button class="dropdown-item channel-toggle-btn active" data-channel="gear" style="--c: #d500f9;">
-                    <span class="dropdown-item-left"><span class="ch-dot"></span><span>Gear Selection</span></span>
-                  </button>
-                  <button class="dropdown-item channel-toggle-btn" data-channel="gLong" style="--c: #ff1744;">
-                    <span class="dropdown-item-left"><span class="ch-dot"></span><span>G-Long (Braking / Drive)</span></span>
-                  </button>
-                  <button class="dropdown-item channel-toggle-btn" data-channel="gLat" style="--c: #2979ff;">
-                    <span class="dropdown-item-left"><span class="ch-dot"></span><span>G-Lat (Cornering Gs)</span></span>
-                  </button>
-                  <button class="dropdown-item channel-toggle-btn" data-channel="elevation" style="--c: #ab47bc;">
-                    <span class="dropdown-item-left"><span class="ch-dot"></span><span>Elevation & Grade %</span></span>
-                  </button>
-                  <button class="dropdown-item channel-toggle-btn" data-channel="temp" style="--c: #ff6d00;">
-                    <span class="dropdown-item-left"><span class="ch-dot"></span><span>Engine Coolant Temp (°C)</span></span>
-                  </button>
-                  <button class="dropdown-item channel-toggle-btn active" data-channel="lineDelta" id="leg-compare-linedelta" style="--c: #ff007f; display: none;">
-                    <span class="dropdown-item-left"><span class="ch-dot"></span><span>Racing Line Lateral Δ</span></span>
-                  </button>
+                <div class="dropdown-menu dropdown-menu-right" id="menu-channels" style="min-width: 340px;">
+                  <div class="dropdown-header channels-menu-header">
+                    <span>Channel Visibility</span>
+                    <span>Graph Lane (Overlay)</span>
+                  </div>
+
+                  <!-- Speed & Powertrain -->
+                  <div class="channel-menu-row" data-channel-row="speedA">
+                    <button class="dropdown-item channel-toggle-btn active" data-channel="speedA" style="--c: #00e5ff;">
+                      <span class="dropdown-item-left"><span class="ch-dot"></span><span>Speed (Wheel)</span></span>
+                    </button>
+                    <div class="channel-lane-picker" data-channel="speedA">
+                      <button type="button" class="btn-lane-pick active" data-lane="1" title="Assign to Lane 1">L1</button>
+                      <button type="button" class="btn-lane-pick" data-lane="2" title="Assign to Lane 2">L2</button>
+                      <button type="button" class="btn-lane-pick" data-lane="3" title="Assign to Lane 3">L3</button>
+                      <button type="button" class="btn-lane-pick" data-lane="4" title="Assign to Lane 4">L4</button>
+                      <button type="button" class="btn-lane-pick" data-lane="5" title="Assign to Lane 5">L5</button>
+                      <button type="button" class="btn-lane-pick" data-lane="6" title="Assign to Lane 6">L6</button>
+                    </div>
+                  </div>
+
+                  <div class="channel-menu-row" data-channel-row="speedGps">
+                    <button class="dropdown-item channel-toggle-btn active" data-channel="speedGps" style="--c: #388bfd;">
+                      <span class="dropdown-item-left"><span class="ch-dot"></span><span>Speed (GPS)</span></span>
+                    </button>
+                    <div class="channel-lane-picker" data-channel="speedGps">
+                      <button type="button" class="btn-lane-pick active" data-lane="1" title="Assign to Lane 1">L1</button>
+                      <button type="button" class="btn-lane-pick" data-lane="2" title="Assign to Lane 2">L2</button>
+                      <button type="button" class="btn-lane-pick" data-lane="3" title="Assign to Lane 3">L3</button>
+                      <button type="button" class="btn-lane-pick" data-lane="4" title="Assign to Lane 4">L4</button>
+                      <button type="button" class="btn-lane-pick" data-lane="5" title="Assign to Lane 5">L5</button>
+                      <button type="button" class="btn-lane-pick" data-lane="6" title="Assign to Lane 6">L6</button>
+                    </div>
+                  </div>
+
+                  <div class="channel-menu-row" id="leg-compare-spd" data-channel-row="speedB" style="display: none;">
+                    <button class="dropdown-item channel-toggle-btn active" data-channel="speedB" style="--c: #79c0ff;">
+                      <span class="dropdown-item-left"><span class="ch-dot"></span><span>Speed (Lap B)</span></span>
+                    </button>
+                    <div class="channel-lane-picker" data-channel="speedB">
+                      <button type="button" class="btn-lane-pick active" data-lane="1" title="Assign to Lane 1">L1</button>
+                      <button type="button" class="btn-lane-pick" data-lane="2" title="Assign to Lane 2">L2</button>
+                      <button type="button" class="btn-lane-pick" data-lane="3" title="Assign to Lane 3">L3</button>
+                      <button type="button" class="btn-lane-pick" data-lane="4" title="Assign to Lane 4">L4</button>
+                      <button type="button" class="btn-lane-pick" data-lane="5" title="Assign to Lane 5">L5</button>
+                      <button type="button" class="btn-lane-pick" data-lane="6" title="Assign to Lane 6">L6</button>
+                    </div>
+                  </div>
+
+                  <div class="channel-menu-row" data-channel-row="rpm">
+                    <button class="dropdown-item channel-toggle-btn active" data-channel="rpm" style="--c: #ff9f0a;">
+                      <span class="dropdown-item-left"><span class="ch-dot"></span><span>Engine RPM</span></span>
+                    </button>
+                    <div class="channel-lane-picker" data-channel="rpm">
+                      <button type="button" class="btn-lane-pick active" data-lane="1" title="Assign to Lane 1">L1</button>
+                      <button type="button" class="btn-lane-pick" data-lane="2" title="Assign to Lane 2">L2</button>
+                      <button type="button" class="btn-lane-pick" data-lane="3" title="Assign to Lane 3">L3</button>
+                      <button type="button" class="btn-lane-pick" data-lane="4" title="Assign to Lane 4">L4</button>
+                      <button type="button" class="btn-lane-pick" data-lane="5" title="Assign to Lane 5">L5</button>
+                      <button type="button" class="btn-lane-pick" data-lane="6" title="Assign to Lane 6">L6</button>
+                    </div>
+                  </div>
+
+                  <div class="channel-menu-row" data-channel-row="tps">
+                    <button class="dropdown-item channel-toggle-btn active" data-channel="tps" style="--c: #00e676;">
+                      <span class="dropdown-item-left"><span class="ch-dot"></span><span>Throttle (TPS %)</span></span>
+                    </button>
+                    <div class="channel-lane-picker" data-channel="tps">
+                      <button type="button" class="btn-lane-pick" data-lane="1" title="Assign to Lane 1">L1</button>
+                      <button type="button" class="btn-lane-pick active" data-lane="2" title="Assign to Lane 2">L2</button>
+                      <button type="button" class="btn-lane-pick" data-lane="3" title="Assign to Lane 3">L3</button>
+                      <button type="button" class="btn-lane-pick" data-lane="4" title="Assign to Lane 4">L4</button>
+                      <button type="button" class="btn-lane-pick" data-lane="5" title="Assign to Lane 5">L5</button>
+                      <button type="button" class="btn-lane-pick" data-lane="6" title="Assign to Lane 6">L6</button>
+                    </div>
+                  </div>
+
+                  <div class="channel-menu-row" data-channel-row="dtc">
+                    <button class="dropdown-item channel-toggle-btn active" data-channel="dtc" style="--c: #ffee58;">
+                      <span class="dropdown-item-left"><span class="ch-dot"></span><span>DTC Cut (Traction)</span></span>
+                    </button>
+                    <div class="channel-lane-picker" data-channel="dtc">
+                      <button type="button" class="btn-lane-pick" data-lane="1" title="Assign to Lane 1">L1</button>
+                      <button type="button" class="btn-lane-pick active" data-lane="2" title="Assign to Lane 2">L2</button>
+                      <button type="button" class="btn-lane-pick" data-lane="3" title="Assign to Lane 3">L3</button>
+                      <button type="button" class="btn-lane-pick" data-lane="4" title="Assign to Lane 4">L4</button>
+                      <button type="button" class="btn-lane-pick" data-lane="5" title="Assign to Lane 5">L5</button>
+                      <button type="button" class="btn-lane-pick" data-lane="6" title="Assign to Lane 6">L6</button>
+                    </div>
+                  </div>
+
+                  <div class="channel-menu-row" data-channel-row="lean">
+                    <button class="dropdown-item channel-toggle-btn active" data-channel="lean" style="--c: #ff2eb6;">
+                      <span class="dropdown-item-left"><span class="ch-dot"></span><span>Lean Angle (°)</span></span>
+                    </button>
+                    <div class="channel-lane-picker" data-channel="lean">
+                      <button type="button" class="btn-lane-pick" data-lane="1" title="Assign to Lane 1">L1</button>
+                      <button type="button" class="btn-lane-pick" data-lane="2" title="Assign to Lane 2">L2</button>
+                      <button type="button" class="btn-lane-pick active" data-lane="3" title="Assign to Lane 3">L3</button>
+                      <button type="button" class="btn-lane-pick" data-lane="4" title="Assign to Lane 4">L4</button>
+                      <button type="button" class="btn-lane-pick" data-lane="5" title="Assign to Lane 5">L5</button>
+                      <button type="button" class="btn-lane-pick" data-lane="6" title="Assign to Lane 6">L6</button>
+                    </div>
+                  </div>
+
+                  <div class="channel-menu-row" data-channel-row="gLong">
+                    <button class="dropdown-item channel-toggle-btn" data-channel="gLong" style="--c: #ff3b30;">
+                      <span class="dropdown-item-left"><span class="ch-dot"></span><span>G-Long (Braking / Drive)</span></span>
+                    </button>
+                    <div class="channel-lane-picker" data-channel="gLong">
+                      <button type="button" class="btn-lane-pick" data-lane="1" title="Assign to Lane 1">L1</button>
+                      <button type="button" class="btn-lane-pick" data-lane="2" title="Assign to Lane 2">L2</button>
+                      <button type="button" class="btn-lane-pick active" data-lane="3" title="Assign to Lane 3">L3</button>
+                      <button type="button" class="btn-lane-pick" data-lane="4" title="Assign to Lane 4">L4</button>
+                      <button type="button" class="btn-lane-pick" data-lane="5" title="Assign to Lane 5">L5</button>
+                      <button type="button" class="btn-lane-pick" data-lane="6" title="Assign to Lane 6">L6</button>
+                    </div>
+                  </div>
+
+                  <div class="channel-menu-row" data-channel-row="gLat">
+                    <button class="dropdown-item channel-toggle-btn" data-channel="gLat" style="--c: #818cf8;">
+                      <span class="dropdown-item-left"><span class="ch-dot"></span><span>G-Lat (Cornering Gs)</span></span>
+                    </button>
+                    <div class="channel-lane-picker" data-channel="gLat">
+                      <button type="button" class="btn-lane-pick" data-lane="1" title="Assign to Lane 1">L1</button>
+                      <button type="button" class="btn-lane-pick" data-lane="2" title="Assign to Lane 2">L2</button>
+                      <button type="button" class="btn-lane-pick active" data-lane="3" title="Assign to Lane 3">L3</button>
+                      <button type="button" class="btn-lane-pick" data-lane="4" title="Assign to Lane 4">L4</button>
+                      <button type="button" class="btn-lane-pick" data-lane="5" title="Assign to Lane 5">L5</button>
+                      <button type="button" class="btn-lane-pick" data-lane="6" title="Assign to Lane 6">L6</button>
+                    </div>
+                  </div>
+
+                  <div class="channel-menu-row" data-channel-row="gear">
+                    <button class="dropdown-item channel-toggle-btn active" data-channel="gear" style="--c: #e2e8f0;">
+                      <span class="dropdown-item-left"><span class="ch-dot"></span><span>Gear Selection</span></span>
+                    </button>
+                    <div class="channel-lane-picker" data-channel="gear">
+                      <button type="button" class="btn-lane-pick" data-lane="1" title="Assign to Lane 1">L1</button>
+                      <button type="button" class="btn-lane-pick" data-lane="2" title="Assign to Lane 2">L2</button>
+                      <button type="button" class="btn-lane-pick" data-lane="3" title="Assign to Lane 3">L3</button>
+                      <button type="button" class="btn-lane-pick active" data-lane="4" title="Assign to Lane 4">L4</button>
+                      <button type="button" class="btn-lane-pick" data-lane="5" title="Assign to Lane 5">L5</button>
+                      <button type="button" class="btn-lane-pick" data-lane="6" title="Assign to Lane 6">L6</button>
+                    </div>
+                  </div>
+
+                  <div class="channel-menu-row" data-channel-row="elevation">
+                    <button class="dropdown-item channel-toggle-btn" data-channel="elevation" style="--c: #2dd4bf;">
+                      <span class="dropdown-item-left"><span class="ch-dot"></span><span>Elevation & Grade %</span></span>
+                    </button>
+                    <div class="channel-lane-picker" data-channel="elevation">
+                      <button type="button" class="btn-lane-pick" data-lane="1" title="Assign to Lane 1">L1</button>
+                      <button type="button" class="btn-lane-pick" data-lane="2" title="Assign to Lane 2">L2</button>
+                      <button type="button" class="btn-lane-pick" data-lane="3" title="Assign to Lane 3">L3</button>
+                      <button type="button" class="btn-lane-pick active" data-lane="4" title="Assign to Lane 4">L4</button>
+                      <button type="button" class="btn-lane-pick" data-lane="5" title="Assign to Lane 5">L5</button>
+                      <button type="button" class="btn-lane-pick" data-lane="6" title="Assign to Lane 6">L6</button>
+                    </div>
+                  </div>
+
+                  <div class="channel-menu-row" data-channel-row="temp">
+                    <button class="dropdown-item channel-toggle-btn" data-channel="temp" style="--c: #fbbf24;">
+                      <span class="dropdown-item-left"><span class="ch-dot"></span><span>Coolant Temp (°C)</span></span>
+                    </button>
+                    <div class="channel-lane-picker" data-channel="temp">
+                      <button type="button" class="btn-lane-pick" data-lane="1" title="Assign to Lane 1">L1</button>
+                      <button type="button" class="btn-lane-pick" data-lane="2" title="Assign to Lane 2">L2</button>
+                      <button type="button" class="btn-lane-pick" data-lane="3" title="Assign to Lane 3">L3</button>
+                      <button type="button" class="btn-lane-pick active" data-lane="4" title="Assign to Lane 4">L4</button>
+                      <button type="button" class="btn-lane-pick" data-lane="5" title="Assign to Lane 5">L5</button>
+                      <button type="button" class="btn-lane-pick" data-lane="6" title="Assign to Lane 6">L6</button>
+                    </div>
+                  </div>
+
+                  <div class="channel-menu-row" id="leg-compare-delta" data-channel-row="deltaT" style="display: none;">
+                    <button class="dropdown-item channel-toggle-btn active" data-channel="deltaT" style="--c: #a3e635;">
+                      <span class="dropdown-item-left"><span class="ch-dot"></span><span>Δt Time Delta</span></span>
+                    </button>
+                    <div class="channel-lane-picker" data-channel="deltaT">
+                      <button type="button" class="btn-lane-pick" data-lane="1" title="Assign to Lane 1">L1</button>
+                      <button type="button" class="btn-lane-pick" data-lane="2" title="Assign to Lane 2">L2</button>
+                      <button type="button" class="btn-lane-pick" data-lane="3" title="Assign to Lane 3">L3</button>
+                      <button type="button" class="btn-lane-pick active" data-lane="4" title="Assign to Lane 4">L4</button>
+                      <button type="button" class="btn-lane-pick" data-lane="5" title="Assign to Lane 5">L5</button>
+                      <button type="button" class="btn-lane-pick" data-lane="6" title="Assign to Lane 6">L6</button>
+                    </div>
+                  </div>
+
+                  <div class="channel-menu-row" id="leg-compare-linedelta" data-channel-row="lineDelta" style="display: none;">
+                    <button class="dropdown-item channel-toggle-btn active" data-channel="lineDelta" style="--c: #c084fc;">
+                      <span class="dropdown-item-left"><span class="ch-dot"></span><span>Racing Line Lateral Δ</span></span>
+                    </button>
+                    <div class="channel-lane-picker" data-channel="lineDelta">
+                      <button type="button" class="btn-lane-pick" data-lane="1" title="Assign to Lane 1">L1</button>
+                      <button type="button" class="btn-lane-pick" data-lane="2" title="Assign to Lane 2">L2</button>
+                      <button type="button" class="btn-lane-pick" data-lane="3" title="Assign to Lane 3">L3</button>
+                      <button type="button" class="btn-lane-pick active" data-lane="4" title="Assign to Lane 4">L4</button>
+                      <button type="button" class="btn-lane-pick" data-lane="5" title="Assign to Lane 5">L5</button>
+                      <button type="button" class="btn-lane-pick" data-lane="6" title="Assign to Lane 6">L6</button>
+                    </div>
+                  </div>
                 </div>
               </div>
-
-              <button id="btn-reset-zoom" class="btn-xs">Reset Zoom</button>
             </div>
 
             <!-- Panel Action Group -->
             <div class="panel-action-group">
-              <button id="btn-maximize-charts" class="btn-icon" title="Maximize Telemetry Waveforms">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+              <button id="btn-minimize-charts" class="btn-icon btn-panel-min" data-panel="charts" title="Minimize Telemetry Panel ([)">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg>
               </button>
-              <button id="btn-collapse-charts" class="btn-icon" title="Collapse / Expand Telemetry Charts ([)">
-                <svg class="icon-chevron-collapse" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+              <button id="btn-maximize-charts" class="btn-icon btn-panel-max" data-panel="charts" title="Maximize / Restore Telemetry Panel">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
               </button>
             </div>
           </div>
@@ -799,56 +909,6 @@
               <span>Riding Phases & Coast Time</span>
             </label>
             <div class="dropdown-divider"></div>
-            <div class="dropdown-header">Engine Redline & Shift Lights</div>
-            <div class="dropdown-item-section" id="data-menu-redline-wrap" style="padding: 8px 10px; display: flex; flex-direction: column; gap: 6px;">
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-size: 11px; font-weight: 700; color: #ffffff;">Redline Limit:</span>
-                <div style="display: flex; align-items: center; gap: 4px;">
-                  <input type="number" id="data-menu-redline-input" min="5000" max="18000" step="250" value="12000" style="width: 72px; text-align: right;" class="control-input-sm">
-                  <span style="font-size: 9.5px; color: var(--text-dim);">RPM</span>
-                </div>
-              </div>
-              <input type="range" id="data-menu-redline-slider" min="5000" max="18000" step="250" value="12000" class="control-slider">
-
-              <!-- Quick Presets -->
-              <div class="redline-presets-row" style="display: flex; gap: 3px; flex-wrap: wrap; margin-top: 2px;">
-                <button type="button" class="btn-tool-sm btn-redline-preset" data-rpm="10500" title="Street / Twin (10,500 RPM)">10.5k</button>
-                <button type="button" class="btn-tool-sm btn-redline-preset" data-rpm="12000" title="Panigale V2 (12,000 RPM)">12.0k</button>
-                <button type="button" class="btn-tool-sm btn-redline-preset" data-rpm="13500" title="Panigale V4 (13,500 RPM)">13.5k</button>
-                <button type="button" class="btn-tool-sm btn-redline-preset" data-rpm="15250" title="Panigale V4 R (15,250 RPM)">15.2k</button>
-                <button type="button" class="btn-tool-sm btn-redline-preset" data-rpm="16500" title="MotoGP (16,500 RPM)">16.5k</button>
-              </div>
-
-              <!-- Shift Light Activation Window -->
-              <div style="margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 6px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-                  <span style="font-size: 10.5px; color: var(--text-dim);">Shift Start (80%):</span>
-                  <div style="display: flex; align-items: center; gap: 4px;">
-                    <input type="number" id="data-menu-shift-start-input" min="3000" max="17000" step="100" value="9600" style="width: 68px; text-align: right;" class="control-input-sm">
-                    <span style="font-size: 9px; color: var(--text-dim);">RPM</span>
-                  </div>
-                </div>
-                <input type="range" id="data-menu-shift-start-slider" min="3000" max="17000" step="100" value="9600" class="control-slider">
-
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; margin-bottom: 2px;">
-                  <span style="font-size: 10.5px; color: var(--text-dim);">Shift Finish (100%):</span>
-                  <div style="display: flex; align-items: center; gap: 4px;">
-                    <input type="number" id="data-menu-shift-end-input" min="5000" max="18000" step="100" value="12000" style="width: 68px; text-align: right;" class="control-input-sm">
-                    <span style="font-size: 9px; color: var(--text-dim);">RPM</span>
-                  </div>
-                </div>
-                <input type="range" id="data-menu-shift-end-slider" min="5000" max="18000" step="100" value="12000" class="control-slider">
-
-                <!-- Color Bands summary -->
-                <div style="display: flex; gap: 4px; margin-top: 5px; font-size: 9px; font-family: var(--font-mono); flex-wrap: wrap;">
-                  <span class="badge" style="background: rgba(0, 230, 118, 0.15); color: #00e676; border: 1px solid rgba(0, 230, 118, 0.3); padding: 1px 4px;">🟢 80-90%</span>
-                  <span class="badge" style="background: rgba(255, 214, 0, 0.15); color: #ffd600; border: 1px solid rgba(255, 214, 0, 0.3); padding: 1px 4px;">🟡 91-99%</span>
-                  <span class="badge" style="background: rgba(255, 0, 51, 0.15); color: #ff3366; border: 1px solid rgba(255, 0, 51, 0.3); padding: 1px 4px;">🔴 100%+</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="dropdown-divider"></div>
             <div class="dropdown-header">Density & Arrangement</div>
             <button id="btn-toggle-density" class="dropdown-item">
               <span class="dropdown-item-left">
@@ -877,9 +937,14 @@
           </div>
         </div>
 
-        <button id="btn-collapse-sidebar" class="btn-icon" title="Collapse DATA Sidebar (])">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
-        </button>
+        <div class="panel-action-group">
+          <button id="btn-minimize-data" class="btn-icon btn-panel-min" data-panel="data" title="Minimize DATA Sidebar (])">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+          <button id="btn-maximize-data" class="btn-icon btn-panel-max" data-panel="data" title="Maximize / Restore DATA Sidebar">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -969,7 +1034,7 @@
         </div>
       </div>
 
-      <!-- 3. Primary Telemetry Cluster (Speed, Gear, RPM Tach, TPS, DTC, G-Force) -->
+      <!-- 3. Primary Telemetry Cluster (Speed, Gear, RPM Tach, TPS, DTC) -->
       <div class="data-card cluster-card" id="card-cluster" data-card-id="cluster" draggable="true">
         <div class="card-header-bar">
           <div class="card-header-left">
@@ -977,7 +1042,6 @@
             <span class="card-title-text">ENGINE TACH & DYNAMICS</span>
           </div>
           <div class="card-header-right">
-            <span id="header-cluster-speed" class="badge badge-accent">0.0 MPH</span>
             <button class="btn-card-collapse" title="Collapse / Expand Card">
               <svg class="card-collapse-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
@@ -1061,28 +1125,12 @@
               </div>
             </div>
             <div class="dtc-item">
-              <span class="dtc-lbl">G-LONG</span>
-              <span id="val-glong-numeric" class="val-mono">0.00 g</span>
-            </div>
-            <div class="dtc-item">
-              <span class="dtc-lbl">G-LAT</span>
-              <span id="val-glat-numeric" class="val-mono">0.00 g</span>
-            </div>
-            <div class="dtc-item">
-              <span class="dtc-lbl">ALTITUDE</span>
-              <span id="val-alt-numeric" class="val-mono">0.0 m</span>
-            </div>
-            <div class="dtc-item">
-              <span class="dtc-lbl">DISTANCE</span>
-              <span id="val-dist-numeric" class="val-mono">0.00 km</span>
-            </div>
-            <div class="dtc-item">
               <span class="dtc-lbl">COOLANT TEMP</span>
               <span id="val-temp-numeric" class="val-mono">-- °C</span>
             </div>
             <div class="dtc-item">
-              <span class="dtc-lbl">ODOMETER</span>
-              <span id="val-odo-numeric" class="val-mono">-- km</span>
+              <span class="dtc-lbl">ALTITUDE</span>
+              <span id="val-alt-numeric" class="val-mono">0.0 m</span>
             </div>
           </div>
         </div>
@@ -1206,56 +1254,6 @@
     </div>
     </aside>
   </div> <!-- End workspace-layout-row -->
-
-  <!-- Floating Expand Button when DATA Sidebar is Collapsed -->
-  <button id="btn-floating-sidebar-expand" class="floating-sidebar-tab" style="display: none;" title="Expand DATA Sidebar (])">
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
-    <span>DATA</span>
-  </button>
-
-  <!-- Bottom Full-Width Transport & Scrubbing Controller -->
-  <footer class="transport-bar">
-      <div class="transport-left">
-        <button id="btn-play-pause" class="btn-transport btn-play" title="Play/Pause (Space)">
-          <svg id="icon-play" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-          <svg id="icon-pause" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="display: none;"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-        </button>
-        <button id="btn-step-prev" class="btn-transport" title="Step Back 0.1s (Left Arrow)">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-        </button>
-        <button id="btn-step-next" class="btn-transport" title="Step Forward 0.1s (Right Arrow)">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-        </button>
-        <div class="speed-selector">
-          <label for="select-playback-speed">Speed:</label>
-          <select id="select-playback-speed" class="control-select-sm">
-            <option value="0.25">0.25x</option>
-            <option value="0.5">0.5x</option>
-            <option value="1.0" selected>1.0x (Real)</option>
-            <option value="2.0">2.0x</option>
-            <option value="5.0">5.0x</option>
-            <option value="10.0">10.0x</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Scrubber Slider -->
-      <div class="transport-center">
-        <span id="lbl-time-current" class="time-readout">00:00.0</span>
-        <input type="range" id="timeline-slider" min="0" max="1000" value="0" step="1" class="timeline-slider">
-        <span id="lbl-time-total" class="time-readout-dim">18:21.0</span>
-      </div>
-
-      <!-- Lap Quick Select & Shortcuts -->
-      <div class="transport-right">
-        <select id="select-lap-jump" class="control-select">
-          <option value="-1">All Laps (Full Session)</option>
-        </select>
-        <button id="btn-help-shortcuts" class="btn-icon" title="Keyboard Shortcuts">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        </button>
-      </div>
-    </footer>
   </main>
 
   <!-- Motion Graphics Video Overlay Exporter Modal -->
@@ -1594,6 +1592,14 @@
         <!-- Tab 2: Page Preferences -->
         <div id="tab-preferences" class="settings-tab-content">
           <div class="pref-grid">
+            <div class="pref-group-header" style="font-weight: 800; font-size: 11px; color: var(--text-dim); text-transform: uppercase;">Current Session Summary</div>
+            <div class="pref-item" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 8px 10px; background: rgba(255,255,255,0.03); border-radius: 6px; border: 1px solid rgba(255,255,255,0.06);">
+              <div><div style="font-size: 9px; color: var(--text-dim); text-transform: uppercase;">Duration</div><strong id="settings-session-duration" class="val-mono" style="font-size: 12px;">--:--</strong></div>
+              <div><div style="font-size: 9px; color: var(--text-dim); text-transform: uppercase;">Data Frames</div><strong id="settings-session-frames" class="val-mono" style="font-size: 12px;">--</strong></div>
+              <div><div style="font-size: 9px; color: var(--text-dim); text-transform: uppercase;">Session Dist</div><strong id="settings-session-dist" class="val-mono" style="font-size: 12px;">-- km</strong></div>
+              <div><div style="font-size: 9px; color: var(--text-dim); text-transform: uppercase;">Odometer</div><strong id="settings-session-odo" class="val-mono" style="font-size: 12px;">-- km</strong></div>
+            </div>
+            <div class="pref-group-header" style="margin-top: 8px; font-weight: 800; font-size: 11px; color: var(--text-dim); text-transform: uppercase;">Display & Map Defaults</div>
             <div class="pref-item">
               <label>Default Speed Unit</label>
               <select id="pref-speed-unit" class="control-select">

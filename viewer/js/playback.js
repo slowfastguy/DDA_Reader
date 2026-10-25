@@ -525,20 +525,16 @@ function selectLap(lapNum, shouldFit = false) {
 
   if (lapNum === 999 && state.optimalLap) {
     state.activeRecords = state.optimalLap.optimal_records || [];
-    if (dom.mapPanelTitle) dom.mapPanelTitle.textContent = `GPS Track Map - ⚡ Optimal Lap (${formatTime(state.optimalLap.duration_s)})`;
-    if (dom.chartsPanelTitle) dom.chartsPanelTitle.textContent = `Telemetry Channels - ⚡ Optimal Lap (${formatTime(state.optimalLap.duration_s)})`;
   } else if (lapNum === -1) {
     state.activeRecords = state.records;
-    if (dom.mapPanelTitle) dom.mapPanelTitle.textContent = "GPS Track Map (All Laps)";
-    if (dom.chartsPanelTitle) dom.chartsPanelTitle.textContent = "Synchronized Telemetry Channels (Full Session)";
   } else {
     const lapObj = state.laps.find(l => l.lap_number === lapNum);
     if (lapObj) {
       state.activeRecords = state.records.slice(lapObj.start_index, lapObj.end_index + 1);
-      if (dom.mapPanelTitle) dom.mapPanelTitle.textContent = `GPS Track Map - ${lapObj.name} (${formatTime(lapObj.duration_s)})`;
-      if (dom.chartsPanelTitle) dom.chartsPanelTitle.textContent = `Telemetry Channels - ${lapObj.name} (${formatTime(lapObj.duration_s)})`;
     }
   }
+  if (dom.mapPanelTitle) dom.mapPanelTitle.textContent = "GPS Track Map";
+  if (dom.chartsPanelTitle) dom.chartsPanelTitle.textContent = "Telemetry Channels";
 
   for (let i = 0; i < state.activeRecords.length; i++) {
     state.activeRecords[i].local_index = i;
@@ -578,5 +574,6 @@ function toggleCompareMode() {
     selectLap(state.selectedLapNum, false);
   }
 
+  if (typeof updateChannelsStripeUI === 'function') updateChannelsStripeUI();
   if (typeof updateWorkspaceLayout === 'function') updateWorkspaceLayout();
 }

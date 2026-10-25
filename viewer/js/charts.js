@@ -7,11 +7,83 @@ let canvasCtx = null;
 let canvasWidth = 0;
 let canvasHeight = 0;
 
+const CHANNEL_METADATA = [
+  { key: 'speedA', label: 'Speed (Wheel)', color: '#00e5ff', compareOnly: false },
+  { key: 'speedGps', label: 'Speed (GPS)', color: '#388bfd', compareOnly: false },
+  { key: 'speedB', label: 'Speed (Lap B)', color: '#79c0ff', compareOnly: true },
+  { key: 'rpm', label: 'RPM', color: '#ff9f0a', compareOnly: false },
+  { key: 'tps', label: 'Throttle %', color: '#00e676', compareOnly: false },
+  { key: 'dtc', label: 'DTC %', color: '#ffee58', compareOnly: false },
+  { key: 'lean', label: 'Lean °', color: '#ff2eb6', compareOnly: false, centered: true },
+  { key: 'gLong', label: 'G-Long', color: '#ff3b30', compareOnly: false, centered: true },
+  { key: 'gLat', label: 'G-Lat', color: '#818cf8', compareOnly: false, centered: true },
+  { key: 'gear', label: 'Gear', color: '#e2e8f0', compareOnly: false },
+  { key: 'elevation', label: 'Elev (m)', color: '#2dd4bf', compareOnly: false },
+  { key: 'temp', label: 'Temp (°C)', color: '#fbbf24', compareOnly: false },
+  { key: 'deltaT', label: 'Δt Time Delta', color: '#a3e635', compareOnly: true, centered: true },
+  { key: 'lineDelta', label: 'Line Δ (m)', color: '#c084fc', compareOnly: true, centered: true }
+];
+
+function updateChannelsStripeUI() {
+  const bar = dom.channelsStripeBar || document.getElementById('channels-stripe-bar');
+  if (!bar) return;
+  const isCompare = !!state.isCompareMode;
+  const visibleMeta = CHANNEL_METADATA.filter(m => !m.compareOnly || isCompare);
+  bar.innerHTML = visibleMeta.map(m => {
+    const isActive = !!state.channels[m.key];
+    return `<span class="ch-stripe-seg ${isActive ? 'active' : 'inactive'}" style="--c: ${m.color};" title="${m.label}: ${isActive ? 'ON' : 'OFF'}"></span>`;
+  }).join('');
+}
+
+function getActiveLanes(isCompare = false) {
+  const laneMap = new Map();
+  CHANNEL_METADATA.forEach(meta => {
+    if (meta.compareOnly && !isCompare) return;
+    if (!state.channels[meta.key]) return;
+    const laneNum = Math.max(1, Math.min(6, parseInt((state.channelLanes && state.channelLanes[meta.key]) || 1, 10)));
+    if (!laneMap.has(laneNum)) laneMap.set(laneNum, []);
+    laneMap.get(laneNum).push(meta);
+  });
+  return Array.from(laneMap.entries())
+    .sort((a, b) => a[0] - b[0])
+    .map(([laneNum, channels]) => ({ laneNum, channels }));
+}
+
+function drawLaneChannelLabels(ctx, yTop, laneNum, channels) {
+  ctx.save();
+  ctx.font = '800 8.5px "Outfit", sans-serif';
+  ctx.textBaseline = 'top';
+  ctx.textAlign = 'left';
+
+  let curX = 8;
+  const yLbl = yTop + 4;
+
+  // Subtle lane tag
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.32)';
+  const lanePrefix = `L${laneNum}:`;
+  ctx.fillText(lanePrefix, curX, yLbl);
+  curX += ctx.measureText(lanePrefix).width + 6;
+
+  channels.forEach((meta, idx) => {
+    ctx.fillStyle = meta.color;
+    const txt = meta.label.toUpperCase();
+    ctx.fillText(txt, curX, yLbl);
+    curX += ctx.measureText(txt).width;
+    if (idx < channels.length - 1) {
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+      ctx.fillText(' · ', curX, yLbl);
+      curX += ctx.measureText(' · ').width;
+    }
+  });
+  ctx.restore();
+}
+
 function initCanvas() {
   const c = dom.telemetryCanvas;
   if (!c) return;
   canvasCtx = c.getContext('2d');
   resizeCanvas();
+  updateChannelsStripeUI();
   window.addEventListener('resize', () => {
     resizeCanvas();
     renderCharts();
@@ -66,12 +138,24 @@ function renderCharts() {
   const count = viewRecords.length;
   if (count < 2) return;
 
-  const laneHeight = h / 4;
-  const pad = 4;
+  const activeLanes = getActiveLanes(false);
+  if (activeLanes.length === 0) {
+    ctx.fillStyle = '#8e94a5';
+    ctx.font = '600 12px "Inter", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('No telemetry channels enabled — select channels from ⚙️ Channels menu', w / 2, h / 2);
+    return;
+  }
 
+  const numLanes = activeLanes.length;
+  const laneHeight = h / numLanes;
+  const pad = 5;
+
+  // Draw lane divider lines
   ctx.strokeStyle = '#222634';
   ctx.lineWidth = 1;
-  for (let i = 1; i <= 3; i++) {
+  for (let i = 1; i < numLanes; i++) {
     const y = i * laneHeight;
     ctx.beginPath();
     ctx.moveTo(0, y);
@@ -79,206 +163,184 @@ function renderCharts() {
     ctx.stroke();
   }
 
-  // --- Lane 1: Speed & Engine RPM ---
   const maxSpd = (state.sessionData?.stats?.max_speed_kmh || 180) * (state.unitMph ? 0.621371 : 1.0);
-  const maxRpm = 13000;
+  const maxRpm = Math.max(13000, state.redlineRpm || 12000);
+  const minAlt = state.sessionData?.stats?.min_alt_m || 0;
+  const maxAlt = Math.max(minAlt + 10, state.sessionData?.stats?.max_alt_m || 100);
+  const altRange = Math.max(10, maxAlt - minAlt);
+  const minTemp = Math.max(20, (state.sessionData?.stats?.min_temp_c || 60) - 5);
+  const maxTemp = Math.max(minTemp + 15, (state.sessionData?.stats?.max_temp_c || 105) + 5);
+  const tempRange = Math.max(10, maxTemp - minTemp);
 
-  if (state.channels.speedA) {
-    ctx.strokeStyle = '#00e5ff';
-    ctx.lineWidth = 1.8;
-    ctx.beginPath();
-    for (let i = 0; i < count; i++) {
-      const r = viewRecords[i];
-      const spd = (r.speed_kmh || 0) * (state.unitMph ? 0.621371 : 1.0);
-      const x = (i / (count - 1)) * w;
-      const y = laneHeight - pad - (spd / maxSpd) * (laneHeight - pad * 2);
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+  activeLanes.forEach((lane, laneIdx) => {
+    const yTop = laneIdx * laneHeight;
+    const yBottom = yTop + laneHeight - pad;
+    const usableH = Math.max(10, laneHeight - pad * 2);
+    const yCenter = yTop + laneHeight / 2;
+
+    if (lane.channels.some(c => c.centered)) {
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, yCenter);
+      ctx.lineTo(w, yCenter);
+      ctx.stroke();
     }
-    ctx.stroke();
-  }
 
-  if (state.channels.speedGps) {
-    ctx.strokeStyle = '#b388ff';
-    ctx.lineWidth = 1.8;
-    ctx.beginPath();
-    for (let i = 0; i < count; i++) {
-      const r = viewRecords[i];
-      const spd = ((r.gps_speed_kmh !== undefined && r.gps_speed_kmh > 0) ? r.gps_speed_kmh : (r.speed_kmh || 0)) * (state.unitMph ? 0.621371 : 1.0);
-      const x = (i / (count - 1)) * w;
-      const y = laneHeight - pad - (spd / maxSpd) * (laneHeight - pad * 2);
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-  }
+    lane.channels.forEach(meta => {
+      const ch = meta.key;
+      if (ch === 'speedA') {
+        ctx.strokeStyle = meta.color;
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        for (let i = 0; i < count; i++) {
+          const r = viewRecords[i];
+          const spd = (r.speed_kmh || 0) * (state.unitMph ? 0.621371 : 1.0);
+          const x = (i / (count - 1)) * w;
+          const y = yBottom - (spd / maxSpd) * usableH;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      } else if (ch === 'speedGps') {
+        ctx.strokeStyle = meta.color;
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        for (let i = 0; i < count; i++) {
+          const r = viewRecords[i];
+          const spd = ((r.gps_speed_kmh !== undefined && r.gps_speed_kmh > 0) ? r.gps_speed_kmh : (r.speed_kmh || 0)) * (state.unitMph ? 0.621371 : 1.0);
+          const x = (i / (count - 1)) * w;
+          const y = yBottom - (spd / maxSpd) * usableH;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      } else if (ch === 'rpm') {
+        ctx.strokeStyle = meta.color;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        for (let i = 0; i < count; i++) {
+          const rpm = viewRecords[i].rpm || 0;
+          const x = (i / (count - 1)) * w;
+          const y = yBottom - Math.min(1, rpm / maxRpm) * usableH;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      } else if (ch === 'tps') {
+        ctx.fillStyle = 'rgba(0, 230, 118, 0.11)';
+        ctx.strokeStyle = meta.color;
+        ctx.lineWidth = 1.7;
+        ctx.beginPath();
+        ctx.moveTo(0, yBottom);
+        for (let i = 0; i < count; i++) {
+          const tps = viewRecords[i].tps_pct || 0;
+          const x = (i / (count - 1)) * w;
+          const y = yBottom - (tps / 100.0) * usableH;
+          ctx.lineTo(x, y);
+        }
+        ctx.lineTo(w, yBottom);
+        ctx.closePath();
+        ctx.fill();
 
-  if (state.channels.rpm) {
-    ctx.strokeStyle = '#ff9100';
-    ctx.lineWidth = 1.4;
-    ctx.beginPath();
-    for (let i = 0; i < count; i++) {
-      const r = viewRecords[i];
-      const rpm = r.rpm || 0;
-      const x = (i / (count - 1)) * w;
-      const y = laneHeight - pad - (rpm / maxRpm) * (laneHeight - pad * 2);
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-  }
+        ctx.beginPath();
+        for (let i = 0; i < count; i++) {
+          const tps = viewRecords[i].tps_pct || 0;
+          const x = (i / (count - 1)) * w;
+          const y = yBottom - (tps / 100.0) * usableH;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      } else if (ch === 'dtc') {
+        ctx.strokeStyle = meta.color;
+        ctx.lineWidth = 2.0;
+        ctx.beginPath();
+        for (let i = 0; i < count; i++) {
+          const dtc = Math.max(viewRecords[i].torque_slow_pct || 0, viewRecords[i].torque_fast_pct || 0, viewRecords[i].dtc || 0);
+          const x = (i / (count - 1)) * w;
+          const y = yBottom - (dtc / 100.0) * usableH;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      } else if (ch === 'lean') {
+        ctx.strokeStyle = meta.color;
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        for (let i = 0; i < count; i++) {
+          const lean = viewRecords[i].lean_angle_deg || 0;
+          const x = (i / (count - 1)) * w;
+          const y = yCenter - (lean / 55.0) * (usableH / 2);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      } else if (ch === 'gLong') {
+        ctx.strokeStyle = meta.color;
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        for (let i = 0; i < count; i++) {
+          const gLong = viewRecords[i].accel_long_g || 0;
+          const x = (i / (count - 1)) * w;
+          const y = yCenter - (gLong / 1.6) * (usableH / 2);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      } else if (ch === 'gLat') {
+        ctx.strokeStyle = meta.color;
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        for (let i = 0; i < count; i++) {
+          const gLat = viewRecords[i].accel_lat_g || 0;
+          const x = (i / (count - 1)) * w;
+          const y = yCenter - (gLat / 1.6) * (usableH / 2);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      } else if (ch === 'gear') {
+        ctx.strokeStyle = meta.color;
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        for (let i = 0; i < count; i++) {
+          const gear = viewRecords[i].gear || 0;
+          const x = (i / (count - 1)) * w;
+          const y = yBottom - (gear / 6.0) * usableH;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      } else if (ch === 'elevation') {
+        ctx.strokeStyle = meta.color;
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        for (let i = 0; i < count; i++) {
+          const alt = viewRecords[i].gps_alt_m !== null && viewRecords[i].gps_alt_m !== undefined ? viewRecords[i].gps_alt_m : minAlt;
+          const x = (i / (count - 1)) * w;
+          const y = yBottom - ((alt - minAlt) / altRange) * usableH;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      } else if (ch === 'temp') {
+        ctx.strokeStyle = meta.color;
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        for (let i = 0; i < count; i++) {
+          const tVal = viewRecords[i].temp_c || minTemp;
+          const x = (i / (count - 1)) * w;
+          const y = yBottom - ((tVal - minTemp) / tempRange) * usableH;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+    });
 
-  // --- Lane 2: Throttle (TPS %) & DTC Reduction ---
-  const yL2 = laneHeight;
-  if (state.channels.tps) {
-    ctx.fillStyle = 'rgba(0, 230, 118, 0.12)';
-    ctx.strokeStyle = '#00e676';
-    ctx.lineWidth = 1.6;
-    ctx.beginPath();
-    ctx.moveTo(0, yL2 + laneHeight - pad);
-    for (let i = 0; i < count; i++) {
-      const tps = viewRecords[i].tps_pct || 0;
-      const x = (i / (count - 1)) * w;
-      const y = yL2 + laneHeight - pad - (tps / 100.0) * (laneHeight - pad * 2);
-      ctx.lineTo(x, y);
-    }
-    ctx.lineTo(w, yL2 + laneHeight - pad);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.beginPath();
-    for (let i = 0; i < count; i++) {
-      const tps = viewRecords[i].tps_pct || 0;
-      const x = (i / (count - 1)) * w;
-      const y = yL2 + laneHeight - pad - (tps / 100.0) * (laneHeight - pad * 2);
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-  }
-
-  if (state.channels.dtc) {
-    ctx.strokeStyle = '#ffd600';
-    ctx.lineWidth = 2.0;
-    ctx.beginPath();
-    for (let i = 0; i < count; i++) {
-      const dtc = Math.max(viewRecords[i].torque_slow_pct || 0, viewRecords[i].torque_fast_pct || 0, viewRecords[i].dtc || 0);
-      const x = (i / (count - 1)) * w;
-      const y = yL2 + laneHeight - pad - (dtc / 100.0) * (laneHeight - pad * 2);
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-  }
-
-  // --- Lane 3: Lean Angle (° with centered 0° baseline) ---
-  const yL3 = laneHeight * 2;
-  const yCenterL3 = yL3 + laneHeight / 2;
-
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(0, yCenterL3);
-  ctx.lineTo(w, yCenterL3);
-  ctx.stroke();
-
-  if (state.channels.lean) {
-    ctx.strokeStyle = '#ff0055';
-    ctx.lineWidth = 1.8;
-    ctx.beginPath();
-    for (let i = 0; i < count; i++) {
-      const lean = viewRecords[i].lean_angle_deg || 0;
-      const x = (i / (count - 1)) * w;
-      const y = yCenterL3 - (lean / 50.0) * (laneHeight / 2 - pad);
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-  }
-
-  // --- Lane 4: Gear ---
-  const yL4 = laneHeight * 3;
-  if (state.channels.gear) {
-    ctx.strokeStyle = '#d500f9';
-    ctx.lineWidth = 1.8;
-    ctx.beginPath();
-    for (let i = 0; i < count; i++) {
-      const gear = viewRecords[i].gear || 0;
-      const x = (i / (count - 1)) * w;
-      const y = yL4 + laneHeight - pad - (gear / 6.0) * (laneHeight - pad * 2);
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-  }
-
-  // Optional G-Long Channel (Braking & Acceleration)
-  if (state.channels.gLong) {
-    ctx.strokeStyle = '#ff1744';
-    ctx.lineWidth = 1.8;
-    ctx.beginPath();
-    for (let i = 0; i < count; i++) {
-      const gLong = viewRecords[i].accel_long_g || 0;
-      const x = (i / (count - 1)) * w;
-      const y = yCenterL3 - (gLong / 1.6) * (laneHeight / 2 - pad);
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-  }
-
-  // Optional G-Lat Channel (Cornering Load)
-  if (state.channels.gLat) {
-    ctx.strokeStyle = '#2979ff';
-    ctx.lineWidth = 1.6;
-    ctx.beginPath();
-    for (let i = 0; i < count; i++) {
-      const gLat = viewRecords[i].accel_lat_g || 0;
-      const x = (i / (count - 1)) * w;
-      const y = yCenterL3 - (gLat / 1.6) * (laneHeight / 2 - pad);
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-  }
-
-  // Optional Elevation & Gradient Channel
-  if (state.channels.elevation) {
-    const minAlt = state.sessionData?.stats?.min_alt_m || 0;
-    const maxAlt = Math.max(minAlt + 10, state.sessionData?.stats?.max_alt_m || 100);
-    const altRange = Math.max(10, maxAlt - minAlt);
-
-    ctx.strokeStyle = '#ab47bc';
-    ctx.lineWidth = 1.6;
-    ctx.beginPath();
-    for (let i = 0; i < count; i++) {
-      const alt = viewRecords[i].gps_alt_m !== null ? viewRecords[i].gps_alt_m : minAlt;
-      const x = (i / (count - 1)) * w;
-      const y = yL4 + laneHeight - pad - ((alt - minAlt) / altRange) * (laneHeight - pad * 2);
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-  }
-
-  // Optional Engine Coolant Temp Channel (°C)
-  if (state.channels.temp) {
-    const minTemp = Math.max(20, (state.sessionData?.stats?.min_temp_c || 60) - 5);
-    const maxTemp = Math.max(minTemp + 15, (state.sessionData?.stats?.max_temp_c || 105) + 5);
-    const tempRange = Math.max(10, maxTemp - minTemp);
-
-    ctx.strokeStyle = '#ff6d00';
-    ctx.lineWidth = 1.6;
-    ctx.beginPath();
-    for (let i = 0; i < count; i++) {
-      const tVal = viewRecords[i].temp_c || minTemp;
-      const x = (i / (count - 1)) * w;
-      const y = yL4 + laneHeight - pad - ((tVal - minTemp) / tempRange) * (laneHeight - pad * 2);
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-  }
+    drawLaneChannelLabels(ctx, yTop, lane.laneNum, lane.channels);
+  });
 
   // Draw Vertical Turn Apex Markers across all channels
   drawVerticalTurnMarkers(ctx, w, h, viewRecords, count, false);
@@ -297,16 +359,21 @@ function renderStackedSectionCharts(ctx, w, h) {
   const maxDur = Math.max(...activeLaps.map(l => l.duration_s), 0.5);
   const maxDist = Math.max(...activeLaps.map(l => l.distance_m), 10.0);
 
-  const laneHeight = h / 4;
-  const pad = 4;
+  const activeLanes = getActiveLanes(false);
+  if (activeLanes.length === 0) return;
+
+  const numLanes = activeLanes.length;
+  const laneHeight = h / numLanes;
+  const pad = 5;
 
   const rawMaxSpd = Math.max(...activeLaps.map(l => l.maxSpeed), 100);
   const maxSpd = (rawMaxSpd * 1.08) * (state.unitMph ? 0.621371 : 1.0);
+  const maxRpm = Math.max(13000, state.redlineRpm || 12000);
 
   // Lane Dividers
   ctx.strokeStyle = '#222634';
   ctx.lineWidth = 1;
-  for (let i = 1; i <= 3; i++) {
+  for (let i = 1; i < numLanes; i++) {
     const y = i * laneHeight;
     ctx.beginPath();
     ctx.moveTo(0, y);
@@ -314,165 +381,81 @@ function renderStackedSectionCharts(ctx, w, h) {
     ctx.stroke();
   }
 
-  // Lane Headers / Labels
-  ctx.font = '800 8.5px "Outfit", sans-serif';
-  ctx.fillStyle = '#62697d';
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'top';
-  if (isTimeSync) {
-    ctx.fillText(`STACKED SPEED (${state.unitMph ? 'MPH' : 'KM/H'}) — ALIGNED BY TIME (0.0s to ${maxDur.toFixed(1)}s)`, 8, 3);
-    ctx.fillText('STACKED THROTTLE (TPS %)', 8, laneHeight + 3);
-    ctx.fillText('STACKED LEAN ANGLE (DEG)', 8, laneHeight * 2 + 3);
-    ctx.fillText('STACKED GEAR & DTC', 8, laneHeight * 3 + 3);
-  } else {
-    ctx.fillText(`STACKED SPEED (${state.unitMph ? 'MPH' : 'KM/H'}) — ALIGNED BY DISTANCE (0m to ${maxDist.toFixed(0)}m)`, 8, 3);
-    ctx.fillText('STACKED THROTTLE (TPS %) [20% PICKUP MARKED]', 8, laneHeight + 3);
-    ctx.fillText('STACKED LEAN ANGLE (DEG)', 8, laneHeight * 2 + 3);
-    ctx.fillText('STACKED GEAR & DTC', 8, laneHeight * 3 + 3);
-  }
+  activeLanes.forEach((lane, laneIdx) => {
+    const yTop = laneIdx * laneHeight;
+    const yBottom = yTop + laneHeight - pad;
+    const usableH = Math.max(10, laneHeight - pad * 2);
+    const yCenter = yTop + laneHeight / 2;
 
-  // --- Lane 1: Stacked Speed Overlays ---
-  if (state.channels.speedA || state.channels.speedB) {
-    activeLaps.forEach(lap => {
-      const recs = lap.records;
-      if (recs.length < 2) return;
-      const t0 = recs[0].time_s || 0;
-      const d0 = recs[0].distance_m || 0;
-
-      ctx.strokeStyle = lap.color;
-      ctx.lineWidth = lap.isSectionBest ? 2.6 : 1.5;
-      if (lap.isSectionBest) {
-        ctx.shadowColor = lap.color;
-        ctx.shadowBlur = 6;
-      } else {
-        ctx.shadowBlur = 0;
-      }
-
+    if (lane.channels.some(c => c.centered)) {
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+      ctx.lineWidth = 1;
       ctx.beginPath();
-      for (let i = 0; i < recs.length; i++) {
-        const r = recs[i];
-        const x = isTimeSync
-          ? (((r.time_s || 0) - t0) / maxDur) * w
-          : (((r.distance_m || 0) - d0) / maxDist) * w;
-        const spd = (r.speed_kmh || 0) * (state.unitMph ? 0.621371 : 1.0);
-        const y = laneHeight - pad - (spd / maxSpd) * (laneHeight - pad * 2);
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
+      ctx.moveTo(0, yCenter);
+      ctx.lineTo(w, yCenter);
       ctx.stroke();
-      ctx.shadowBlur = 0;
+    }
 
-      // Draw Apex Min Speed Marker Dot
-      const apexRec = recs.reduce((minR, curR) => (curR.speed_kmh < minR.speed_kmh ? curR : minR), recs[0]);
-      const apexX = isTimeSync
-        ? (((apexRec.time_s || 0) - t0) / maxDur) * w
-        : (((apexRec.distance_m || 0) - d0) / maxDist) * w;
-      const apexSpd = (apexRec.speed_kmh || 0) * (state.unitMph ? 0.621371 : 1.0);
-      const apexY = laneHeight - pad - (apexSpd / maxSpd) * (laneHeight - pad * 2);
+    lane.channels.forEach(meta => {
+      const ch = meta.key;
+      activeLaps.forEach(lap => {
+        const recs = lap.records;
+        if (recs.length < 2) return;
+        const t0 = recs[0].time_s || 0;
+        const d0 = recs[0].distance_m || 0;
 
-      ctx.fillStyle = lap.color;
-      ctx.beginPath();
-      ctx.arc(apexX, apexY, lap.isSectionBest ? 3.5 : 2.5, 0, Math.PI * 2);
-      ctx.fill();
-    });
-  }
-
-  // --- Lane 2: Stacked Throttle (TPS %) Overlays ---
-  const yL2 = laneHeight;
-  if (state.channels.tps) {
-    activeLaps.forEach(lap => {
-      const recs = lap.records;
-      if (recs.length < 2) return;
-      const t0 = recs[0].time_s || 0;
-      const d0 = recs[0].distance_m || 0;
-
-      ctx.strokeStyle = lap.color;
-      ctx.lineWidth = lap.isSectionBest ? 2.2 : 1.4;
-      ctx.beginPath();
-      for (let i = 0; i < recs.length; i++) {
-        const r = recs[i];
-        const x = isTimeSync
-          ? (((r.time_s || 0) - t0) / maxDur) * w
-          : (((r.distance_m || 0) - d0) / maxDist) * w;
-        const tps = r.tps_pct || 0;
-        const y = yL2 + laneHeight - pad - (tps / 100.0) * (laneHeight - pad * 2);
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-
-      // In Distance mode, mark throttle pickup point (>= 20% TPS)
-      if (!isTimeSync && lap.throttlePickupDist !== null) {
-        const pickupX = (lap.throttlePickupDist / maxDist) * w;
-        const pickupY = yL2 + laneHeight - pad - (20.0 / 100.0) * (laneHeight - pad * 2);
-        ctx.fillStyle = lap.color;
+        ctx.strokeStyle = lap.color;
+        ctx.lineWidth = lap.isSectionBest ? 2.3 : 1.4;
         ctx.beginPath();
-        ctx.arc(pickupX, pickupY, 2.5, 0, Math.PI * 2);
-        ctx.fill();
-      }
+        for (let i = 0; i < recs.length; i++) {
+          const r = recs[i];
+          const x = isTimeSync
+            ? (((r.time_s || 0) - t0) / maxDur) * w
+            : (((r.distance_m || 0) - d0) / maxDist) * w;
+          let y = yBottom;
+          if (ch === 'speedA' || ch === 'speedGps') {
+            const spd = (r.speed_kmh || 0) * (state.unitMph ? 0.621371 : 1.0);
+            y = yBottom - (spd / maxSpd) * usableH;
+          } else if (ch === 'rpm') {
+            y = yBottom - Math.min(1, (r.rpm || 0) / maxRpm) * usableH;
+          } else if (ch === 'tps') {
+            y = yBottom - ((r.tps_pct || 0) / 100.0) * usableH;
+          } else if (ch === 'dtc') {
+            const dtc = Math.max(r.torque_slow_pct || 0, r.torque_fast_pct || 0, r.dtc || 0);
+            y = yBottom - (dtc / 100.0) * usableH;
+          } else if (ch === 'lean') {
+            y = yCenter - ((r.lean_angle_deg || 0) / 55.0) * (usableH / 2);
+          } else if (ch === 'gLong') {
+            y = yCenter - ((r.accel_long_g || 0) / 1.6) * (usableH / 2);
+          } else if (ch === 'gLat') {
+            y = yCenter - ((r.accel_lat_g || 0) / 1.6) * (usableH / 2);
+          } else if (ch === 'gear') {
+            y = yBottom - ((r.gear || 0) / 6.0) * usableH;
+          } else {
+            y = yBottom - 0.5 * usableH;
+          }
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        if (ch === 'speedA') {
+          const apexRec = recs.reduce((minR, curR) => (curR.speed_kmh < minR.speed_kmh ? curR : minR), recs[0]);
+          const apexX = isTimeSync
+            ? (((apexRec.time_s || 0) - t0) / maxDur) * w
+            : (((apexRec.distance_m || 0) - d0) / maxDist) * w;
+          const apexSpd = (apexRec.speed_kmh || 0) * (state.unitMph ? 0.621371 : 1.0);
+          const apexY = yBottom - (apexSpd / maxSpd) * usableH;
+          ctx.fillStyle = lap.color;
+          ctx.beginPath();
+          ctx.arc(apexX, apexY, lap.isSectionBest ? 3.5 : 2.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
     });
-  }
 
-  // --- Lane 3: Stacked Lean Angle Overlays ---
-  const yL3 = laneHeight * 2;
-  const yCenterL3 = yL3 + laneHeight / 2;
-
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(0, yCenterL3);
-  ctx.lineTo(w, yCenterL3);
-  ctx.stroke();
-
-  if (state.channels.lean) {
-    activeLaps.forEach(lap => {
-      const recs = lap.records;
-      if (recs.length < 2) return;
-      const t0 = recs[0].time_s || 0;
-      const d0 = recs[0].distance_m || 0;
-
-      ctx.strokeStyle = lap.color;
-      ctx.lineWidth = lap.isSectionBest ? 2.2 : 1.4;
-      ctx.beginPath();
-      for (let i = 0; i < recs.length; i++) {
-        const r = recs[i];
-        const x = isTimeSync
-          ? (((r.time_s || 0) - t0) / maxDur) * w
-          : (((r.distance_m || 0) - d0) / maxDist) * w;
-        const lean = r.lean_angle_deg || 0;
-        const y = yCenterL3 - (lean / 50.0) * (laneHeight / 2 - pad);
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-    });
-  }
-
-  // --- Lane 4: Stacked Gear / DTC Overlays ---
-  const yL4 = laneHeight * 3;
-  if (state.channels.gear) {
-    activeLaps.forEach(lap => {
-      const recs = lap.records;
-      if (recs.length < 2) return;
-      const t0 = recs[0].time_s || 0;
-      const d0 = recs[0].distance_m || 0;
-
-      ctx.strokeStyle = lap.color;
-      ctx.lineWidth = lap.isSectionBest ? 2.0 : 1.2;
-      ctx.beginPath();
-      for (let i = 0; i < recs.length; i++) {
-        const r = recs[i];
-        const x = isTimeSync
-          ? (((r.time_s || 0) - t0) / maxDur) * w
-          : (((r.distance_m || 0) - d0) / maxDist) * w;
-        const gear = r.gear || 0;
-        const y = yL4 + laneHeight - pad - (gear / 6.0) * (laneHeight - pad * 2);
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-    });
-  }
+    drawLaneChannelLabels(ctx, yTop, lane.laneNum, lane.channels);
+  });
 
   // Scrubber Line in Section Comparison
   if (isTimeSync && state.sectionSelection.hoverRelTime !== null && dom.chartScrubberLine) {
@@ -497,14 +480,19 @@ function renderCompareCharts(ctx, w, h) {
   const recsB = state.records.slice(lapB.start_index, lapB.end_index);
   if (recsA.length < 2 || recsB.length < 2) return;
 
+  const activeLanes = getActiveLanes(true);
+  if (activeLanes.length === 0) return;
+
+  const numLanes = activeLanes.length;
   const maxDist = Math.max(lapA.distance_m, lapB.distance_m, 3500);
-  const laneHeight = h / 4;
-  const pad = 4;
+  const laneHeight = h / numLanes;
+  const pad = 5;
   const maxSpd = (state.sessionData?.stats?.max_speed_kmh || 180) * (state.unitMph ? 0.621371 : 1.0);
+  const maxRpm = Math.max(13000, state.redlineRpm || 12000);
 
   ctx.strokeStyle = '#222634';
   ctx.lineWidth = 1;
-  for (let i = 1; i <= 3; i++) {
+  for (let i = 1; i < numLanes; i++) {
     const y = i * laneHeight;
     ctx.beginPath();
     ctx.moveTo(0, y);
@@ -512,246 +500,242 @@ function renderCompareCharts(ctx, w, h) {
     ctx.stroke();
   }
 
-  // --- Lane 1: Speed Overlay ---
-  if (state.channels.speedA) {
-    ctx.strokeStyle = '#00e5ff';
-    ctx.lineWidth = 2.0;
-    ctx.beginPath();
-    for (let i = 0; i < recsA.length; i++) {
-      const r = recsA[i];
-      const relDist = r.distance_m - recsA[0].distance_m;
-      const x = (relDist / maxDist) * w;
-      const spd = (r.speed_kmh || 0) * (state.unitMph ? 0.621371 : 1.0);
-      const y = laneHeight - pad - (spd / maxSpd) * (laneHeight - pad * 2);
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-  }
+  activeLanes.forEach((lane, laneIdx) => {
+    const yTop = laneIdx * laneHeight;
+    const yBottom = yTop + laneHeight - pad;
+    const usableH = Math.max(10, laneHeight - pad * 2);
+    const yCenter = yTop + laneHeight / 2;
 
-  if (state.channels.speedGps) {
-    ctx.strokeStyle = '#b388ff';
-    ctx.lineWidth = 1.8;
-    ctx.beginPath();
-    for (let i = 0; i < recsA.length; i++) {
-      const r = recsA[i];
-      const relDist = r.distance_m - recsA[0].distance_m;
-      const x = (relDist / maxDist) * w;
-      const spd = ((r.gps_speed_kmh !== undefined && r.gps_speed_kmh > 0) ? r.gps_speed_kmh : (r.speed_kmh || 0)) * (state.unitMph ? 0.621371 : 1.0);
-      const y = laneHeight - pad - (spd / maxSpd) * (laneHeight - pad * 2);
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-  }
-
-  if (state.channels.speedB) {
-    ctx.strokeStyle = '#ffd600';
-    ctx.lineWidth = 1.8;
-    ctx.setLineDash([4, 3]);
-    ctx.beginPath();
-    for (let i = 0; i < recsB.length; i++) {
-      const r = recsB[i];
-      const relDist = r.distance_m - recsB[0].distance_m;
-      const x = (relDist / maxDist) * w;
-      const spd = (r.speed_kmh || 0) * (state.unitMph ? 0.621371 : 1.0);
-      const y = laneHeight - pad - (spd / maxSpd) * (laneHeight - pad * 2);
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-    ctx.setLineDash([]);
-  }
-
-  // --- Lane 2: Throttle Overlay ---
-  const yL2 = laneHeight;
-  if (state.channels.tps) {
-    ctx.strokeStyle = '#00e676';
-    ctx.lineWidth = 1.8;
-    ctx.beginPath();
-    for (let i = 0; i < recsA.length; i++) {
-      const r = recsA[i];
-      const relDist = r.distance_m - recsA[0].distance_m;
-      const x = (relDist / maxDist) * w;
-      const y = yL2 + laneHeight - pad - (r.tps_pct / 100.0) * (laneHeight - pad * 2);
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-
-    ctx.strokeStyle = '#ff0055';
-    ctx.lineWidth = 1.6;
-    ctx.setLineDash([4, 3]);
-    ctx.beginPath();
-    for (let i = 0; i < recsB.length; i++) {
-      const r = recsB[i];
-      const relDist = r.distance_m - recsB[0].distance_m;
-      const x = (relDist / maxDist) * w;
-      const y = yL2 + laneHeight - pad - (r.tps_pct / 100.0) * (laneHeight - pad * 2);
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-    ctx.setLineDash([]);
-  }
-
-  // --- Lane 3: Lean Angle Overlay ---
-  const yL3 = laneHeight * 2;
-  const yCenterL3 = yL3 + laneHeight / 2;
-
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(0, yCenterL3);
-  ctx.lineTo(w, yCenterL3);
-  ctx.stroke();
-
-  if (state.channels.lean) {
-    ctx.strokeStyle = '#00e5ff';
-    ctx.lineWidth = 1.8;
-    ctx.beginPath();
-    for (let i = 0; i < recsA.length; i++) {
-      const r = recsA[i];
-      const relDist = r.distance_m - recsA[0].distance_m;
-      const x = (relDist / maxDist) * w;
-      const y = yCenterL3 - (r.lean_angle_deg / 50.0) * (laneHeight / 2 - pad);
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-
-    ctx.strokeStyle = '#ffd600';
-    ctx.lineWidth = 1.6;
-    ctx.setLineDash([4, 3]);
-    ctx.beginPath();
-    for (let i = 0; i < recsB.length; i++) {
-      const r = recsB[i];
-      const relDist = r.distance_m - recsB[0].distance_m;
-      const x = (relDist / maxDist) * w;
-      const y = yCenterL3 - (r.lean_angle_deg / 50.0) * (laneHeight / 2 - pad);
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-    ctx.setLineDash([]);
-  }
-
-  // --- Lane 4: Continuous Delta Time (Delta t Curve: Lap A vs Lap B) ---
-  const yL4 = laneHeight * 3;
-  const yCenterL4 = yL4 + laneHeight / 2;
-
-  // Zero-line baseline
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(0, yCenterL4);
-  ctx.lineTo(w, yCenterL4);
-  ctx.stroke();
-
-  // Grid tick guides (±1.0s)
-  const maxDelta = 3.0; // ±3.0s full scale
-  const yPlus1s = yCenterL4 - (1.0 / maxDelta) * (laneHeight / 2 - pad);
-  const yMinus1s = yCenterL4 - (-1.0 / maxDelta) * (laneHeight / 2 - pad);
-
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-  ctx.setLineDash([3, 3]);
-  ctx.beginPath();
-  ctx.moveTo(0, yPlus1s);
-  ctx.lineTo(w, yPlus1s);
-  ctx.moveTo(0, yMinus1s);
-  ctx.lineTo(w, yMinus1s);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  // Lane Labels
-  ctx.font = '700 8.5px "Outfit", sans-serif';
-  ctx.fillStyle = '#62697d';
-  ctx.textAlign = 'left';
-  ctx.fillText('CONTINUOUS TIME DELTA (Δt) — GREEN = LAP A AHEAD, RED = BEHIND', 8, yL4 + 3);
-
-  ctx.font = '600 7.5px "JetBrains Mono", monospace';
-  ctx.fillStyle = '#00e676';
-  ctx.textAlign = 'right';
-  ctx.fillText('-1.0s (Faster)', w - 8, yMinus1s + 8);
-  ctx.fillStyle = '#ff5252';
-  ctx.fillText('+1.0s (Slower)', w - 8, yPlus1s - 2);
-  ctx.fillStyle = '#a5b4fc';
-  ctx.fillText('0.0s', w - 8, yCenterL4 - 2);
-
-  if (state.channels.deltaT !== false) {
-    const deltaPoints = [];
-    for (let i = 0; i < recsA.length; i++) {
-      const rA = recsA[i];
-      const relDist = rA.distance_m - recsA[0].distance_m;
-      const elapsedA = rA.time_s - recsA[0].time_s;
-      const rB = recsB.find(b => (b.distance_m - recsB[0].distance_m) >= relDist) || recsB[recsB.length - 1];
-      const elapsedB = rB.time_s - recsB[0].time_s;
-      
-      // Delta: elapsedA - elapsedB (Negative = Lap A took less time = Faster)
-      const deltaT = elapsedA - elapsedB;
-      const x = (relDist / maxDist) * w;
-      const clampedDelta = Math.max(-maxDelta, Math.min(maxDelta, deltaT));
-      const y = yCenterL4 + (clampedDelta / maxDelta) * (laneHeight / 2 - pad);
-      deltaPoints.push({ x, y, deltaT });
-    }
-
-    if (deltaPoints.length > 1) {
-      // Shaded green/red fill against zero baseline
-      for (let i = 0; i < deltaPoints.length - 1; i++) {
-        const p1 = deltaPoints[i];
-        const p2 = deltaPoints[i + 1];
-        const isAhead = (p1.deltaT + p2.deltaT) <= 0;
-
-        ctx.fillStyle = isAhead ? 'rgba(0, 230, 118, 0.20)' : 'rgba(255, 23, 68, 0.20)';
-        ctx.beginPath();
-        ctx.moveTo(p1.x, yCenterL4);
-        ctx.lineTo(p1.x, p1.y);
-        ctx.lineTo(p2.x, p2.y);
-        ctx.lineTo(p2.x, yCenterL4);
-        ctx.closePath();
-        ctx.fill();
-      }
-
-      // Delta curve stroke with glowing shadow
-      ctx.strokeStyle = '#00e676';
-      ctx.lineWidth = 2.2;
-      ctx.shadowColor = 'rgba(0, 230, 118, 0.6)';
-      ctx.shadowBlur = 4;
+    if (lane.channels.some(c => c.centered)) {
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+      ctx.lineWidth = 1;
       ctx.beginPath();
-      for (let i = 0; i < deltaPoints.length; i++) {
-        const pt = deltaPoints[i];
-        if (i === 0) ctx.moveTo(pt.x, pt.y);
-        else ctx.lineTo(pt.x, pt.y);
-      }
+      ctx.moveTo(0, yCenter);
+      ctx.lineTo(w, yCenter);
       ctx.stroke();
-      ctx.shadowBlur = 0;
     }
-  }
 
-  // Optional Racing Line Lateral Deviation Trace
-  if (state.channels.lineDelta !== false && recsA.length > 5 && recsB.length > 5) {
-    ctx.strokeStyle = '#ff007f';
-    ctx.lineWidth = 1.6;
-    ctx.setLineDash([4, 3]);
-    ctx.beginPath();
-    const maxLineOffsetM = 5.0; // ±5 meters full scale
-    for (let i = 0; i < recsA.length; i++) {
-      const rA = recsA[i];
-      const relDist = rA.distance_m - recsA[0].distance_m;
-      const rB = recsB.find(b => (b.distance_m - recsB[0].distance_m) >= relDist) || recsB[recsB.length - 1];
+    lane.channels.forEach(meta => {
+      const ch = meta.key;
+      if (ch === 'speedA') {
+        ctx.strokeStyle = meta.color;
+        ctx.lineWidth = 2.0;
+        ctx.beginPath();
+        for (let i = 0; i < recsA.length; i++) {
+          const r = recsA[i];
+          const x = ((r.distance_m - recsA[0].distance_m) / maxDist) * w;
+          const spd = (r.speed_kmh || 0) * (state.unitMph ? 0.621371 : 1.0);
+          const y = yBottom - (spd / maxSpd) * usableH;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      } else if (ch === 'speedGps') {
+        ctx.strokeStyle = meta.color;
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        for (let i = 0; i < recsA.length; i++) {
+          const r = recsA[i];
+          const x = ((r.distance_m - recsA[0].distance_m) / maxDist) * w;
+          const spd = ((r.gps_speed_kmh !== undefined && r.gps_speed_kmh > 0) ? r.gps_speed_kmh : (r.speed_kmh || 0)) * (state.unitMph ? 0.621371 : 1.0);
+          const y = yBottom - (spd / maxSpd) * usableH;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      } else if (ch === 'speedB') {
+        ctx.strokeStyle = meta.color;
+        ctx.lineWidth = 1.8;
+        ctx.setLineDash([4, 3]);
+        ctx.beginPath();
+        for (let i = 0; i < recsB.length; i++) {
+          const r = recsB[i];
+          const x = ((r.distance_m - recsB[0].distance_m) / maxDist) * w;
+          const spd = (r.speed_kmh || 0) * (state.unitMph ? 0.621371 : 1.0);
+          const y = yBottom - (spd / maxSpd) * usableH;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+      } else if (ch === 'rpm') {
+        ctx.strokeStyle = meta.color;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        for (let i = 0; i < recsA.length; i++) {
+          const r = recsA[i];
+          const x = ((r.distance_m - recsA[0].distance_m) / maxDist) * w;
+          const y = yBottom - Math.min(1, (r.rpm || 0) / maxRpm) * usableH;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      } else if (ch === 'tps') {
+        ctx.strokeStyle = meta.color;
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        for (let i = 0; i < recsA.length; i++) {
+          const r = recsA[i];
+          const x = ((r.distance_m - recsA[0].distance_m) / maxDist) * w;
+          const y = yBottom - ((r.tps_pct || 0) / 100.0) * usableH;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
 
-      let lateralOffset = 0;
-      if (rA.gps_lat !== null && rB.gps_lat !== null) {
-        lateralOffset = haversineDistanceM(rA.gps_lat, rA.gps_lon, rB.gps_lat, rB.gps_lon);
+        ctx.strokeStyle = '#ff2eb6';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 3]);
+        ctx.beginPath();
+        for (let i = 0; i < recsB.length; i++) {
+          const r = recsB[i];
+          const x = ((r.distance_m - recsB[0].distance_m) / maxDist) * w;
+          const y = yBottom - ((r.tps_pct || 0) / 100.0) * usableH;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+      } else if (ch === 'dtc') {
+        ctx.strokeStyle = meta.color;
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        for (let i = 0; i < recsA.length; i++) {
+          const r = recsA[i];
+          const dtc = Math.max(r.torque_slow_pct || 0, r.torque_fast_pct || 0, r.dtc || 0);
+          const x = ((r.distance_m - recsA[0].distance_m) / maxDist) * w;
+          const y = yBottom - (dtc / 100.0) * usableH;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      } else if (ch === 'lean') {
+        ctx.strokeStyle = meta.color;
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        for (let i = 0; i < recsA.length; i++) {
+          const r = recsA[i];
+          const x = ((r.distance_m - recsA[0].distance_m) / maxDist) * w;
+          const y = yCenter - ((r.lean_angle_deg || 0) / 55.0) * (usableH / 2);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        ctx.strokeStyle = '#ffee58';
+        ctx.lineWidth = 1.6;
+        ctx.setLineDash([4, 3]);
+        ctx.beginPath();
+        for (let i = 0; i < recsB.length; i++) {
+          const r = recsB[i];
+          const x = ((r.distance_m - recsB[0].distance_m) / maxDist) * w;
+          const y = yCenter - ((r.lean_angle_deg || 0) / 55.0) * (usableH / 2);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+      } else if (ch === 'gLong') {
+        ctx.strokeStyle = meta.color;
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        for (let i = 0; i < recsA.length; i++) {
+          const r = recsA[i];
+          const x = ((r.distance_m - recsA[0].distance_m) / maxDist) * w;
+          const y = yCenter - ((r.accel_long_g || 0) / 1.6) * (usableH / 2);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      } else if (ch === 'gLat') {
+        ctx.strokeStyle = meta.color;
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        for (let i = 0; i < recsA.length; i++) {
+          const r = recsA[i];
+          const x = ((r.distance_m - recsA[0].distance_m) / maxDist) * w;
+          const y = yCenter - ((r.accel_lat_g || 0) / 1.6) * (usableH / 2);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      } else if (ch === 'gear') {
+        ctx.strokeStyle = meta.color;
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        for (let i = 0; i < recsA.length; i++) {
+          const r = recsA[i];
+          const x = ((r.distance_m - recsA[0].distance_m) / maxDist) * w;
+          const y = yBottom - ((r.gear || 0) / 6.0) * usableH;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      } else if (ch === 'deltaT') {
+        const maxDelta = 3.0;
+        const deltaPoints = [];
+        for (let i = 0; i < recsA.length; i++) {
+          const rA = recsA[i];
+          const relDist = rA.distance_m - recsA[0].distance_m;
+          const elapsedA = rA.time_s - recsA[0].time_s;
+          const rB = recsB.find(b => (b.distance_m - recsB[0].distance_m) >= relDist) || recsB[recsB.length - 1];
+          const elapsedB = rB.time_s - recsB[0].time_s;
+          const deltaT = elapsedA - elapsedB;
+          const x = (relDist / maxDist) * w;
+          const clampedDelta = Math.max(-maxDelta, Math.min(maxDelta, deltaT));
+          const y = yCenter + (clampedDelta / maxDelta) * (usableH / 2);
+          deltaPoints.push({ x, y, deltaT });
+        }
+        if (deltaPoints.length > 1) {
+          for (let i = 0; i < deltaPoints.length - 1; i++) {
+            const p1 = deltaPoints[i];
+            const p2 = deltaPoints[i + 1];
+            const isAhead = (p1.deltaT + p2.deltaT) <= 0;
+            ctx.fillStyle = isAhead ? 'rgba(0, 230, 118, 0.20)' : 'rgba(255, 59, 48, 0.20)';
+            ctx.beginPath();
+            ctx.moveTo(p1.x, yCenter);
+            ctx.lineTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.lineTo(p2.x, yCenter);
+            ctx.closePath();
+            ctx.fill();
+          }
+          ctx.strokeStyle = meta.color;
+          ctx.lineWidth = 2.0;
+          ctx.beginPath();
+          for (let i = 0; i < deltaPoints.length; i++) {
+            const pt = deltaPoints[i];
+            if (i === 0) ctx.moveTo(pt.x, pt.y);
+            else ctx.lineTo(pt.x, pt.y);
+          }
+          ctx.stroke();
+        }
+      } else if (ch === 'lineDelta' && recsA.length > 5 && recsB.length > 5) {
+        ctx.strokeStyle = meta.color;
+        ctx.lineWidth = 1.6;
+        ctx.setLineDash([4, 3]);
+        ctx.beginPath();
+        const maxLineOffsetM = 5.0;
+        for (let i = 0; i < recsA.length; i++) {
+          const rA = recsA[i];
+          const relDist = rA.distance_m - recsA[0].distance_m;
+          const rB = recsB.find(b => (b.distance_m - recsB[0].distance_m) >= relDist) || recsB[recsB.length - 1];
+          let lateralOffset = 0;
+          if (rA.gps_lat !== null && rB.gps_lat !== null) {
+            lateralOffset = haversineDistanceM(rA.gps_lat, rA.gps_lon, rB.gps_lat, rB.gps_lon);
+          }
+          const x = (relDist / maxDist) * w;
+          const y = yCenter - (lateralOffset / maxLineOffsetM) * (usableH / 2);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
       }
-      const x = (relDist / maxDist) * w;
-      const y = yCenterL4 - (lateralOffset / maxLineOffsetM) * (laneHeight / 2 - pad);
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-    ctx.setLineDash([]);
-  }
+    });
+
+    drawLaneChannelLabels(ctx, yTop, lane.laneNum, lane.channels);
+  });
 
   // Draw Vertical Turn Apex Markers across compare channels
   drawVerticalTurnMarkers(ctx, w, h, null, 0, true, recsA, maxDist);
@@ -1133,10 +1117,10 @@ function showChartTooltip(idx, mouseX, mouseY) {
   dom.chartTooltip.innerHTML = `
     ${turnNearHtml}
     <strong>Time: ${formatTime(r.time_s)} | Dist: ${r.distance_m ? r.distance_m.toFixed(0) : 0}m</strong><br>
-    Speed: <span style="color:#00e5ff">${spd.toFixed(1)}</span> (Wheel) | <span style="color:#b388ff">${gpsSpd.toFixed(1)} ${spdUnit}</span> (GPS) | Slip: <span style="color:${Math.abs(slip) > 6 ? '#ffd600' : '#00e676'}">${slip >= 0 ? '+' : ''}${slip.toFixed(1)}%</span><br>
-    RPM: <span style="color:#ff9100">${r.rpm || 0}</span> | TPS: <span style="color:#00e676">${(r.tps_pct || 0).toFixed(0)}%</span> | Gear: <span style="color:#d500f9">${r.gear || 'N'}</span> | Lean: <span style="color:#ff0055">${(r.lean_angle_deg || 0).toFixed(1)}°</span><br>
-    G-Force: <span style="color:#ff1744">${glong >= 0 ? '+' : ''}${glong}g</span> long | <span style="color:#2979ff">${glat >= 0 ? '+' : ''}${glat}g</span> lat | <span style="color:#ffd600">${gtot}G</span> sum<br>
-    DTC: <span style="color:#ffd600">${Math.max(r.torque_slow_pct || 0, r.torque_fast_pct || 0, r.dtc || 0)}%</span> | Temp: <span style="color:#ff6d00">${r.temp_c ? r.temp_c.toFixed(0) + '°C' : '--'}</span> | Alt: ${r.gps_alt_m ? r.gps_alt_m.toFixed(1) : '0.0'}m
+    Speed: <span style="color:#00e5ff">${spd.toFixed(1)}</span> (Wheel) | <span style="color:#388bfd">${gpsSpd.toFixed(1)} ${spdUnit}</span> (GPS) | Slip: <span style="color:${Math.abs(slip) > 6 ? '#ffee58' : '#00e676'}">${slip >= 0 ? '+' : ''}${slip.toFixed(1)}%</span><br>
+    RPM: <span style="color:#ff9f0a">${r.rpm || 0}</span> | TPS: <span style="color:#00e676">${(r.tps_pct || 0).toFixed(0)}%</span> | Gear: <span style="color:#e2e8f0">${r.gear || 'N'}</span> | Lean: <span style="color:#ff2eb6">${(r.lean_angle_deg || 0).toFixed(1)}°</span><br>
+    G-Force: <span style="color:#ff3b30">${glong >= 0 ? '+' : ''}${glong}g</span> long | <span style="color:#818cf8">${glat >= 0 ? '+' : ''}${glat}g</span> lat | <span style="color:#ffee58">${gtot}G</span> sum<br>
+    DTC: <span style="color:#ffee58">${Math.max(r.torque_slow_pct || 0, r.torque_fast_pct || 0, r.dtc || 0)}%</span> | Temp: <span style="color:#fbbf24">${r.temp_c ? r.temp_c.toFixed(0) + '°C' : '--'}</span> | Alt: <span style="color:#2dd4bf">${r.gps_alt_m ? r.gps_alt_m.toFixed(1) : '0.0'}m</span>
   `;
   dom.chartTooltip.style.display = 'block';
   dom.chartTooltip.style.left = `${Math.min(canvasWidth - 250, Math.max(10, mouseX + 15))}px`;
