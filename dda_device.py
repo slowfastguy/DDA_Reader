@@ -579,6 +579,12 @@ class DDADevice:
         if rider_name:
             r_bytes = rider_name.encode('latin1', errors='ignore')[:43]
             inf_block[64:64+len(r_bytes)] = r_bytes
+        if run_info and run_info.datetime:
+            try:
+                net_ticks = int((run_info.datetime - datetime(1, 1, 1)).total_seconds() * 10_000_000)
+                struct.pack_into('<Q', inf_block, 128, net_ticks)
+            except Exception:
+                pass
 
         file_buf.extend(inf_block)
         file_buf.extend(daq_table_data)

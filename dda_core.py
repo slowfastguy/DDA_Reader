@@ -12,12 +12,13 @@ Decodes proprietary Prosa CAN-bus binary telemetry streams with GPS & chassis dy
 """
 
 import os
+import re
 import sys
 import struct
 import math
 import json
 import zipfile
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 def _get_base_dir():
     """Returns the base directory for bundled assets (supports PyInstaller frozen bundles and standard execution)."""
@@ -114,17 +115,30 @@ class DDAChannelDescriptor:
 
 class DDAHeader:
     """Parsed DDA File Header and Metadata."""
+    BIKE_CODE_MAP = {
+        "0801": "Panigale 1199 / 899",
+        "0903": "Panigale 1299 / 959",
+        "1409": "Panigale V4",
+        "1714": "Streetfighter V2 / Panigale V2",
+    }
+
     def __init__(self):
         self.version = 4
         self.track_name = ""
         self.rider_name = ""
         self.session_note = ""
+        self.bike_code = ""
+        self.bike_model = ""
+        self.session_datetime = ""
+        self.datetime_obj = None
+        self.unix_timestamp = 1724868022.0
+        self.header_odometer_km = 0
         self.header_size = 1630
         self.frequency_hz = 100
         self.clock_s = 0.01
         self.channels = []
 
-    def parse(self, raw_data: bytes):
+    def parse(self, raw_data: bytes, filepath: str = ""):
         if len(raw_data) < 32:
             raise ValueError("File is too short to be a valid DDA file.")
 
@@ -144,11 +158,55 @@ class DDAHeader:
         except Exception:
             self.rider_name = ""
 
-        # Note at offset 0x14D (333)
+        # Session Date/Time at offset 0xAA (170) as 64-bit .NET DateTime.Ticks (100-ns intervals since 0001-01-01)
+        self.datetime_obj = None
+        self.session_datetime = ""
+        if len(raw_data) >= 178:
+            try:
+                raw_ticks = struct.unpack_from("<Q", raw_data, 0xAA)[0]
+                net_ticks = raw_ticks & 0x3FFFFFFFFFFFFFFF
+                if 500_000_000_000_000_000 <= net_ticks <= 900_000_000_000_000_000:
+                    dt = datetime(1, 1, 1) + timedelta(microseconds=net_ticks // 10)
+                    if 1995 <= dt.year <= 2100:
+                        self.datetime_obj = dt
+                        self.session_datetime = dt.strftime("%Y-%m-%d %H:%M:%S")
+                        self.unix_timestamp = dt.replace(tzinfo=timezone.utc).timestamp()
+            except Exception:
+                pass
+
+        # Fallback to filename timestamp (e.g. Run022_20240904_080100.dda) if header ticks were unset
+        if self.datetime_obj is None and filepath:
+            m_dt = re.search(r'(20\d{2})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})', os.path.basename(filepath))
+            if m_dt:
+                try:
+                    dt = datetime(
+                        int(m_dt.group(1)), int(m_dt.group(2)), int(m_dt.group(3)),
+                        int(m_dt.group(4)), int(m_dt.group(5)), int(m_dt.group(6))
+                    )
+                    self.datetime_obj = dt
+                    self.session_datetime = dt.strftime("%Y-%m-%d %H:%M:%S")
+                    self.unix_timestamp = dt.replace(tzinfo=timezone.utc).timestamp()
+                except Exception:
+                    pass
+
+        # Starting odometer / run metric at offset 0xB2 (178)
+        if len(raw_data) >= 182:
+            try:
+                self.header_odometer_km = struct.unpack_from("<I", raw_data, 0xB2)[0]
+            except Exception:
+                self.header_odometer_km = 0
+
+        # Note & Ducati project model code at offset 0x14D (333)
+        self.bike_code = ""
+        self.bike_model = ""
         try:
             note_idx = raw_data.find(b'DDA for', 0, 500)
             if note_idx != -1:
                 self.session_note = raw_data[note_idx:note_idx+40].split(b'\x00')[0].decode('latin1', errors='ignore').strip()
+                m_code = re.search(r'DDA for\s+(\d{4})', self.session_note)
+                if m_code:
+                    self.bike_code = m_code.group(1)
+                    self.bike_model = self.BIKE_CODE_MAP.get(self.bike_code, f"Ducati ({self.bike_code})")
             else:
                 self.session_note = ""
         except Exception:
@@ -266,7 +324,7 @@ class DDARecord:
     __slots__ = (
         'time_s', 'speed_kmh', 'gps_speed_kmh', 'rpm', 'tps_pct', 'gear',
         'lean_angle_deg', 'torque_fast_pct', 'torque_slow_pct',
-        'temp_c', 'dtc',
+        'temp_c', 'dtc', 'odometer_km',
         'distance_m', 'gps_lat', 'gps_lon', 'gps_alt_m',
         'raw_lat', 'raw_lon',
         'bearing_deg', 'lap', 'int_lap1', 'int_lap2',
@@ -284,6 +342,7 @@ class DDARecord:
         self.torque_slow_pct = 0
         self.temp_c = 0.0
         self.dtc = 0
+        self.odometer_km = 0.0
         self.distance_m = 0.0
         self.gps_lat = None
         self.gps_lon = None
@@ -335,6 +394,7 @@ class DDARecord:
             "torque_slow_pct": self.torque_slow_pct,
             "temp_c": round(self.temp_c, 1),
             "dtc": self.dtc,
+            "odometer_km": round(self.odometer_km, 1),
             "distance_m": round(self.distance_m, 1),
             "gps_lat": round(self.gps_lat, 7) if self.gps_lat is not None else None,
             "gps_lon": round(self.gps_lon, 7) if self.gps_lon is not None else None,
@@ -366,8 +426,9 @@ class DDAParser:
     def parse(self):
         """
         Parses DDA telemetry across any Ducati model using the universal header-driven
-        100Hz (10ms tick) Time-Division Multiplexed (TDM) schedule, applying Gaussian
-        smoothing to GPS coordinates, deriving vehicle dynamics, and segmenting laps.
+        100Hz (10ms tick) Time-Division Multiplexed (TDM) schedule, aggregating sub-10Hz
+        channels (50Hz RPM, 20Hz Throttle/Lean/DTC) into each 10Hz GPS frame, applying
+        Gaussian smoothing to GPS coordinates, deriving vehicle dynamics, and segmenting laps.
         """
         if not os.path.exists(self.filepath):
             raise FileNotFoundError(f"DDA file not found: {self.filepath}")
@@ -376,7 +437,7 @@ class DDAParser:
             data = f.read()
 
         # 1. Parse Header & Channel Descriptors
-        self.header.parse(data)
+        self.header.parse(data, filepath=self.filepath)
 
         hdr_size = self.header.header_size
         payload = data[hdr_size:]
@@ -403,14 +464,23 @@ class DDAParser:
             step_bytes = sum(item[1] for item in active)
             superframe_schedule.append((active, step_bytes))
 
-        # 2. Universal 100Hz TDM Stream Decoder
+        # 2. Universal 100Hz TDM Stream Decoder with Sub-10Hz Window Aggregation
         cur_state = {ch.name: 0 for ch in channels}
         offset = 0
         tick = 0
         last_lean = 0.0
         last_speed = 0.0
         last_rpm = 0
+        last_tps = 0.0
         prev_hw_lap = 255
+
+        # Sub-10Hz (100ms window) accumulators
+        rpm_win = []
+        gas_win = []
+        lean_win = []
+        tfast_win = []
+        tslow_win = []
+        dtc_win = []
 
         raw_lats = []
         raw_lons = []
@@ -441,6 +511,26 @@ class DDAParser:
                 offset += sz
                 cur_state[name] = val
 
+                # Accumulate sub-10Hz (50Hz & 20Hz) samples across each 10-tick (100ms) window
+                if name == "RPM":
+                    if 0 <= val <= 20000:
+                        rpm_win.append(val)
+                elif name == "GAS":
+                    if 0 <= val <= 220:
+                        gas_win.append(min(100.0, max(0.0, val * 0.5)))
+                elif name == "PSI_LEAN_ANGLE":
+                    if 6500 <= val <= 9800:
+                        lean_win.append(max(-60.0, min(60.0, (val * 0.05493164) - 450.0)))
+                elif name == "TORQUE_FAST":
+                    if 0 <= val <= 100:
+                        tfast_win.append(val)
+                elif name == "TORQUE_SLOW":
+                    if 0 <= val <= 100:
+                        tslow_win.append(val)
+                elif name == "DTC":
+                    if 0 <= val <= 100:
+                        dtc_win.append(val)
+
             # Emit synchronized 10Hz telemetry frame every 10 ticks (0.10s)
             if (tick % 10) == 0:
                 current_time = tick * 0.01
@@ -452,13 +542,13 @@ class DDAParser:
                     last_speed = spd
                 rec.speed_kmh = last_speed
 
-                rpm_raw = cur_state.get("RPM", 0)
-                if 0 <= rpm_raw <= 20000:
-                    last_rpm = rpm_raw
+                if rpm_win:
+                    last_rpm = int(round(sum(rpm_win) / len(rpm_win)))
                 rec.rpm = last_rpm
 
-                gas_raw = cur_state.get("GAS", 0)
-                rec.tps_pct = min(100.0, max(0.0, gas_raw * 0.5)) if gas_raw <= 220 else 0.0
+                if gas_win:
+                    last_tps = sum(gas_win) / len(gas_win)
+                rec.tps_pct = last_tps
 
                 gear_raw = cur_state.get("GEAR", 0)
                 rec.gear = gear_raw if 0 <= gear_raw <= 6 else 0
@@ -467,24 +557,32 @@ class DDAParser:
                     t_raw = cur_state["TEMP"]
                     rec.temp_c = float(t_raw - 40) if t_raw > 0 else 0.0
 
+                if "DIST" in cur_state:
+                    d_raw = cur_state["DIST"]
+                    if 0 <= d_raw < 1000000:
+                        rec.odometer_km = float(d_raw)
+
                 if has_imu_lean:
-                    raw_lean = cur_state.get("PSI_LEAN_ANGLE", 0)
-                    if 6500 <= raw_lean <= 9800:
-                        last_lean = (raw_lean * 0.05493164) - 450.0
-                        last_lean = max(-60.0, min(60.0, last_lean))
+                    if lean_win:
+                        last_lean = sum(lean_win) / len(lean_win)
                     rec.lean_angle_deg = last_lean
 
-                dtc_val = cur_state.get("DTC", 0)
-                rec.dtc = dtc_val if 0 <= dtc_val <= 100 else 0
+                rec.dtc = max(dtc_win) if dtc_win else 0
 
                 if has_torque_fast:
-                    fast_raw = cur_state.get("TORQUE_FAST", 0)
-                    slow_raw = cur_state.get("TORQUE_SLOW", 0)
-                    rec.torque_fast_pct = fast_raw if 0 <= fast_raw <= 100 else 0
-                    rec.torque_slow_pct = slow_raw if 0 <= slow_raw <= 100 else 0
+                    rec.torque_fast_pct = max(tfast_win) if tfast_win else 0
+                    rec.torque_slow_pct = max(tslow_win) if tslow_win else 0
                 else:
                     rec.torque_fast_pct = rec.dtc
                     rec.torque_slow_pct = 0
+
+                # Clear sub-10Hz window accumulators for the next 100ms interval
+                rpm_win.clear()
+                gas_win.clear()
+                lean_win.clear()
+                tfast_win.clear()
+                tslow_win.clear()
+                dtc_win.clear()
 
                 hw_lap = cur_state.get("LAP", 255)
                 rec.int_lap1 = cur_state.get("INT_LAP1", 0) if cur_state.get("INT_LAP1", 255) != 255 else 0
@@ -549,6 +647,24 @@ class DDAParser:
             prev_lat = s_lat
             prev_lon = s_lon
             self.gps_records.append(rec)
+
+        # Fallback wheel-speed distance integration when GPS is absent or for non-GPS frames
+        if not self.gps_records and self.records:
+            wheel_dist = 0.0
+            for idx, r in enumerate(self.records):
+                if idx > 0:
+                    dt = max(0.0, r.time_s - self.records[idx - 1].time_s)
+                    wheel_dist += r.speed_ms * dt
+                r.distance_m = wheel_dist
+        elif self.gps_records and len(self.gps_records) < len(self.records):
+            last_d = 0.0
+            for idx, r in enumerate(self.records):
+                if r.gps_lat is not None:
+                    last_d = r.distance_m
+                else:
+                    dt = max(0.0, r.time_s - self.records[idx - 1].time_s) if idx > 0 else 0.0
+                    last_d += r.speed_ms * dt
+                    r.distance_m = last_d
 
         # Backfill initial bearing for the first stationary GPS points
         if len(self.gps_records) > 1:
@@ -837,39 +953,34 @@ class DDAParser:
                 {"id": "sf", "name": "Start / Finish", "type": "sf", "lat": sf_lat, "lon": sf_lon, "bearing": sf_brg}
             ]
 
-        # Find all S/F crossings
-        crossings = []
-        last_t = -999.0
-        for r in self.gps_records:
-            if r.speed_kmh > 30.0 and (r.time_s - last_t) > 35.0:
-                d = haversine_distance_m(sf_lat, sf_lon, r.gps_lat, r.gps_lon)
-                if d < 28.0:
-                    d_brg = abs(sf_brg - r.bearing_deg) % 360
-                    if d_brg > 180: d_brg = 360 - d_brg
-                    if d_brg < 60.0:
-                        crossings.append(r)
-                        last_t = r.time_s
+        sf_gate = next((g for g in self.gates if g.get("type") == "sf"), self.gates[0])
+        split_gates = [g for g in self.gates if g.get("type") == "split"]
 
+        # Find all S/F crossings using spatial line-segment intersection & normal-projection interpolation
+        crossings = self._find_gate_crossings(sf_gate, self.records, min_interval_s=35.0)
         if not crossings:
             return
 
         # 1. Out-Lap (Lap 0)
         first_cross = crossings[0]
-        idx_first = self.records.index(first_cross)
+        idx_first = first_cross["index"]
         for i in range(0, idx_first):
             self.records[i].lap = 0
 
         self.laps.append({
             "lap_number": 0,
             "name": "Out-Lap",
-            "start_time_s": self.records[0].time_s,
-            "end_time_s": first_cross.time_s,
-            "duration_s": first_cross.time_s - self.records[0].time_s,
+            "start_time_s": round(self.records[0].time_s, 3),
+            "end_time_s": round(first_cross["time_s"], 3),
+            "duration_s": round(first_cross["time_s"] - self.records[0].time_s, 3),
             "start_index": 0,
             "end_index": idx_first,
-            "distance_m": first_cross.distance_m,
+            "distance_m": round(first_cross["distance_m"], 1),
             "max_speed_kmh": max((r.speed_kmh for r in self.records[0:idx_first]), default=0),
             "max_gps_speed_kmh": max((r.gps_speed_kmh for r in self.records[0:idx_first]), default=0),
+            "sector_1_s": None,
+            "sector_2_s": None,
+            "sector_3_s": None,
             "is_best": False
         })
 
@@ -878,32 +989,52 @@ class DDAParser:
             c1 = crossings[i]
             c2 = crossings[i + 1]
             lap_num = i + 1
-            idx1 = self.records.index(c1)
-            idx2 = self.records.index(c2)
-            dur = c2.time_s - c1.time_s
-            dist = c2.distance_m - c1.distance_m
+            idx1 = c1["index"]
+            idx2 = c2["index"]
+            dur = c2["time_s"] - c1["time_s"]
+            dist = c2["distance_m"] - c1["distance_m"]
             lap_recs = self.records[idx1:idx2]
 
             for r in lap_recs:
                 r.lap = lap_num
 
+            # Compute interpolated sector split times if split gates exist
+            s1_dur, s2_dur, s3_dur = None, None, None
+            if len(split_gates) >= 1 and lap_recs:
+                s1_cross = self._find_gate_crossings(split_gates[0], lap_recs, min_interval_s=5.0)
+                if s1_cross:
+                    t_s1 = s1_cross[0]["time_s"]
+                    if c1["time_s"] < t_s1 < c2["time_s"]:
+                        s1_dur = round(t_s1 - c1["time_s"], 3)
+                        if len(split_gates) >= 2:
+                            s2_cross = self._find_gate_crossings(split_gates[1], lap_recs, min_interval_s=5.0)
+                            if s2_cross and t_s1 < s2_cross[0]["time_s"] < c2["time_s"]:
+                                t_s2 = s2_cross[0]["time_s"]
+                                s2_dur = round(t_s2 - t_s1, 3)
+                                s3_dur = round(c2["time_s"] - t_s2, 3)
+                        else:
+                            s2_dur = round(c2["time_s"] - t_s1, 3)
+
             self.laps.append({
                 "lap_number": lap_num,
                 "name": f"Lap {lap_num}",
-                "start_time_s": c1.time_s,
-                "end_time_s": c2.time_s,
-                "duration_s": dur,
+                "start_time_s": round(c1["time_s"], 3),
+                "end_time_s": round(c2["time_s"], 3),
+                "duration_s": round(dur, 3),
                 "start_index": idx1,
                 "end_index": idx2,
-                "distance_m": dist,
+                "distance_m": round(dist, 1),
                 "max_speed_kmh": max((r.speed_kmh for r in lap_recs), default=0),
                 "max_gps_speed_kmh": max((r.gps_speed_kmh for r in lap_recs), default=0),
+                "sector_1_s": s1_dur,
+                "sector_2_s": s2_dur,
+                "sector_3_s": s3_dur,
                 "is_best": False
             })
 
         # 3. In-Lap (last crossing to end of session)
         last_cross = crossings[-1]
-        idx_last = self.records.index(last_cross)
+        idx_last = last_cross["index"]
         in_lap_num = len(crossings)
         in_lap_recs = self.records[idx_last:]
         for r in in_lap_recs:
@@ -912,14 +1043,17 @@ class DDAParser:
         self.laps.append({
             "lap_number": in_lap_num,
             "name": f"Lap {in_lap_num} (In-Lap)",
-            "start_time_s": last_cross.time_s,
-            "end_time_s": self.records[-1].time_s,
-            "duration_s": self.records[-1].time_s - last_cross.time_s,
+            "start_time_s": round(last_cross["time_s"], 3),
+            "end_time_s": round(self.records[-1].time_s, 3),
+            "duration_s": round(self.records[-1].time_s - last_cross["time_s"], 3),
             "start_index": idx_last,
             "end_index": len(self.records) - 1,
-            "distance_m": self.records[-1].distance_m - last_cross.distance_m,
+            "distance_m": round(self.records[-1].distance_m - last_cross["distance_m"], 1),
             "max_speed_kmh": max((r.speed_kmh for r in in_lap_recs), default=0),
             "max_gps_speed_kmh": max((r.gps_speed_kmh for r in in_lap_recs), default=0),
+            "sector_1_s": None,
+            "sector_2_s": None,
+            "sector_3_s": None,
             "is_best": False
         })
 
@@ -930,6 +1064,148 @@ class DDAParser:
             for l in self.laps:
                 if l["lap_number"] == best_lap["lap_number"]:
                     l["is_best"] = True
+
+    def _find_gate_crossings(self, gate: dict, records=None, min_interval_s: float = 35.0):
+        """
+        Finds all spatial crossings of a timing gate with sub-frame (0.001s) interpolation.
+        Primary method: 2D geometric line-segment intersection across a 60m gate line perpendicular to gate bearing.
+        Fallback method: Closest-approach pass (< 28m) with longitudinal normal-vector projection interpolation.
+        """
+        if records is None:
+            records = self.records
+        if len(records) < 2:
+            return []
+
+        g_lat = gate["lat"]
+        g_lon = gate["lon"]
+        g_brg = gate.get("bearing", 0.0)
+        cos_lat = max(1e-6, math.cos(math.radians(g_lat)))
+
+        # Construct 60m gate line segment perpendicular to gate bearing
+        R = 6371000.0
+        half_w = 30.0
+        brg1 = math.radians((g_brg + 90.0) % 360.0)
+        brg2 = math.radians((g_brg + 270.0) % 360.0)
+        g_lat1 = g_lat + math.degrees((half_w / R) * math.cos(brg1))
+        g_lon1 = g_lon + math.degrees((half_w / R) * math.sin(brg1) / cos_lat)
+        g_lat2 = g_lat + math.degrees((half_w / R) * math.cos(brg2))
+        g_lon2 = g_lon + math.degrees((half_w / R) * math.sin(brg2) / cos_lat)
+
+        min_g_lat, max_g_lat = min(g_lat1, g_lat2) - 0.0005, max(g_lat1, g_lat2) + 0.0005
+        min_g_lon, max_g_lon = min(g_lon1, g_lon2) - 0.0005, max(g_lon1, g_lon2) + 0.0005
+
+        crossings = []
+        last_t = -999.0
+
+        # Primary pass: 2D line-segment intersection
+        for i in range(len(records) - 1):
+            r1 = records[i]
+            r2 = records[i + 1]
+            if r1.gps_lat is None or r2.gps_lat is None or r2.speed_kmh < 25.0:
+                continue
+            if (r2.time_s - last_t) <= min_interval_s:
+                continue
+            if max(r1.gps_lat, r2.gps_lat) < min_g_lat or min(r1.gps_lat, r2.gps_lat) > max_g_lat:
+                continue
+            if max(r1.gps_lon, r2.gps_lon) < min_g_lon or min(r1.gps_lon, r2.gps_lon) > max_g_lon:
+                continue
+
+            x1, y1 = g_lon1, g_lat1
+            x2, y2 = g_lon2, g_lat2
+            x3, y3 = r1.gps_lon, r1.gps_lat
+            x4, y4 = r2.gps_lon, r2.gps_lat
+
+            denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4)
+            if abs(denom) > 1e-12:
+                t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom
+                u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / denom
+                if -0.5 <= t <= 1.5 and 0.0 <= u <= 1.0:
+                    d_brg = abs(g_brg - r2.bearing_deg) % 360.0
+                    if d_brg > 180.0:
+                        d_brg = 360.0 - d_brg
+                    if d_brg < 85.0:
+                        exact_time = r1.time_s + u * (r2.time_s - r1.time_s)
+                        exact_dist = r1.distance_m + u * (r2.distance_m - r1.distance_m)
+                        cross_idx = i if u < 0.5 else (i + 1)
+                        crossings.append({
+                            "index": cross_idx,
+                            "record": records[cross_idx],
+                            "time_s": exact_time,
+                            "distance_m": exact_dist,
+                            "fraction": u
+                        })
+                        last_t = exact_time
+
+        # Fallback pass: Closest-point approach with normal-projection interpolation
+        if not crossings:
+            nx = math.sin(math.radians(g_brg))
+            ny = math.cos(math.radians(g_brg))
+            m_per_lon = 111320.0 * cos_lat
+            m_per_lat = 111132.0
+
+            def _proj_s(rec_pt):
+                dx = (rec_pt.gps_lon - g_lon) * m_per_lon
+                dy = (rec_pt.gps_lat - g_lat) * m_per_lat
+                return dx * nx + dy * ny
+
+            i = 0
+            n = len(records)
+            while i < n:
+                r = records[i]
+                if r.gps_lat is not None and r.speed_kmh >= 25.0 and (r.time_s - last_t) > min_interval_s:
+                    d = haversine_distance_m(g_lat, g_lon, r.gps_lat, r.gps_lon)
+                    if d < 28.0:
+                        d_brg = abs(g_brg - r.bearing_deg) % 360.0
+                        if d_brg > 180.0:
+                            d_brg = 360.0 - d_brg
+                        if d_brg < 60.0:
+                            best_idx = i
+                            best_d = d
+                            j = i + 1
+                            while j < min(n, i + 25):
+                                rj = records[j]
+                                if rj.gps_lat is not None:
+                                    dj = haversine_distance_m(g_lat, g_lon, rj.gps_lat, rj.gps_lon)
+                                    if dj < best_d:
+                                        best_d = dj
+                                        best_idx = j
+                                    elif dj > 35.0:
+                                        break
+                                j += 1
+
+                            r_best = records[best_idx]
+                            exact_time = r_best.time_s
+                            exact_dist = r_best.distance_m
+                            u_frac = 0.0
+
+                            # Interpolate exact zero-crossing of longitudinal projection along gate bearing
+                            for k in range(max(0, best_idx - 2), min(n - 1, best_idx + 2)):
+                                ra = records[k]
+                                rb = records[k + 1]
+                                if ra.gps_lat is not None and rb.gps_lat is not None:
+                                    sa = _proj_s(ra)
+                                    sb = _proj_s(rb)
+                                    if sa <= 0.0 <= sb and (sb - sa) > 1e-6:
+                                        u_frac = -sa / (sb - sa)
+                                        exact_time = ra.time_s + u_frac * (rb.time_s - ra.time_s)
+                                        exact_dist = ra.distance_m + u_frac * (rb.distance_m - ra.distance_m)
+                                        best_idx = k + 1
+                                        r_best = rb
+                                        break
+
+                            crossings.append({
+                                "index": best_idx,
+                                "record": r_best,
+                                "time_s": exact_time,
+                                "distance_m": exact_dist,
+                                "fraction": u_frac
+                            })
+                            last_t = exact_time
+                            i = best_idx + 10
+                            continue
+                i += 1
+
+        return crossings
 
     def _compute_statistics(self):
         """Calculates comprehensive session telemetry stats."""
@@ -943,6 +1219,8 @@ class DDAParser:
         leans_left = [abs(r.lean_angle_deg) for r in self.records if r.lean_angle_deg < -0.5]
         leans_right = [r.lean_angle_deg for r in self.records if r.lean_angle_deg > 0.5]
         tps_list = [r.tps_pct for r in self.records]
+        temps_valid = [r.temp_c for r in self.records if r.temp_c > 0.0]
+        odos_valid = [r.odometer_km for r in self.records if r.odometer_km > 0.0]
         duration_s = self.records[-1].time_s - self.records[0].time_s
 
         best_lap_obj = next((l for l in self.laps if l.get("is_best")), None)
@@ -963,9 +1241,13 @@ class DDAParser:
             "max_lean_left_deg": max(leans_left) if leans_left else 0.0,
             "max_lean_right_deg": max(leans_right) if leans_right else 0.0,
             "max_throttle_pct": max(tps_list) if tps_list else 0.0,
-            "max_dtc_fast_pct": max(r.torque_fast_pct for r in self.records),
-            "max_dtc_slow_pct": max(r.torque_slow_pct for r in self.records),
-            "max_temp_c": max((r.temp_c for r in self.records), default=0.0),
+            "max_dtc_fast_pct": max((r.torque_fast_pct for r in self.records), default=0),
+            "max_dtc_slow_pct": max((r.torque_slow_pct for r in self.records), default=0),
+            "max_dtc": max((r.dtc for r in self.records), default=0),
+            "min_temp_c": min(temps_valid) if temps_valid else 0.0,
+            "max_temp_c": max(temps_valid) if temps_valid else 0.0,
+            "odometer_start_km": odos_valid[0] if odos_valid else 0.0,
+            "odometer_end_km": odos_valid[-1] if odos_valid else 0.0,
             "start_gps": (self.gps_records[0].gps_lat, self.gps_records[0].gps_lon) if self.gps_records else (None, None),
             "end_gps": (self.gps_records[-1].gps_lat, self.gps_records[-1].gps_lon) if self.gps_records else (None, None),
             "min_alt_m": min(r.gps_alt_m for r in self.gps_records) if self.gps_records else 0.0,
@@ -983,6 +1265,11 @@ class DDAParser:
                 "track_name": self.header.track_name,
                 "rider_name": self.header.rider_name,
                 "session_note": self.header.session_note,
+                "bike_code": self.header.bike_code,
+                "bike_model": self.header.bike_model,
+                "session_datetime": self.header.session_datetime,
+                "unix_timestamp": self.header.unix_timestamp,
+                "header_odometer_km": self.header.header_odometer_km,
                 "version": self.header.version,
                 "header_size": self.header.header_size
             },
@@ -1141,7 +1428,12 @@ class DDAParser:
     def export_csv(self, out_path: str):
         """Export telemetry to standard CSV format."""
         with open(out_path, "w", encoding="utf-8") as f:
-            f.write("Time_s,Speed_kmh,Speed_mph,GPS_Speed_kmh,GPS_Speed_mph,Wheel_Slip_pct,RPM,TPS_pct,Gear,LeanAngle_deg,DTC_Fast_pct,DTC_Slow_pct,Distance_m,GPS_Lat,GPS_Lon,GPS_Alt_m,GPS_Alt_ft,Lap,Split1,Split2\n")
+            f.write(
+                "Time_s,Speed_kmh,Speed_mph,GPS_Speed_kmh,GPS_Speed_mph,Wheel_Slip_pct,"
+                "RPM,TPS_pct,Gear,LeanAngle_deg,Temp_C,DTC_Fast_pct,DTC_Slow_pct,DTC_Index,"
+                "Accel_Long_G,Accel_Lat_G,Accel_Total_G,Wheelie,"
+                "Distance_m,Odometer_km,Bearing_deg,GPS_Lat,GPS_Lon,GPS_Alt_m,GPS_Alt_ft,Lap,Split1,Split2\n"
+            )
             for r in self.records:
                 lat_str = f"{r.gps_lat:.7f}" if r.gps_lat is not None else ""
                 lon_str = f"{r.gps_lon:.7f}" if r.gps_lon is not None else ""
@@ -1150,8 +1442,10 @@ class DDAParser:
                 f.write(
                     f"{r.time_s:.2f},{r.speed_kmh:.1f},{r.speed_mph:.1f},{r.gps_speed_kmh:.1f},{r.gps_speed_mph:.1f},"
                     f"{r.wheel_slip_pct:.1f},{r.rpm},"
-                    f"{r.tps_pct:.1f},{r.gear},{r.lean_angle_deg:.1f},{r.torque_fast_pct},"
-                    f"{r.torque_slow_pct},{r.distance_m:.1f},{lat_str},{lon_str},{alt_m_str},"
+                    f"{r.tps_pct:.1f},{r.gear},{r.lean_angle_deg:.1f},{r.temp_c:.1f},{r.torque_fast_pct},"
+                    f"{r.torque_slow_pct},{r.dtc},"
+                    f"{r.accel_long_g:.2f},{r.accel_lat_g:.2f},{r.accel_total_g:.2f},{1 if r.wheelie else 0},"
+                    f"{r.distance_m:.1f},{r.odometer_km:.1f},{r.bearing_deg:.1f},{lat_str},{lon_str},{alt_m_str},"
                     f"{alt_ft_str},{r.lap},{r.int_lap1},{r.int_lap2}\n"
                 )
 
@@ -1160,10 +1454,12 @@ class DDAParser:
         Export telemetry to official RaceChrono v3 CSV format.
         Compatible with RaceChrono Pro (iOS and Android).
         """
-        base_unix_ts = 1724868022.0
+        base_unix_ts = self.header.unix_timestamp if self.header.unix_timestamp else 1724868022.0
         track_title = self.header.track_name or "Ducati Session"
         driver_name = self.header.rider_name or "Ducati Rider"
-        created_str = datetime.now().strftime("%d/%m/%Y,%H:%M")
+        created_dt = self.header.datetime_obj if self.header.datetime_obj else datetime.now()
+        created_str = created_dt.strftime("%d/%m/%Y,%H:%M")
+        note_str = f"Converted from Ducati DDA binary log ({self.header.bike_model})" if self.header.bike_model else "Converted from Ducati DDA binary log"
 
         lines = [
             "This file is created using RaceChrono v10.2.4 ( http://racechrono.com/ ).",
@@ -1173,7 +1469,7 @@ class DDAParser:
             f'Track name,"{track_title}"',
             f'Driver name,"{driver_name}"',
             f"Created,{created_str}",
-            "Note,Converted from Ducati DDA binary log\n"
+            f"Note,{note_str}\n"
         ]
 
         cols = [
@@ -1181,21 +1477,24 @@ class DDAParser:
             "altitude", "bearing", "latitude", "longitude", "speed",
             "wheel_speed", "wheel_slip",
             "engine_rpm", "throttle_position", "gear", "lean_angle",
-            "torque_reduction_fast", "torque_reduction_slow"
+            "engine_coolant_temp", "torque_reduction_fast", "torque_reduction_slow",
+            "longitudinal_acc", "lateral_acc", "combined_acc"
         ]
         units = [
             "unix time", "", "", "s", "m",
             "m", "deg", "deg", "deg", "m/s",
             "km/h", "%",
             "rpm", "%", "#", "deg",
-            "%", "%"
+            "C", "%", "%",
+            "G", "G", "G"
         ]
         sources = [
             "", "", "", "", "",
             "100: gps", "100: gps", "100: gps", "100: gps", "100: gps",
             "100: can", "100: calc",
             "100: can", "100: can", "100: can", "100: can",
-            "100: can", "100: can"
+            "100: can", "100: can", "100: can",
+            "100: calc", "100: calc", "100: calc"
         ]
 
         lines.append(",".join(cols))
@@ -1228,8 +1527,12 @@ class DDAParser:
                 f"{r.tps_pct:.1f}",
                 f"{r.gear}",
                 f"{r.lean_angle_deg:.1f}",
+                f"{r.temp_c:.1f}",
                 f"{r.torque_fast_pct}",
-                f"{r.torque_slow_pct}"
+                f"{r.torque_slow_pct}",
+                f"{r.accel_long_g:.2f}",
+                f"{r.accel_lat_g:.2f}",
+                f"{r.accel_total_g:.2f}"
             ]
             lines.append(",".join(row))
 
@@ -1240,7 +1543,7 @@ class DDAParser:
         """
         Export telemetry to official RaceChrono native .rcz zip archive format.
         """
-        base_unix_ms = 1724868022000
+        base_unix_ms = int((self.header.unix_timestamp if self.header.unix_timestamp else 1724868022.0) * 1000)
         track_title = self.header.track_name or "Sonoma"
         
         valid_recs = [r for r in self.records if r.gps_lat is not None and r.gps_lon is not None]
@@ -1353,7 +1656,7 @@ class DDAParser:
 
     def export_gpx(self, out_path: str):
         """Export GPS track and telemetry extensions to GPX 1.1."""
-        base_time = datetime(2024, 8, 28, 11, 0, 0)
+        base_time = self.header.datetime_obj if self.header.datetime_obj else datetime(2024, 8, 28, 11, 0, 0)
         with open(out_path, "w", encoding="utf-8") as f:
             f.write('<?xml version="1.0" encoding="UTF-8"?>\n')
             f.write('<gpx version="1.1" creator="Ducati DDA Reader Pro" xmlns="http://www.topografix.com/GPX/1/1" xmlns:tp="http://www.garmin.com/xmlschemas/TrackPointExtension/v1">\n')
@@ -1373,6 +1676,7 @@ class DDAParser:
                     f.write(f'          <tp:TrackPointExtension>\n')
                     f.write(f'            <tp:hr>{r.rpm}</tp:hr>\n')
                     f.write(f'            <tp:cad>{int(r.lean_angle_deg)}</tp:cad>\n')
+                    f.write(f'            <tp:atemp>{int(round(r.temp_c))}</tp:atemp>\n')
                     f.write('          </tp:TrackPointExtension>\n')
                     f.write('        </extensions>\n')
                     f.write('      </trkpt>\n')

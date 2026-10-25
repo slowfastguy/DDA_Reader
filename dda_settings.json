@@ -571,6 +571,119 @@
           "description": "Final fast left onto front straight"
         }
       ]
+    },
+    "grattan_raceway": {
+      "id": "grattan_raceway",
+      "name": "Grattan Raceway",
+      "location": "Belding, MI",
+      "center_lat": 43.095400,
+      "center_lon": -85.384500,
+      "radius_m": 3500,
+      "gates": [
+        {
+          "id": "sf",
+          "name": "Start / Finish",
+          "type": "sf",
+          "lat": 43.096178,
+          "lon": -85.383956,
+          "bearing": 77.0
+        },
+        {
+          "id": "s1",
+          "name": "Sector 1 (The Bowl)",
+          "type": "split",
+          "lat": 43.095766,
+          "lon": -85.381598,
+          "bearing": 205.0
+        },
+        {
+          "id": "s2",
+          "name": "Sector 2 (Back Esses)",
+          "type": "split",
+          "lat": 43.094968,
+          "lon": -85.388314,
+          "bearing": 225.0
+        }
+      ],
+      "turns": [
+        {
+          "id": "t1",
+          "number": 1,
+          "name": "Turn 1",
+          "direction": "right",
+          "lat": 43.096800,
+          "lon": -85.379200,
+          "radius_m": 45,
+          "bearing": 140.0,
+          "description": "Heavy braking downhill right off 3,200ft front straight"
+        },
+        {
+          "id": "t2",
+          "number": 2,
+          "name": "Turn 2",
+          "direction": "right",
+          "lat": 43.096100,
+          "lon": -85.378800,
+          "radius_m": 45,
+          "bearing": 210.0,
+          "description": "Decreasing radius right exit"
+        },
+        {
+          "id": "t3",
+          "number": 3,
+          "name": "Turn 3 (The Bowl)",
+          "direction": "right",
+          "lat": 43.095600,
+          "lon": -85.382200,
+          "radius_m": 45,
+          "bearing": 240.0,
+          "description": "Cambered bowl right"
+        },
+        {
+          "id": "t4",
+          "number": 4,
+          "name": "Turn 4 (The Jump)",
+          "direction": "left",
+          "lat": 43.094700,
+          "lon": -85.384500,
+          "radius_m": 45,
+          "bearing": 250.0,
+          "description": "Blind crest uphill left"
+        },
+        {
+          "id": "t5",
+          "number": 5,
+          "name": "Turn 5 (Hairpin)",
+          "direction": "left",
+          "lat": 43.093800,
+          "lon": -85.389500,
+          "radius_m": 40,
+          "bearing": 340.0,
+          "description": "Tight slow hairpin left"
+        },
+        {
+          "id": "t8",
+          "number": 8,
+          "name": "Turn 8 (Esses)",
+          "direction": "right",
+          "lat": 43.095200,
+          "lon": -85.388100,
+          "radius_m": 45,
+          "bearing": 65.0,
+          "description": "Fast back-section Esses transition"
+        },
+        {
+          "id": "t10",
+          "number": 10,
+          "name": "Turn 10 (Last Turn)",
+          "direction": "right",
+          "lat": 43.095100,
+          "lon": -85.387200,
+          "radius_m": 45,
+          "bearing": 60.0,
+          "description": "Cambered right onto long front straight"
+        }
+      ]
     }
   }
 }

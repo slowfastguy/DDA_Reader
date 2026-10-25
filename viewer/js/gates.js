@@ -923,9 +923,22 @@ function findGateCrossings(gate, records, minIntervalS = 35.0) {
     }
   }
 
-  // Fallback: If no pure geometric intersection found, find local minimum distance points
+  // Fallback: If no pure geometric intersection found, find local minimum distance points with normal-projection interpolation
   if (crossings.length === 0) {
     let lastFallbackT = -999.0;
+    const gBrgRad = ((gate.bearing || 0) * Math.PI) / 180.0;
+    const nx = Math.sin(gBrgRad);
+    const ny = Math.cos(gBrgRad);
+    const cosLat = Math.max(1e-6, Math.cos((gate.lat * Math.PI) / 180.0));
+    const mPerLon = 111320.0 * cosLat;
+    const mPerLat = 111132.0;
+
+    const projS = (r) => {
+      const dx = (r.gps_lon - gate.lon) * mPerLon;
+      const dy = (r.gps_lat - gate.lat) * mPerLat;
+      return dx * nx + dy * ny;
+    };
+
     for (let i = 1; i < records.length - 1; i++) {
       const rPrev = records[i - 1];
       const rCur = records[i];
@@ -942,13 +955,33 @@ function findGateCrossings(gate, records, minIntervalS = 35.0) {
         let dBrg = Math.abs(gate.bearing - bikeBrg) % 360;
         if (dBrg > 180) dBrg = 360 - dBrg;
         if (dBrg < 80.0) {
+          let exactTime = rCur.time_s;
+          let exactDist = rCur.distance_m || 0;
+          let crossIdx = i;
+
+          for (let k = Math.max(0, i - 1); k <= Math.min(records.length - 2, i); k++) {
+            const ra = records[k];
+            const rb = records[k + 1];
+            if (ra.gps_lat !== null && rb.gps_lat !== null) {
+              const sa = projS(ra);
+              const sb = projS(rb);
+              if (sa <= 0.0 && sb >= 0.0 && (sb - sa) > 1e-6) {
+                const u = -sa / (sb - sa);
+                exactTime = ra.time_s + u * (rb.time_s - ra.time_s);
+                exactDist = (ra.distance_m || 0) + u * ((rb.distance_m || 0) - (ra.distance_m || 0));
+                crossIdx = k + 1;
+                break;
+              }
+            }
+          }
+
           crossings.push({
-            index: i,
-            record: rCur,
-            time_s: rCur.time_s,
-            distance_m: rCur.distance_m || 0
+            index: crossIdx,
+            record: records[crossIdx],
+            time_s: exactTime,
+            distance_m: exactDist
           });
-          lastFallbackT = rCur.time_s;
+          lastFallbackT = exactTime;
         }
       }
     }

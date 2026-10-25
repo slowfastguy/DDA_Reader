@@ -796,8 +796,27 @@ function loadSessionData(jsonObj) {
     dom.metaTrackName.textContent = h.track_name || 'Ducati Telemetry Track';
   }
   if (dom.metaRiderName) dom.metaRiderName.textContent = h.rider_name || 'Ducati Rider';
-  if (h.rider_name && !localStorage.getItem('dda_settings')) {
-    state.motogp.riderName = h.rider_name.toUpperCase();
+  const metaBikeEl = document.getElementById('meta-bike-model');
+  if (metaBikeEl) {
+    if (h.bike_model) {
+      metaBikeEl.textContent = `🏍️ ${h.bike_model}`;
+      metaBikeEl.style.display = '';
+    } else {
+      metaBikeEl.style.display = 'none';
+    }
+  }
+  const metaDateEl = document.getElementById('meta-session-date');
+  if (metaDateEl) {
+    if (h.session_datetime) {
+      metaDateEl.textContent = `📅 ${h.session_datetime}`;
+      metaDateEl.style.display = '';
+    } else {
+      metaDateEl.style.display = 'none';
+    }
+  }
+  if (!localStorage.getItem('dda_settings')) {
+    if (h.rider_name) state.motogp.riderName = h.rider_name.toUpperCase();
+    if (h.bike_model) state.motogp.bikeName = h.bike_model;
     syncMotoGPConfigToUI();
   }
   if (dom.metaDuration) dom.metaDuration.textContent = `${(s.duration_min || 0).toFixed(1)} min (${state.records.length.toLocaleString()} frames)`;

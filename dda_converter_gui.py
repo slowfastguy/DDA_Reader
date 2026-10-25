@@ -745,6 +745,13 @@ class DDAConverterApp(QMainWindow):
         self.lbl_stat_slip.setStyleSheet("font-weight: bold; color: #ffd600;")
         stats_grid.addWidget(self.lbl_stat_slip, 2, 1)
 
+        self.lbl_stat_temp = QLabel("Coolant Temp: -- °C", stats_box)
+        self.lbl_stat_temp.setStyleSheet("font-weight: bold; color: #ff9100;")
+        stats_grid.addWidget(self.lbl_stat_temp, 2, 2)
+
+        self.lbl_stat_odo = QLabel("Odometer: -- km", stats_box)
+        stats_grid.addWidget(self.lbl_stat_odo, 2, 3)
+
         content_layout.addWidget(stats_box)
 
         # 4. Multi-Tabbed Workspace
@@ -755,7 +762,7 @@ class DDAConverterApp(QMainWindow):
         insp_layout = QVBoxLayout(tab_inspector)
         insp_layout.setContentsMargins(8, 8, 8, 8)
 
-        cols = ("Time (s)", "Speed (Wheel)", "Speed (GPS)", "Wheel Slip", "RPM", "TPS", "Gear", "Lean (°)", "DTC Fast", "DTC Slow", "Latitude", "Longitude", "Altitude (m)")
+        cols = ("Time (s)", "Speed (Wheel)", "Speed (GPS)", "Wheel Slip", "RPM", "TPS", "Gear", "Lean (°)", "Temp (°C)", "DTC Fast", "DTC Slow", "Odo (km)", "Latitude", "Longitude", "Altitude (m)")
         self.tree = QTableWidget(tab_inspector)
         self.tree.setColumnCount(len(cols))
         self.tree.setHorizontalHeaderLabels(cols)
@@ -939,8 +946,14 @@ class DDAConverterApp(QMainWindow):
             self._log(f"[+] Successfully decoded {count:,} telemetry frames.\n")
 
             # Update Metadata display
-            self.lbl_meta_track.setText(f"Track: {self.parser.header.track_name or 'N/A'}")
-            self.lbl_meta_rider.setText(f"Rider: {self.parser.header.rider_name or 'N/A'}")
+            track_disp = self.parser.header.track_name or 'N/A'
+            if self.parser.header.session_datetime:
+                track_disp += f" ({self.parser.header.session_datetime})"
+            rider_disp = self.parser.header.rider_name or 'N/A'
+            if self.parser.header.bike_model:
+                rider_disp += f" [{self.parser.header.bike_model}]"
+            self.lbl_meta_track.setText(f"Track: {track_disp}")
+            self.lbl_meta_rider.setText(f"Rider: {rider_disp}")
             self.lbl_meta_dur.setText(f"Duration: {self.parser.stats.get('duration_min', 0):.2f} min ({self.parser.stats.get('duration_s', 0):.1f}s)")
             self.lbl_meta_gps.setText(f"GPS Fixes: {self.parser.stats.get('gps_fixes', 0):,}")
 
@@ -964,6 +977,19 @@ class DDAConverterApp(QMainWindow):
             alt_max = self.parser.stats.get('max_alt_m', 0)
             self.lbl_stat_alt.setText(f"Elevation: {alt_min:.1f} m to {alt_max:.1f} m")
 
+            t_min = self.parser.stats.get('min_temp_c', 0)
+            t_max = self.parser.stats.get('max_temp_c', 0)
+            if t_max > 0:
+                self.lbl_stat_temp.setText(f"Coolant Temp: {t_min:.0f}°C – {t_max:.0f}°C")
+            else:
+                self.lbl_stat_temp.setText("Coolant Temp: N/A")
+
+            odo_end = self.parser.stats.get('odometer_end_km', 0) or self.parser.header.header_odometer_km
+            if odo_end > 0:
+                self.lbl_stat_odo.setText(f"Odometer: {odo_end:,.0f} km ({odo_end * 0.621371:,.0f} mi)")
+            else:
+                self.lbl_stat_odo.setText("Odometer: N/A")
+
             # Populate Table with Downsampled Records
             sampled_records = self.records_sample(self.parser.records, max_rows=1500)
             self.tree.setRowCount(len(sampled_records))
@@ -974,6 +1000,8 @@ class DDAConverterApp(QMainWindow):
                 alt_str = f"{r.gps_alt_m:.1f}" if r.gps_lat is not None else "--"
                 gps_spd_str = f"{r.gps_speed_kmh:.1f}" if r.gps_speed_kmh > 0 else "--"
                 slip_str = f"{r.wheel_slip_pct:+.1f}%" if r.gps_speed_kmh > 5.0 else "--"
+                temp_str = f"{r.temp_c:.0f}°C" if r.temp_c > 0 else "--"
+                odo_str = f"{r.odometer_km:.0f}" if r.odometer_km > 0 else "--"
 
                 vals = [
                     f"{r.time_s:.2f}",
@@ -984,8 +1012,10 @@ class DDAConverterApp(QMainWindow):
                     f"{r.tps_pct:.1f}%",
                     f"{r.gear}",
                     f"{r.lean_angle_deg:.1f}°",
+                    temp_str,
                     f"{r.torque_fast_pct:.0f}%",
                     f"{r.torque_slow_pct:.0f}%",
+                    odo_str,
                     lat_str,
                     lon_str,
                     alt_str
@@ -1001,6 +1031,10 @@ class DDAConverterApp(QMainWindow):
             self._log("=" * 60)
             self._log(f"Track Name      : {self.parser.header.track_name}")
             self._log(f"Rider Name      : {self.parser.header.rider_name}")
+            if self.parser.header.bike_model:
+                self._log(f"Bike Model      : {self.parser.header.bike_model} (Project {self.parser.header.bike_code})")
+            if self.parser.header.session_datetime:
+                self._log(f"Session Date    : {self.parser.header.session_datetime}")
             self._log(f"Session Duration: {self.parser.stats.get('duration_s', 0):.1f} s ({self.parser.stats.get('duration_min', 0):.2f} min)")
             self._log(f"Total Frames    : {len(self.parser.records):,}")
             self._log(f"GPS Fixes       : {self.parser.stats.get('gps_fixes', 0):,}")
@@ -1009,6 +1043,10 @@ class DDAConverterApp(QMainWindow):
             self._log(f"Peak Wheel Slip : +{max_slip:.1f}%")
             self._log(f"Max RPM         : {self.parser.stats.get('max_rpm', 0):,} RPM")
             self._log(f"Max Lean Angle  : Left {lean_l:.1f}° / Right {lean_r:.1f}°")
+            if t_max > 0:
+                self._log(f"Coolant Temp    : {t_min:.0f}°C to {t_max:.0f}°C")
+            if odo_end > 0:
+                self._log(f"Odometer        : {odo_end:,.0f} km")
             self._log("=" * 60)
 
         except Exception as e:

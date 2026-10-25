@@ -162,7 +162,7 @@ function renderCharts() {
     ctx.lineWidth = 2.0;
     ctx.beginPath();
     for (let i = 0; i < count; i++) {
-      const dtc = viewRecords[i].torque_slow_pct || 0;
+      const dtc = Math.max(viewRecords[i].torque_slow_pct || 0, viewRecords[i].torque_fast_pct || 0, viewRecords[i].dtc || 0);
       const x = (i / (count - 1)) * w;
       const y = yL2 + laneHeight - pad - (dtc / 100.0) * (laneHeight - pad * 2);
       if (i === 0) ctx.moveTo(x, y);
@@ -255,6 +255,25 @@ function renderCharts() {
       const alt = viewRecords[i].gps_alt_m !== null ? viewRecords[i].gps_alt_m : minAlt;
       const x = (i / (count - 1)) * w;
       const y = yL4 + laneHeight - pad - ((alt - minAlt) / altRange) * (laneHeight - pad * 2);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  // Optional Engine Coolant Temp Channel (°C)
+  if (state.channels.temp) {
+    const minTemp = Math.max(20, (state.sessionData?.stats?.min_temp_c || 60) - 5);
+    const maxTemp = Math.max(minTemp + 15, (state.sessionData?.stats?.max_temp_c || 105) + 5);
+    const tempRange = Math.max(10, maxTemp - minTemp);
+
+    ctx.strokeStyle = '#ff6d00';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    for (let i = 0; i < count; i++) {
+      const tVal = viewRecords[i].temp_c || minTemp;
+      const x = (i / (count - 1)) * w;
+      const y = yL4 + laneHeight - pad - ((tVal - minTemp) / tempRange) * (laneHeight - pad * 2);
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
@@ -1117,7 +1136,7 @@ function showChartTooltip(idx, mouseX, mouseY) {
     Speed: <span style="color:#00e5ff">${spd.toFixed(1)}</span> (Wheel) | <span style="color:#b388ff">${gpsSpd.toFixed(1)} ${spdUnit}</span> (GPS) | Slip: <span style="color:${Math.abs(slip) > 6 ? '#ffd600' : '#00e676'}">${slip >= 0 ? '+' : ''}${slip.toFixed(1)}%</span><br>
     RPM: <span style="color:#ff9100">${r.rpm || 0}</span> | TPS: <span style="color:#00e676">${(r.tps_pct || 0).toFixed(0)}%</span> | Gear: <span style="color:#d500f9">${r.gear || 'N'}</span> | Lean: <span style="color:#ff0055">${(r.lean_angle_deg || 0).toFixed(1)}°</span><br>
     G-Force: <span style="color:#ff1744">${glong >= 0 ? '+' : ''}${glong}g</span> long | <span style="color:#2979ff">${glat >= 0 ? '+' : ''}${glat}g</span> lat | <span style="color:#ffd600">${gtot}G</span> sum<br>
-    DTC: <span style="color:#ffd600">${r.torque_slow_pct || 0}%</span> | Alt: ${r.gps_alt_m ? r.gps_alt_m.toFixed(1) : '0.0'}m
+    DTC: <span style="color:#ffd600">${Math.max(r.torque_slow_pct || 0, r.torque_fast_pct || 0, r.dtc || 0)}%</span> | Temp: <span style="color:#ff6d00">${r.temp_c ? r.temp_c.toFixed(0) + '°C' : '--'}</span> | Alt: ${r.gps_alt_m ? r.gps_alt_m.toFixed(1) : '0.0'}m
   `;
   dom.chartTooltip.style.display = 'block';
   dom.chartTooltip.style.left = `${Math.min(canvasWidth - 250, Math.max(10, mouseX + 15))}px`;

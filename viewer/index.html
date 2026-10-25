@@ -28,6 +28,8 @@
         <h1 id="meta-track-name" class="track-title">Sonoma Raceway</h1>
         <div class="session-submeta">
           <span id="meta-rider-name" class="badge badge-rider">Ducati Rider</span>
+          <span id="meta-bike-model" class="badge badge-dur" style="display: none;"></span>
+          <span id="meta-session-date" class="badge badge-dur" style="display: none;"></span>
           <span id="meta-duration" class="badge badge-dur">18:21.0 (11,010 frames)</span>
           <span id="status-engine" class="indicator-dot dot-active"></span>
           <span id="status-engine-text" class="text-green status-text">ECU 10Hz SYNC</span>
@@ -678,6 +680,9 @@
                   <button class="dropdown-item channel-toggle-btn" data-channel="elevation" style="--c: #ab47bc;">
                     <span class="dropdown-item-left"><span class="ch-dot"></span><span>Elevation & Grade %</span></span>
                   </button>
+                  <button class="dropdown-item channel-toggle-btn" data-channel="temp" style="--c: #ff6d00;">
+                    <span class="dropdown-item-left"><span class="ch-dot"></span><span>Engine Coolant Temp (°C)</span></span>
+                  </button>
                   <button class="dropdown-item channel-toggle-btn active" data-channel="lineDelta" id="leg-compare-linedelta" style="--c: #ff007f; display: none;">
                     <span class="dropdown-item-left"><span class="ch-dot"></span><span>Racing Line Lateral Δ</span></span>
                   </button>
@@ -1070,6 +1075,14 @@
             <div class="dtc-item">
               <span class="dtc-lbl">DISTANCE</span>
               <span id="val-dist-numeric" class="val-mono">0.00 km</span>
+            </div>
+            <div class="dtc-item">
+              <span class="dtc-lbl">COOLANT TEMP</span>
+              <span id="val-temp-numeric" class="val-mono">-- °C</span>
+            </div>
+            <div class="dtc-item">
+              <span class="dtc-lbl">ODOMETER</span>
+              <span id="val-odo-numeric" class="val-mono">-- km</span>
             </div>
           </div>
         </div>

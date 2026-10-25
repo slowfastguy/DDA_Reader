@@ -218,6 +218,34 @@ function updateUI(isFromVideoMasterClock = false) {
   const interpDist = dist0 + (dist1 - dist0) * frac;
   if (dom.valDistNumeric) dom.valDistNumeric.textContent = `${(interpDist / 1000.0).toFixed(2)} km`;
 
+  // 8b. Engine Coolant Temp & Total Odometer
+  const temp0 = r0.temp_c || 0;
+  const temp1 = r1.temp_c || temp0;
+  const interpTempC = temp0 + (temp1 - temp0) * frac;
+  const tempEl = dom.valTempNumeric || document.getElementById('val-temp-numeric');
+  if (tempEl) {
+    if (interpTempC > 0) {
+      const tempF = Math.round(interpTempC * 1.8 + 32);
+      tempEl.textContent = state.unitMph ? `${Math.round(interpTempC)}°C (${tempF}°F)` : `${interpTempC.toFixed(1)} °C`;
+      tempEl.style.color = interpTempC >= 103 ? '#ff1744' : (interpTempC >= 95 ? '#ffd600' : '#a5b4fc');
+    } else {
+      tempEl.textContent = '-- °C';
+      tempEl.style.color = '#a5b4fc';
+    }
+  }
+
+  const odoVal = r0.odometer_km || (state.sessionData?.stats?.odometer_end_km) || (state.sessionData?.header?.header_odometer_km) || 0;
+  const odoEl = dom.valOdoNumeric || document.getElementById('val-odo-numeric');
+  if (odoEl) {
+    if (odoVal > 0) {
+      odoEl.textContent = state.unitMph
+        ? `${Math.round(odoVal * 0.621371).toLocaleString()} mi`
+        : `${Math.round(odoVal).toLocaleString()} km`;
+    } else {
+      odoEl.textContent = '-- km';
+    }
+  }
+
   // 9. Live Lap Timer & Progressive Counting Sector Splits
   let currentLapObj = null;
   if (state.selectedLapNum !== -1) {
