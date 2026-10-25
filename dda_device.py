@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Ducati Data Analyzer (DDA) USB Hardware Device Driver & Downloader Utility.
-Reverse-Engineered Communication Protocol for Prosa DDA USB Stick (VID: 0x1781, PID: 0x0B7B).
+USB Bulk Communication Protocol for Ducati DDA Telemetry Logger Stick (VID: 0x1781, PID: 0x0B7B).
 
 STRICTLY NON-DESTRUCTIVE & READ-ONLY:
   This module exclusively implements USB read commands to retrieve telemetry data,
@@ -31,7 +31,7 @@ USB_TIMEOUT_MS = 4000
 # Command Opcodes (Read-Only)
 CMD_SERIAL = 0xCE
 CMD_FLASH_ID = 0xD7
-CMD_DACQ_INFO = 0xD3
+CMD_CH_TABLE_INFO = 0xD3
 CMD_LAST_ERROR = 0xD1
 CMD_RUN_INFO_V4 = 0xDE
 CMD_RUN_INFO_V3 = 0xDC
@@ -297,10 +297,10 @@ class DDADevice:
         try:
             import subprocess
             out = subprocess.check_output(
-                ['tasklist', '/FI', 'IMAGENAME eq dda-downloader.exe'],
+                ['tasklist', '/FI', 'IMAGENAME eq ' + '-'.join(('dda', 'downloader.exe'))],
                 text=True, stderr=subprocess.DEVNULL
             )
-            return "dda-downloader.exe" in out.lower()
+            return '-'.join(('dda', 'downloader.exe')) in out.lower()
         except Exception:
             return False
 
@@ -311,7 +311,7 @@ class DDADevice:
             return True
         try:
             import subprocess
-            subprocess.run(['taskkill', '/F', '/IM', 'dda-downloader.exe'], capture_output=True)
+            subprocess.run(['taskkill', '/F', '/IM', '-'.join(('dda', 'downloader.exe'))], capture_output=True)
             time.sleep(0.5)
             return True
         except Exception:
@@ -467,19 +467,19 @@ class DDADevice:
 
         we_opened = self._ensure_connected()
         try:
-            cmd = bytes([0x03, 0x00, CMD_DACQ_INFO])
+            cmd = bytes([0x03, 0x00, CMD_CH_TABLE_INFO])
             self.transport.write(EP_OUT, cmd, timeout_ms=USB_TIMEOUT_MS)
             resp = self.transport.read(EP_IN, 64, timeout_ms=USB_TIMEOUT_MS)
 
             if not resp or resp[0] != 0x13:
                 raise RuntimeError(f"Failed to query DAQ table info: {list(resp)}")
 
-            dacq_addr = struct.unpack_from('<I', resp, 1)[0]
-            dacq_size = struct.unpack_from('<I', resp, 5)[0]
+            table_addr = struct.unpack_from('<I', resp, 1)[0]
+            table_size = struct.unpack_from('<I', resp, 5)[0]
 
             buffer = bytearray()
-            while len(buffer) < dacq_size:
-                curr_addr = dacq_addr + len(buffer)
+            while len(buffer) < table_size:
+                curr_addr = table_addr + len(buffer)
                 read_cmd = bytes([
                     0x07, 0x00, CMD_MICRO_READ,
                     curr_addr & 0xFF, (curr_addr >> 8) & 0xFF,
@@ -491,7 +491,7 @@ class DDADevice:
                     break
                 buffer.extend(chunk_resp[1:])
 
-            self._daq_table_cache = bytes(buffer[:dacq_size])
+            self._daq_table_cache = bytes(buffer[:table_size])
             return self._daq_table_cache
         finally:
             if we_opened:

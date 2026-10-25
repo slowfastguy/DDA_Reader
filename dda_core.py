@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Ducati DDA (Ducati Data Analyzer) Core Engine & Universal Exporter
-Decodes proprietary Prosa CAN-bus binary telemetry streams with GPS & chassis dynamics.
+Decodes Ducati CAN-bus binary telemetry streams with GPS & chassis dynamics.
 100% Dynamic & Universal:
   - Discovers GPS spatial track chain across any global coordinates (no hardcoded locations).
   - Applies Gaussian filtering to eliminate GNSS coordinate jitter while preserving apex accuracy.
@@ -116,10 +116,20 @@ class DDAChannelDescriptor:
 class DDAHeader:
     """Parsed DDA File Header and Metadata."""
     BIKE_CODE_MAP = {
-        "0801": "Panigale 1199 / 899",
-        "0903": "Panigale 1299 / 959",
-        "1409": "Panigale V4",
-        "1714": "Streetfighter V2 / Panigale V2",
+        "0801": "1199 / 899 Panigale",
+        "0902": "Hypermotard 821 / Monster 821 / 1200",
+        "1201": "1199 Superleggera",
+        "1204": "1299 / 959 Panigale",
+        "1206": "1199 Panigale R / Superstock",
+        "1408": "1299 Superleggera",
+        "1409": "Panigale V4 / V4 S / Speciale",
+        "1714": "Panigale V4 R / V2 / Streetfighter V2 / V4",
+    }
+    LEGACY_NOTE_MAP = {
+        "SBK 1198": ("SBK1198", "Superbike 1198 / 1198 S / SP"),
+        "SBK 1098": ("SBK1098", "Superbike 1098 / 1098 S / R / 848"),
+        "Monster":  ("Monster", "Monster 696 / 796 / 1100 / Streetfighter"),
+        "Desmo16":  ("Desmo16", "Desmosedici RR (D16RR)"),
     }
 
     def __init__(self):
@@ -202,11 +212,19 @@ class DDAHeader:
         try:
             note_idx = raw_data.find(b'DDA for', 0, 500)
             if note_idx != -1:
-                self.session_note = raw_data[note_idx:note_idx+40].split(b'\x00')[0].decode('latin1', errors='ignore').strip()
+                self.session_note = raw_data[note_idx:note_idx+45].split(b'\x00')[0].decode('latin1', errors='ignore').strip()
                 m_code = re.search(r'DDA for\s+(\d{4})', self.session_note)
                 if m_code:
                     self.bike_code = m_code.group(1)
                     self.bike_model = self.BIKE_CODE_MAP.get(self.bike_code, f"Ducati ({self.bike_code})")
+                else:
+                    for key, (code, label) in self.LEGACY_NOTE_MAP.items():
+                        if key in self.session_note:
+                            self.bike_code = code
+                            self.bike_model = label
+                            break
+                if "with ADC Ext" in self.session_note and self.bike_model:
+                    self.bike_model += " (ADC Ext)"
             else:
                 self.session_note = ""
         except Exception:
@@ -222,25 +240,7 @@ class DDAHeader:
             if 500 <= acq_size <= 8192:
                 self.header_size = acq_size
 
-        # Map descriptor byte 21 high nibble -> sampling period in 10ms ticks (100Hz clock)
-        rate_ticks_map = {
-            7: 2,    # 50 Hz (0.02s)
-            6: 5,    # 20 Hz (0.05s)
-            5: 10,   # 10 Hz (0.10s)
-            4: 20,   # 5 Hz  (0.20s)
-            3: 25,   # 4 Hz  (0.25s)
-            2: 50,   # 2 Hz  (0.50s)
-            0: 100,  # 1 Hz  (1.00s)
-        }
-        # Map descriptor byte 21 low nibble -> channel width in bytes
-        byte_size_map = {
-            0x1: 1, 0x8: 1, 0x9: 1,
-            0x3: 2, 0xB: 2,
-            0x7: 3, 0xC: 3,
-            0xF: 4,
-        }
-
-        # Extract 80-byte channel descriptors if present
+        # Extract 80-byte channel descriptors from the DAQ header block
         self.channels.clear()
         ch_start = 510
         if self.header_size >= 590 and len(raw_data) >= self.header_size:
@@ -254,46 +254,55 @@ class DDAHeader:
                 if not name:
                     break
 
-                can_id = struct.unpack_from("<H", ch_block, 16)[0]
-                b21 = ch_block[21]
-                hi_nib = (b21 >> 4) & 0x0F
-                lo_nib = b21 & 0x0F
-                ticks = rate_ticks_map.get(hi_nib, 10)
-                interval_s = ticks * 0.01
-                byte_size = byte_size_map.get(lo_nib, 2)
+                # Skip non-sampled trigger pseudo-channel ("ACQ") if present
+                if name == "ACQ":
+                    pos += 80
+                    continue
+
+                u32_16 = struct.unpack_from("<I", ch_block, 16)[0]
+                can_id = u32_16 & 0x1FFFFFFF
+                u16_20 = struct.unpack_from("<H", ch_block, 20)[0]
+                byte_size = (((u16_20 >> 6) & 0x1F) + 8) >> 3
+                if byte_size < 1 or byte_size > 4:
+                    byte_size = 2
+
+                fcode = (ch_block[21] >> 3) & 0x1F
+                freq_hz = (fcode % 10) * (10 ** (fcode // 10))
+                if freq_hz <= 0:
+                    freq_hz = 10
+                interval_s = 1.0 / freq_hz
 
                 desc_parts = ch_block[22:54].split(b'\x00')
                 long_name = desc_parts[0].decode('latin1', errors='ignore').strip() if len(desc_parts) > 0 else ""
                 unit = desc_parts[1].decode('latin1', errors='ignore').strip() if len(desc_parts) > 1 else ""
+
+                b54 = ch_block[54]
+                b55 = ch_block[55]
+                u16_54 = struct.unpack_from("<H", ch_block, 54)[0]
+                decimals = (b54 >> 3) & 0x0F
+                scale_mode = (u16_54 >> 7) & 0x07
+                is_signed = bool((b55 >> 2) & 0x01)
                 f60, f64 = struct.unpack_from("<ff", ch_block, 60)
 
-                if name == "SPEED":
-                    ch = DDAChannelDescriptor(name, long_name, "km/h", can_id, byte_size=byte_size, interval_s=interval_s, multiplier=0.065625)
-                elif name == "RPM":
-                    ch = DDAChannelDescriptor(name, long_name, "rpm", can_id, byte_size=byte_size, interval_s=interval_s, multiplier=1.0)
-                elif name == "TEMP":
-                    ch = DDAChannelDescriptor(name, long_name, "C", can_id, byte_size=byte_size, interval_s=interval_s, multiplier=1.0, offset=-40.0)
-                elif name == "GAS":
-                    ch = DDAChannelDescriptor(name, long_name, "%", can_id, byte_size=byte_size, interval_s=interval_s, multiplier=0.5)
-                elif name == "DIST":
-                    ch = DDAChannelDescriptor(name, long_name, "km", can_id, byte_size=byte_size, interval_s=interval_s, multiplier=1.0)
-                elif name == "GEAR":
-                    ch = DDAChannelDescriptor(name, long_name, "#", can_id, byte_size=byte_size, interval_s=interval_s, multiplier=1.0)
-                elif name == "PSI_LEAN_ANGLE":
-                    ch = DDAChannelDescriptor(name, long_name, "deg", can_id, byte_size=byte_size, interval_s=interval_s, multiplier=0.05493164, offset=-450.0)
-                elif name in ("TORQUE_FAST", "TORQUE_SLOW", "DTC"):
-                    ch = DDAChannelDescriptor(name, long_name, unit or "%", can_id, byte_size=byte_size, interval_s=interval_s, multiplier=1.0)
-                elif name == "GPS_ALT":
-                    ch = DDAChannelDescriptor(name, long_name, "m", can_id, byte_size=byte_size, interval_s=interval_s, multiplier=0.1)
-                elif name in ("GPS_LON", "GPS_LAT"):
-                    ch = DDAChannelDescriptor(name, long_name, "deg", can_id, byte_size=byte_size, interval_s=interval_s, multiplier=1e-6, signed=True)
-                elif name in ("LAP", "INT_LAP1", "INT_LAP2"):
-                    ch = DDAChannelDescriptor(name, long_name, "sec", can_id, byte_size=byte_size, interval_s=interval_s, multiplier=1.0)
-                else:
-                    mult = f60 if (f60 != 0.0 and not math.isnan(f60)) else 1.0
+                scale_dec = 10.0 ** (-decimals)
+                if scale_mode == 1 and f60 != 0.0 and not math.isnan(f60):
+                    mult = scale_dec / f60
+                    offs = 0.0
+                elif scale_mode == 2 and not math.isnan(f60):
+                    mult = scale_dec * f60
                     offs = f64 if not math.isnan(f64) else 0.0
-                    ch = DDAChannelDescriptor(name, long_name, unit, can_id, byte_size=byte_size, interval_s=interval_s, multiplier=mult, offset=offs)
+                elif scale_mode == 4 and not math.isnan(f60):
+                    mult = scale_dec
+                    offs = f60
+                else:
+                    mult = scale_dec
+                    offs = 0.0
 
+                ch = DDAChannelDescriptor(
+                    name, long_name, unit, can_id,
+                    byte_size=byte_size, interval_s=interval_s,
+                    multiplier=mult, offset=offs, signed=is_signed
+                )
                 self.channels.append(ch)
                 pos += 80
 
@@ -450,21 +459,27 @@ class DDAParser:
         self._hw_lap_crossings = []
 
         channels = self.header.channels
-        has_imu_lean = any(ch.name == "PSI_LEAN_ANGLE" for ch in channels)
-        has_torque_fast = any(ch.name == "TORQUE_FAST" for ch in channels)
+        ch_map = {ch.name: ch for ch in channels}
+        has_imu_lean = "PSI_LEAN_ANGLE" in ch_map
+        has_torque_fast = "TORQUE_FAST" in ch_map
 
-        # Precompute active channel lists for each tick in the 100-tick (1.0s) superframe
+        # Determine superframe clock (100Hz standard, or 200Hz when 200Hz ADC Ext channels like FORK/SHOCK are active)
+        max_freq = max((round(1.0 / ch.interval_s) for ch in channels if ch.interval_s > 0), default=100)
+        base_clock_hz = 200 if max_freq >= 200 else 100
+        frame_10hz_ticks = base_clock_hz // 10
+
+        # Precompute active channel lists for each tick in the 1.0s superframe
         superframe_schedule = []
-        for t_mod in range(100):
+        for t_mod in range(base_clock_hz):
             active = [
-                (ch.name, ch.byte_size, ch.signed)
+                (ch.name, ch.byte_size, ch.signed, ch.multiplier, ch.offset)
                 for ch in channels
-                if (t_mod % ch.ticks) == 0
+                if (t_mod % max(1, int(round(ch.interval_s * base_clock_hz)))) == 0
             ]
             step_bytes = sum(item[1] for item in active)
             superframe_schedule.append((active, step_bytes))
 
-        # 2. Universal 100Hz TDM Stream Decoder with Sub-10Hz Window Aggregation
+        # 2. Universal TDM Stream Decoder with Sub-10Hz Window Aggregation
         cur_state = {ch.name: 0 for ch in channels}
         offset = 0
         tick = 0
@@ -475,6 +490,7 @@ class DDAParser:
         prev_hw_lap = 255
 
         # Sub-10Hz (100ms window) accumulators
+        spd_win = []
         rpm_win = []
         gas_win = []
         lean_win = []
@@ -488,11 +504,11 @@ class DDAParser:
         gps_rec_list = []
 
         while offset < payload_len:
-            active, step_bytes = superframe_schedule[tick % 100]
+            active, step_bytes = superframe_schedule[tick % base_clock_hz]
             if offset + step_bytes > payload_len:
                 break
 
-            for name, sz, is_signed in active:
+            for name, sz, is_signed, mult, offs in active:
                 if sz == 1:
                     val = struct.unpack_from("<b" if is_signed else "<B", payload, offset)[0]
                 elif sz == 2:
@@ -511,35 +527,43 @@ class DDAParser:
                 offset += sz
                 cur_state[name] = val
 
-                # Accumulate sub-10Hz (50Hz & 20Hz) samples across each 10-tick (100ms) window
-                if name == "RPM":
-                    if 0 <= val <= 20000:
-                        rpm_win.append(val)
-                elif name == "GAS":
-                    if 0 <= val <= 220:
-                        gas_win.append(min(100.0, max(0.0, val * 0.5)))
+                # Accumulate sub-10Hz samples across each 100ms window using header scaling
+                if name in ("SPEED", "R_SPD"):
+                    spd_val = val * mult + offs
+                    if 0.0 <= spd_val <= 350.0:
+                        spd_win.append(spd_val)
+                elif name == "RPM":
+                    rpm_val = int(round(val * mult + offs))
+                    if 0 <= rpm_val <= 20000:
+                        rpm_win.append(rpm_val)
+                elif name in ("GAS", "DEM"):
+                    gas_val = val * mult + offs
+                    if 0.0 <= gas_val <= 110.0:
+                        gas_win.append(min(100.0, max(0.0, gas_val)))
                 elif name == "PSI_LEAN_ANGLE":
-                    if 6500 <= val <= 9800:
-                        lean_win.append(max(-60.0, min(60.0, (val * 0.05493164) - 450.0)))
+                    lean_val = val * mult + offs
+                    if -75.0 <= lean_val <= 75.0:
+                        lean_win.append(max(-60.0, min(60.0, lean_val)))
                 elif name == "TORQUE_FAST":
-                    if 0 <= val <= 100:
-                        tfast_win.append(val)
+                    tf_val = int(round(val * mult + offs))
+                    if 0 <= tf_val <= 100:
+                        tfast_win.append(tf_val)
                 elif name == "TORQUE_SLOW":
-                    if 0 <= val <= 100:
-                        tslow_win.append(val)
-                elif name == "DTC":
-                    if 0 <= val <= 100:
-                        dtc_win.append(val)
+                    ts_val = int(round(val * mult + offs))
+                    if 0 <= ts_val <= 100:
+                        tslow_win.append(ts_val)
+                elif name in ("DTC", "SL_IDX"):
+                    dtc_val = int(round(val * mult + offs))
+                    if 0 <= dtc_val <= 100:
+                        dtc_win.append(dtc_val)
 
-            # Emit synchronized 10Hz telemetry frame every 10 ticks (0.10s)
-            if (tick % 10) == 0:
-                current_time = tick * 0.01
+            # Emit synchronized 10Hz telemetry frame every 0.10s
+            if (tick % frame_10hz_ticks) == 0:
+                current_time = tick / float(base_clock_hz)
                 rec = DDARecord(current_time)
 
-                spd_raw = cur_state.get("SPEED", 0)
-                spd = spd_raw * 0.065625
-                if 0.0 <= spd <= 350.0:
-                    last_speed = spd
+                if spd_win:
+                    last_speed = sum(spd_win) / len(spd_win)
                 rec.speed_kmh = last_speed
 
                 if rpm_win:
@@ -553,9 +577,12 @@ class DDAParser:
                 gear_raw = cur_state.get("GEAR", 0)
                 rec.gear = gear_raw if 0 <= gear_raw <= 6 else 0
 
-                if "TEMP" in cur_state:
-                    t_raw = cur_state["TEMP"]
-                    rec.temp_c = float(t_raw - 40) if t_raw > 0 else 0.0
+                temp_key = "TEMP" if "TEMP" in cur_state else ("T_H2O" if "T_H2O" in cur_state else None)
+                if temp_key is not None:
+                    t_raw = cur_state[temp_key]
+                    t_ch = ch_map.get(temp_key)
+                    t_offs = t_ch.offset if t_ch else -40.0
+                    rec.temp_c = float(t_raw + t_offs) if t_raw > 0 else 0.0
 
                 if "DIST" in cur_state:
                     d_raw = cur_state["DIST"]
@@ -577,6 +604,7 @@ class DDAParser:
                     rec.torque_slow_pct = 0
 
                 # Clear sub-10Hz window accumulators for the next 100ms interval
+                spd_win.clear()
                 rpm_win.clear()
                 gas_win.clear()
                 lean_win.clear()

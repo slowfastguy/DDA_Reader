@@ -4,7 +4,7 @@
 
 The **DDA Hardware Downloader** is a reverse-engineered, non-destructive USB extraction engine for **Ducati Data Analyzer (DDA / DDA+ / DDA Evo)** telemetry logger sticks.
 
-Historically, extracting recorded session data from a physical DDA stick required the proprietary OEM Windows utility (`dda-downloader.exe`), which runs in the system tray and locks down the device. The DDA stick is not a standard USB Mass Storage / Flash drive (it does not appear as a disk drive in Windows Explorer or Disk Management); instead, it operates as a custom **WinUSB bulk endpoint device**.
+Historically, extracting recorded session data from a physical DDA stick required the legacy OEM Windows tray utility, which locks down the device. The DDA stick is not a standard USB Mass Storage / Flash drive (it does not appear as a disk drive in Windows Explorer or Disk Management); instead, it operates as a custom **WinUSB bulk endpoint device**.
 
 This engine delivers:
 1. **Direct Hardware Extraction**: Reads recorded session runs directly from the physical USB stick into native `.dda` files.
@@ -40,7 +40,7 @@ flowchart TD
 ### 1. USB Interface Parameters
 * **Vendor ID (VID)**: `0x1781`
 * **Product ID (PID)**: `0x0B7B`
-* **Device Name**: `ProsaDDA Device libusb-1.0` / `Ducati Data Analyzer`
+* **Device Name**: `Ducati Data Analyzer USB Device`
 * **Device Interface GUID**: `{044F0DE0-4B4C-4247-B18A-4C8F1FFB67A8}`
 * **Endpoints**:
   * `0x01` (Bulk OUT, 64-byte packets)
@@ -208,9 +208,9 @@ if runs:
 
 ## 🔒 Exclusive Access & Background Process Handling
 
-On Windows, the WinUSB driver grants exclusive handle access to one process at a time. If the official OEM utility (`dda-downloader.exe`) is running in the Windows system tray, it holds an active handle on Interface 0.
+On Windows, the WinUSB driver grants exclusive handle access to one process at a time. If the legacy OEM tray utility is running in the Windows system tray, it holds an active handle on Interface 0.
 
-* **Automatic Detection**: Both `dda_device.py` and the GUI automatically check if `dda-downloader.exe` is running via Windows process queries.
+* **Automatic Detection**: Both `dda_device.py` and the GUI automatically check if the legacy background tray process is running via Windows process queries.
 * **1-Click Helper**: 
   * In the GUI, an orange banner appears with a **`Close OEM Downloader`** button.
   * In the CLI, the prompt asks: `Close DDA Downloader now to allow USB access? [Y/n]`.
