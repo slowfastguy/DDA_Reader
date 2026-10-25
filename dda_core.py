@@ -439,11 +439,34 @@ class DDAParser:
         channels (50Hz RPM, 20Hz Throttle/Lean/DTC) into each 10Hz GPS frame, applying
         Gaussian smoothing to GPS coordinates, deriving vehicle dynamics, and segmenting laps.
         """
+        if isinstance(self.filepath, str):
+            clean_path = self.filepath.strip().strip('"').strip("'").lstrip("\u202a\u202b\u202c\u200e\u200f\ufeff").strip()
+            if clean_path:
+                self.filepath = os.path.normpath(clean_path)
+
         if not os.path.exists(self.filepath):
             raise FileNotFoundError(f"DDA file not found: {self.filepath}")
 
-        with open(self.filepath, "rb") as f:
-            data = f.read()
+        try:
+            with open(self.filepath, "rb") as f:
+                data = f.read()
+        except OSError as e:
+            if getattr(e, "errno", None) == 22:
+                try:
+                    st = os.stat(self.filepath)
+                    attrs = getattr(st, "st_file_attributes", 0)
+                    # Windows FILE_ATTRIBUTE_OFFLINE (0x1000), RECALL_ON_OPEN (0x40000), RECALL_ON_DATA_ACCESS (0x400000)
+                    if attrs & (0x1000 | 0x00040000 | 0x00400000):
+                        raise OSError(
+                            22,
+                            f"File '{self.filepath}' is an online-only cloud placeholder (OneDrive/iCloud/Google Drive). "
+                            "Please right-click the file in Explorer and select 'Always keep on this device' so it is downloaded locally."
+                        ) from e
+                except OSError as cloud_err:
+                    if "online-only cloud placeholder" in str(cloud_err):
+                        raise
+                raise OSError(22, f"Invalid argument while reading '{self.filepath}' ({e})") from e
+            raise
 
         # 1. Parse Header & Channel Descriptors
         self.header.parse(data, filepath=self.filepath)

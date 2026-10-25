@@ -930,17 +930,23 @@ class DDAConverterApp(QMainWindow):
             self._parse_file()
 
     def _parse_file(self):
-        fpath = self.file_entry.text().strip()
-        if not fpath or not os.path.exists(fpath):
-            QMessageBox.critical(self, "File Error", "Please select a valid .dda file.")
+        raw_fpath = self.file_entry.text().strip().strip('"').strip("'")
+        raw_fpath = raw_fpath.lstrip("\u202a\u202b\u202c\u200e\u200f\ufeff").strip()
+        if raw_fpath.lower().startswith("file:///"):
+            from urllib.parse import unquote
+            raw_fpath = unquote(raw_fpath[8:])
+        fpath = os.path.normpath(raw_fpath) if raw_fpath else ""
+
+        if not fpath or not os.path.isfile(fpath):
+            QMessageBox.critical(self, "File Error", f"Please select a valid .dda file.\n\nPath not found:\n{fpath or '(empty)'}")
             return
 
+        self.file_entry.setText(fpath)
         self.current_filepath = fpath
         self.txt_log.clear()
         self._log(f"[*] Opening and analyzing DDA file: {fpath}")
 
         try:
-            importlib.reload(dda_core)
             self.parser = dda_core.DDAParser(fpath)
             count = self.parser.parse()
             self._log(f"[+] Successfully decoded {count:,} telemetry frames.\n")
@@ -1050,7 +1056,9 @@ class DDAConverterApp(QMainWindow):
             self._log("=" * 60)
 
         except Exception as e:
-            self._log(f"[-] Error loading file: {e}")
+            import traceback
+            tb_str = traceback.format_exc()
+            self._log(f"[-] Error loading file: {e}\n{tb_str}")
             QMessageBox.critical(self, "Parsing Error", f"Failed to decode DDA file:\n{e}")
 
     def records_sample(self, records, max_rows=1500):
